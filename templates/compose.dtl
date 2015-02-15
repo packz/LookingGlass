@@ -1,0 +1,161 @@
+{% extends "email_base.dtl" %}
+
+{% block local_style %}
+.enwiden {
+  width: 100%;
+}
+textarea {
+  resize: vertical;
+}
+{% include 'typeahead.css' %}
+{% endblock local_style %}
+
+{% block panel_body %}
+{% include 'passphrase_modal.dtl' %}
+
+  <form method='POST' id='ffsletsdoit' action='{% url 'emailclient.send' %}'>
+    <input type='hidden' id='MK' name='MK' value='{{ magic.MK }}'>
+    <input type='hidden' id='mode' name='mode' value='save'>
+      <input type='hidden' id='fingerprint' name='fingerprint' value='{{ magic.fp }}'>
+    {% csrf_token %}
+  <div class='form-group'>
+
+    <div class='input-group'>
+      <span class='input-group-addon'>To:</span>
+      <input type='text' class='form-control typeahead' id='to' name='to' value='{{ magic.to }}' {% if magic.fp %}disabled{% endif %}>
+    </div>
+
+    <div class='input-group'>
+      <span class='input-group-addon'>Subject:</span>
+      <input type='text' class='form-control' id='subject' name='subject' value='{{ magic.subject }}'>
+      <span class='input-group-addon'><span class='glyphicon glyphicon-warning-sign'></span> SUBJECT WILL NOT BE ENCRYPTED</span>
+    </div>
+
+    <div class='input-group enwiden'>
+      <textarea class='form-control' rows='10' id='body' name='body'>{{ magic.body }}</textarea>
+    </div>
+    
+    <div class='input-group enwiden'>
+    <div class='btn-group btn-group-justified'>
+      <div class='btn-group'>
+	<button type='button' id='save' class='btn btn-default'><span class='glyphicon glyphicon-floppy-disk'></span> Save draft</button>
+      </div>
+      <div class='btn-group'>
+	<button type='button' id='send' class='btn btn-default'><span class='glyphicon glyphicon-send'></span> Encrypt & Send</button>
+      </div>
+    </div>
+    </div>
+
+  </div>
+  </form>
+{% endblock panel_body %}
+
+
+{% block js_includes %}
+<script type='text/javascript' src='/js/typeahead.bundle.js'></script>
+{% endblock js_includes %}
+
+
+{% block js %}
+function take_my_draft_please() {
+  var mode = $('#mode').val();
+  to_send = {'csrfmiddlewaretoken':'{{ csrf_token }}',
+      'mode':mode,
+      'body':$('#body').val(),
+      'to':$('#to').val(),
+      'fingerprint':$('#fingerprint').val(),
+      'subject':$('#subject').val(),
+      'passphrase':$('#passphrase').val(),
+      }
+  if ($('#MK').val() != '') {
+    to_send['MK'] = $('#MK').val();
+  };
+  $.post('{% url 'emailclient.send' %}', 
+     to_send, 
+  function(data) {
+    if (data.ok) {
+      if (mode == 'save') {
+            $('#MK').val(data.extra);
+            $('#save').toggleClass('btn-success');
+            setTimeout(function() {
+              $('#save').toggleClass('btn-success');
+            }, 500);
+      } else {
+        /* send */
+        /*
+        we might pass submission errors to the user here
+        alert(data.extra);
+        */
+        location.assign('{% url 'emailclient.folder' 'sent' %}');
+      };
+    } else if (data.extra.match(/clown show/g)) {
+       /* FIXME: this should be automatic */
+       alert("I don't know that user.  Please add them to the addressbook first.");
+    } else if (data.extra.match(/don't have any keys/g)) {
+       /* FIXME: this should be automatic */
+       alert("I don't know that user.  Please add them to the addressbook first.");
+    } else {
+       /* oops, do it again */
+       $('#passphrase-modal').modal('show');
+    };
+  },
+  'json');
+}
+
+$('#save').click(function() {
+  $('#mode').val('save');
+  take_my_draft_please();
+});
+
+$('#send').click(function() {
+  $('#mode').val('send');
+  take_my_draft_please();
+});
+
+function passphrase_submitted() {
+  take_my_draft_please();
+};
+
+var Addressbook = [{% for F in friends %}
+  {'fingerprint':'{{ F.fingerprint }}',
+     'name':'{% if F.nickname %}{{ F.nickname }}{% else %}{{ F.covername }}{% endif %}',
+    },{% endfor %}
+{% for F in friends %}
+  {'fingerprint':'{{ F.fingerprint }}',
+     'name':'{{ F.email }}',
+    },{% endfor %}
+];
+
+var Names = new Bloodhound({
+  datumTokenizer: Bloodhound.tokenizers.obj.whitespace('name'),
+  queryTokenizer: Bloodhound.tokenizers.whitespace,
+  local: Addressbook,
+});
+
+$(document).ready(function(){
+{% if not magic.to %}
+  $('#to').focus();
+{% elif not magic.subject %}
+  $('#subject').focus();
+{% else %}
+  $('#body').focus();
+{% endif %}
+     Names.initialize();
+});
+
+var oakLeaves = $('.typeahead').typeahead({ 
+   highlight: true 
+},
+{
+         name: 'name',
+       source: Names.ttAdapter(),
+   displayKey: 'name',
+});
+
+$('#to').bind('typeahead:selected', function(obj, datum, name) {
+  $('#fingerprint').val(datum.fingerprint);
+});
+
+{% include 'passphrase_modal.js' %}
+
+{% endblock js %}

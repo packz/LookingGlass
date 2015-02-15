@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<title>{{ title }}</title>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<link href="/css/bootstrap.css" rel="stylesheet">
+<link href='/css/local.css' rel='stylesheet'>
+<style>
+@media (min-width: 970px) {
+body {
+  background-image: url('/img/{{ bg_image }}');
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-position: center;
+}
+}
+.form-signin {
+  max-width: 330px;
+  padding: 15px;
+  margin: 0 auto;
+  padding-bottom: 25px;
+}
+.form-signin .form-signin-heading,
+.form-signin .checkbox {
+  margin-bottom: 10px;
+}
+.form-signin .checkbox {
+  font-weight: normal;
+}
+.form-signin .form-control {
+  position: relative;
+  height: auto;
+  -webkit-box-sizing: border-box;
+     -moz-box-sizing: border-box;
+          box-sizing: border-box;
+  padding: 10px;
+  font-size: 16px;
+}
+.form-signin .form-control:focus {
+  z-index: 2;
+}
+.form-signin input[type="password"] {
+  margin-bottom: 10px;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  visibility: hidden;
+}
+.mycollapse {
+  display: none;
+}
+</style>
+</head>
+<body>
+<div class='container'>
+  <div class='row'>
+    <div class='col-md-4 col-md-offset-8'>
+      <div class='panel'>
+	<div class='container-fluid'>
+	  <form id='unlocker' class='form-signin' role='form' method='POST' action='{{ submit_to }}'>
+	    {% csrf_token %}
+	    <input type='hidden' id='HCM' name='HCM' value=''>
+	    {% if next %}
+	    <input type='hidden' name='next' value='{{ next }}'>
+	    {% endif %}
+	      <h3>LookingGlass</h3>
+	      {% if warning_text %}
+		<h4 id='a-warning' class='text-warning'>
+		  {{ warning_text }}
+		</h4>
+	      {% endif %}
+	      {% if title == 'Unlock drive' %}
+	      <div class='progress mount-progress mycollapse'>
+		<div class='progress-bar' id='mount-bar' role='progressbar'
+		     aria-valuenow='0' aria-valuemin='0' aria-valuemax='100'>
+		  <span class='sr-only'><span id='mount-count'>0</span> mounted</span>
+		</div>
+	      </div>
+	      {% endif %}
+	    <input type="password" class="form-control" id='password' name='password' placeholder="{{ placeholder }}" required>
+	    <button id='ready_yet' class="btn btn-lg btn-primary btn-block" type="submit" disabled>Please wait...</button>
+	  </form>
+	</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+<script src='/js/sha1.js'></script>
+<script>
+
+function __salt(length) {
+    var result = '';
+    var chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    for (var i = length; i > 0; --i) result += chars[Math.round(Math.random() * 
+								(chars.length - 1))];
+    return result;
+}
+
+function mint(resource, bits) {
+  var TS = new Date().toISOString().replace(/T.*/, '');
+  var counter = 0;
+  var numz = parseInt(bits/4);
+  var zeros = Array(numz + 1).join('0');
+  var challenge = '1:' + bits + ':' + TS + ':' + resource + '::' + __salt(8) + ':';
+  while (true) {
+    digest = new jsSHA(challenge + counter.toString(16), 'TEXT').getHash('SHA-1', 'HEX');
+    if (digest.slice(0, numz) == zeros) {
+      return challenge + counter.toString(16);
+    };
+    counter += 1;
+  }
+}
+
+{% if title == 'Unlock drive' %}
+function wait_for_unlock() {
+  $.getJSON('{% url 'r_u_unlockt' %}', function(data) {
+    console.log(data);
+    if (data.ok == 'NO') {
+      location.assign('{% url 'accounts.login.failed' %}');
+    } else if (data.ok == 'YES') {
+      location.assign('{% url 'accounts.login' %}');
+    } else {
+      $('#mount-bar').attr('aria-valuenow', data.percent);
+      $('#mount-bar').css('width', data.percent + '%');
+      setTimeout(function() {
+	wait_for_unlock();
+      }, 5000);
+    };
+  });
+}
+{% endif %}
+
+$('#unlocker').submit(function(e){
+  $('#ready_yet').attr('disabled', true);
+  $('#password').css('visibility', 'hidden');
+  $('#ready_yet').text('Please wait some more...');
+  {% if title == 'Unlock drive' %}
+  e.preventDefault();
+  $('.mount-progress').show();
+  $('#password').hide();
+  $.post('{{ submit_to }}', {
+    'csrfmiddlewaretoken':'{{ csrf_token }}',
+    'HCM':$('#HCM').val(),
+    'password':$('#password').val(),
+  });
+  setTimeout(function(){wait_for_unlock()}, 5000);
+  {% endif %}
+});
+
+$(document).ready(function(){
+  setTimeout(function() {
+    var M = mint('{{ challenge }}', {{ bits }});
+    console.log('Hashcash generated: ' + M);
+    $('#HCM').val(M);
+    $('#ready_yet').attr('disabled', false);
+    $('#ready_yet').text('Log in');
+    $('#password').css('visibility', 'visible');
+    $('#password').focus();
+  }, 1000);
+});
+
+</script>
+</body>
+</html>

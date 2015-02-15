@@ -1,0 +1,61 @@
+{% extends "base.dtl" %}
+
+{% block local_style %}
+textarea {
+  resize: vertical;
+}
+.i-like-big-butts {
+  padding-top: 10px;
+}
+{% endblock local_style %}
+
+{% block content %}
+<div class='row'>
+  <div class='col-md-offset-7 col-md-5'>
+    <div class='panel panel-default'>
+      <div class='panel-heading'><h1 class='panel-title' id='thetitle'>Complaints Department</h1></div>
+      <div class='panel-body' id='bugreportform'>
+	<form method='POST' id='bugreport'>
+	  {% csrf_token %}
+	  <div class='radio'>
+	  {% for L in severity %}
+	    <p>
+	    <label class='{{ L.class }}'>
+	      <input type='radio' class='complaintdpt' 
+		     name='severity' name='severity' value='{{ L.id }}' {% if forloop.first %}CHECKED{% endif %}>
+	    {{ L.desc }}
+	    </label>
+	    </p>
+	  {% endfor %}
+	  </div>
+	  <textarea id='summary' name='summary' class='complaintdpt form-control' rows='15' placeholder='Summary of the issue'></textarea>
+	  <div class='text-center i-like-big-butts'>
+	    <button id='submit' type='button' class='complaintdpt btn btn-default'>Submit</button>
+	  </div>
+	</form>
+    </div>
+  </div>
+</div>
+{% endblock content %}
+
+{% block js %}
+$('#submit').click(function(){
+  $.post('{% url 'submit_bug' %}',
+     $('#bugreport').serialize(),
+    function(data) {
+     if (data.ok) {
+       $('#submit').css('text-success');
+       $('#submit').text('Doneulated!');
+       setTimeout(function() {
+         $('#bugreportform').slideUp('slow');
+         $('#thetitle').html('Thank you!');
+       }, 300);
+     } else {
+       $('#submit').css('text-danger');
+       $('#submit').text('Failure.  Nothing personal.');
+     };
+    },'json');
+  $('#submit').text('Doing it...');
+  $('.complaintdpt').attr('disabled', true);
+});
+{% endblock js %}

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<title>{{ title }}</title>
+{% block slow_refresh %}{% endblock slow_refresh %}
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<link href="/css/bootstrap.css" rel="stylesheet">
+<link href='/css/local.css' rel='stylesheet'>
+<style>
+{% if bg_image %}
+@media (min-width: 970px) {
+body {
+  background-image: url('/img/{{ bg_image }}');
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-position: center;
+}
+}
+{% endif %}
+{% block local_style %}{% endblock local_style %}
+</style>
+</head>
+<body>
+<div class='container-fluid'>
+{% block navbar %}
+{% include 'navbar.dtl' %}
+{% endblock navbar %}
+{% block content %}
+{% endblock content %}
+</div><!-- container -->  
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+{% block js_includes %}{% endblock js_includes %}
+<script>
+{% block js %}
+{% endblock js %}
+</script>
+</body>
+</html>

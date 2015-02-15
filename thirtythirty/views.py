@@ -1,0 +1,908 @@
+
+from django.shortcuts import render, redirect
+from django.http import HttpResponse, HttpResponseRedirect
+from django.template import RequestContext, loader
+
+from django.contrib.auth import authenticate, login
+from django.core.urlresolvers import reverse
+
+from os.path import exists
+from random import choice
+from re import search, sub
+import datetime
+import json
+import subprocess
+import os
+import re
+
+import addressbook
+import emailclient.filedb
+import hdd
+import models
+import ratchet
+import smp
+import thirtythirty.exception
+import utils
+
+import thirtythirty.settings as TTS
+from thirtythirty.gpgauth import session_pwd_wrapper, set_up_single_user
+
+import logging
+logger = logging.getLogger(__name__)
+
+def too_many_logins():
+    Minutes = 10
+    Logins  = 10
+
+    Time_Lock = datetime.datetime.now() - \
+                datetime.timedelta(minutes=Minutes)
+
+    models.LoginRateLimiter.objects.filter(
+        issued_at__lte=Time_Lock
+        ).delete()
+
+    if models.LoginRateLimiter.objects.filter(
+        issued_at__lte=datetime.datetime.now()
+        ).filter(
+        issued_at__gte=Time_Lock
+        ).filter(
+        redeemed = False
+        ).count() > Logins:
+        return True
+    else:
+        return False
+
+
+def password_prompt(request, warno=None, Next=None):    
+    if not hdd.drives_exist():
+        return redirect('setup.index')
+    
+    if too_many_logins():
+        do_lockdown(request)
+        return HttpResponse("""
+        You are doing that too much.  Now you must wait.
+        """)
+    
+    C = models.LoginRateLimiter.objects.token()
+    ret = {
+        'title':'Unlock drive',
+        'bg_image':'vault.jpg',
+        'bits':TTS.HASHCASH_BITS['WEBUI'],
+        'challenge':C.challenge,
+        'submit_to':reverse('drive_unlock'),
+        'next':Next,
+        'placeholder':'Drive passphrase',
+        'warning_text':warno,
+        }
+
+    if hdd.drives_are_unlocked():
+        ret['title'] = 'Log in'
+        ret['bg_image'] = 'yard.jpg'
+        ret['submit_to'] = reverse('session_unlock')
+        ret['placeholder'] = 'Email passphrase'
+    
+    context = RequestContext(request, ret)
+    template = loader.get_template('login.dtl')
+    return HttpResponse(template.render(context))
+
+
+def are_drives_unlocked(request):
+    """
+    scans for the unlockerd lock file to return 'RUNNING' state
+    """
+    Unlock_Lock = '/var/lock/unlockerd.lock'
+    Percent = 0
+    Why_yes_they_are = 'NO'
+    if hdd.drives_are_unlocked():
+        Why_yes_they_are = 'YES'
+        Percent = 100
+    elif os.path.exists(Unlock_Lock):
+        Why_yes_they_are = 'RUNNING'
+        for V in hdd.Volumes():
+            if V.is_mounted():
+                Percent += (100.00 / len(TTS.LUKS['mounts']))
+    return HttpResponse(json.dumps({'ok':Why_yes_they_are,
+                                    'percent':Percent}))
+
+
+def drive_unlock(request):
+    if too_many_logins():
+        do_lockdown(request)
+        return HttpResponse("""
+        You are doing that too much.  Now you must wait.
+        """)
+
+    if hdd.drives_are_unlocked():
+        return redirect('accounts.login')
+    
+    HCM = request.POST.get('HCM', None)
+    Challenge = HCM.split(':')[3]
+    try:
+        LRM = models.LoginRateLimiter.objects.get(
+            challenge=Challenge)
+    except models.LoginRateLimiter.DoesNotExist:
+        return HttpResponse("That challenge expired - please go back and try again.")
+    if not LRM.verify(stamp=HCM, bits=TTS.HASHCASH_BITS['WEBUI']):
+        return HttpResponse("That challenge doesn't verify - please go back and try again.")
+
+    logger.debug("Hashcash checks out - let's try to fire the drives up")
+    failed_to_unlock = False
+    K = request.POST.get('password')
+    
+    fh = file(TTS.LUKS['key_file'], 'w')
+    fh.write(K)
+    fh.close()
+
+    return HttpResponse(json.dumps({'ok':True}))
+    
+
+def session_unlock(request):
+    if too_many_logins():
+        do_lockdown(request)
+        return HttpResponse("""
+        You are doing that too much.  Now you must wait.
+        """)
+
+    HCM = request.POST.get('HCM', None)
+    Challenge = HCM.split(':')[3]
+    try:
+        LRM = models.LoginRateLimiter.objects.get(
+            challenge=Challenge)
+    except models.LoginRateLimiter.DoesNotExist:
+        return HttpResponse('Challenge poorly responded to.  Go back and try again.')
+    if not LRM.verify(stamp=HCM, bits=TTS.HASHCASH_BITS['WEBUI']):
+        return HttpResponse("Cash doesn't verify.  Go back and try again.")
+
+    logger.debug('Hashcash verifies, now checking passphrase')
+    
+    P = request.POST.get('password')
+
+    ooser = authenticate(password=P)
+    if ooser:
+        request.session['passphrase'] = P
+        login(request, ooser)
+        logger.debug('little insurgent, little insurgent, let me in!')
+        return redirect('emailclient.inbox')
+    
+    return password_prompt(request,
+                           warno='Wrong passphrase')
+
+
+def index(request, Next=None):
+    if not hdd.drives_exist():
+        return redirect('setup.index')
+    else:
+        return redirect('emailclient.inbox')
+
+
+@session_pwd_wrapper
+def settings(request, advanced=False):
+    Vitals = utils.Vitals(request)
+    Preferences = set_up_single_user()
+    if Preferences.show_advanced: advanced = True
+    
+    Info_Panel = [
+        {'desc':'Version',
+         'name':'LGVersion',
+         'value':TTS.LOOKINGGLASS_VERSION_STRING},
+        {'desc':'Covername',
+         'name':'covername',
+         'value':Vitals['covername'],
+         },
+        {'desc':'Email address',
+         'name':'email',
+         'value':'%s' % Vitals['email'],
+         },
+        {'desc':'GPG Fingerprint',
+         'name':'gpg',
+         'value':Vitals['gpg_fp'],
+         'help':'Back-up authentication method for out-of-band use.',
+         },
+        {'desc':'Bitcoin master public key',
+         'name':'btc_mpk',
+         'value':Vitals['btc_mpk'],
+         'help':'Not yet implemented.',
+         },
+        {'desc':'WebUI SSL certificate',
+         'name':'SSLCert',
+         'value':'Download <a href="https://%s/docs/ca.cert.pem">here</a>.' % Vitals['server_addr'],
+         },
+        ]
+    
+    Settings = [
+        {'title':'Passphrase reset',
+         'id':'cPassphrase',
+         'advanced':True,
+         'desc':"You can change one, or both.",
+         'controls':[
+             {'desc':'Old drive passphrase',
+              'type':'password', 'id':'prev-dpassphrase',
+              },
+             {'desc':'New drive passphrase',
+              'type':'password', 'id':'new-dpassphrase-1',
+              },
+             {'desc':'Confirm drive passphrase',
+              'type':'password', 'id':'new-dpassphrase-2',
+              },
+             {'desc':'Old email passphrase',
+              'type':'password', 'id':'prev-epassphrase',
+              },
+             {'desc':'New email passphrase',
+              'type':'password', 'id':'new-epassphrase-1',
+              },
+             {'desc':'Confirm email passphrase',
+              'type':'password', 'id':'new-epassphrase-2',
+              },
+             ]},
+
+        {'title':'IP Address settings',
+         'id':'cIP',
+         'advanced':True,
+         'controls':[
+             {'desc':'Dynamic vs Static IP',
+              'type':'select', 'id':'ip-address-mode',
+              'choices':Preferences.ip_types,
+              'option_checked':Preferences.ip_address_type,
+              },
+             {'desc':'Static IP address',
+              'type':'text', 'id':'static-ip',
+              'value':utils.IP_Info('Address'),
+              'disabled':Preferences.ip_address_type == Preferences.DYNAMIC_IP,
+              },
+             {'desc':'Netmask',
+              'type':'text', 'id':'netmask',
+              'value':utils.IP_Info('Netmask'),
+              'disabled':Preferences.ip_address_type == Preferences.DYNAMIC_IP,
+              },
+             {'desc':'Gateway IP address',
+              'type':'text', 'id':'gateway-ip',
+              'value':utils.IP_Info('Gateway'),
+              'disabled':Preferences.ip_address_type == Preferences.DYNAMIC_IP,
+              },
+             {'desc':'Accept', 'type':'button',
+              'id':'static-ip-send', 'value':'Submit',
+              'disabled':Preferences.ip_address_type == Preferences.DYNAMIC_IP,
+              },
+             ]},
+                
+        {'title':'Session settings',
+         'id':'cSession',
+         'controls':[
+             {'desc':'Activate session passphrase',
+              'type':'checkbox', 'id':'sessions-on',
+              'help':'If you have multiple local users that may be poking around your stuff, turn this on.',
+              'checked':Preferences.session_passphrase,
+              },
+             {'desc':'Session timeout',
+              'type':'text', 'id':'session-timeout',
+              'placeholder':Preferences.session_timeout,
+              },
+             ]},
+
+        {'title':'Disaster recovery',
+         'id':'cRecovery',
+         'advanced':True,
+         'controls':[
+             {'desc':'Recover encrypted databases',
+              'type':'button', 'id':'database-recover',
+              'help':'If a power outage or some other badness occurred, you may need this',
+              'warn':"You may lose messages and need to resynchronize with your contacts - don't click this idly",
+              },
+             ]},
+
+        {'title':'Dead man switch',
+         'id':'cDeadMan',
+         'advanced':True,
+         'controls':[
+             {'desc':'Dead man switch',
+              'disabled':True, 'type':'checkbox',
+              'help':'Let interested people know I am alive',
+              },
+             {'desc':'Timeout', 'id':'dms-timeout',
+              'disabled':True, 'type':'text',
+              'placeholder':'three days',
+              },
+             ]},
+
+        {'title':'Radio interface',
+         'id':'cRadio',
+         'advanced':True,
+         'controls':[
+             {'desc':'Enable mesh radio interface',
+              'disabled':True, 'type':'checkbox',
+              },
+             ]},
+
+        {'title':'System administration',
+         'id':'cSysadmin',
+         'controls':[
+             {'desc':'Report bug',
+              'type':'link', 'href':reverse('bug_report'),
+             },
+             {'desc':'Check for updates',
+              'type':'buttonbar', 'id':'update',
+              'buttons':[{'desc':'Check',
+                          'id':'update-check'},
+                         {'desc':'Status',
+                          'id':'update-status',
+                          'disabled':True},
+                         {'desc':'Update',
+                          'id':'update-unpack',
+                          'hidden':True},
+                         ],
+              },
+             {'desc':'Backup state',
+              'type':'link', 'id':'sysbackup',
+              'href':'backup',  # FIXME: reverse()
+              'help':'[Backup not yet written]',
+              'disabled':True,
+              },
+             {'desc':'Restore state',
+              'type':'link', 'id':'sysrestore',
+              'href':'restore', # FIXME: reverse()
+              'help':'[Restore not yet written]',
+              'disabled':True,
+              },
+             {'desc':'Respond to status queries',
+              'type':'checkbox', 'id':'allow-status',
+              'help':'Respond to keyserver poll for system status',
+              'checked':True, 'disabled':True,
+             },
+             {'desc':'Local wizard login',
+              'type':'link', 'href':'https://%s:4200' % Vitals['server_addr'],
+              'target':'_blank',
+              'help':'Emergency login for nearby wizards',
+              },
+             {'desc':'Reboot',
+              'type':'button', 'id':'reboot',
+              'help':'Reboots, locks drives',
+              },              
+             {'desc':'Reset to defaults',
+              'type':'button', 'id':'reset-to-defaults',
+              'warn':'NUKES EVERYTHING.',
+              },
+             ]},
+
+        {'title':'Passphrase convenience',
+         'id':'cPWcache',
+         'advanced':True,
+         'controls':[
+             {'desc':'USB key token',
+              'type':'checkbox', 'id':'usb-token',
+              'help':'Use USB flash drive as encryption key',
+              'disabled':True,
+              },
+             {'desc':'Passphrase cache',
+              'type':'checkbox', 'id':'pp-cache-on',
+              'help':'Allows authentication tasks to proceed more quickly',
+              'warn':'Increaseses your window of vulnerability',
+              'checked':Preferences.passphrase_cache,
+              },
+             {'desc':'Passphrase cache cleared:',
+              'type':'select', 'id':'pp-cache-timeout',
+              'choices':models.preferences.passphrase_cache_timeouts,
+              'option_checked':Preferences.passphrase_cache_time,
+              }
+             ]},
+        
+        {'title':'Blatantly insecure niceties',
+         'id':'cGape',
+         'advanced':True,
+         'controls':[
+             {'desc':'Keep a copy of sent messages',
+              'type':'checkbox', 'id':'tx-symmetric-on',
+              'checked':Preferences.tx_symmetric_copy,
+             },
+             {'desc':'Keep a copy of read-once messages',
+              'type':'checkbox', 'id':'rx-symmetric-on',
+              'checked':Preferences.rx_symmetric_copy,
+             },
+             {'desc':'Local search',
+              'type':'checkbox', 'id':'search-on',
+              'disabled':True,
+              },
+             ]},
+
+        {'title':'Darknet mode',
+         'id':'cDarknet',
+         'advanced':True,
+         'controls':[
+             {'desc':'Darknet mode',
+              'type':'checkbox', 'id':'darknet-on',
+              'help':'Email whitelisting',
+              'disabled':True,
+              },
+             {'desc':'Darknet key',
+              'type':'text', 'id':'darknet-key',
+              'placeholder':'Shared secret',
+              'disabled':True,
+              },
+             ]},
+
+        {'title':'Remote access',
+         'id':'cRemote',
+         'advanced':True,
+         'controls':[
+             {'desc':'Remote user access',
+              'type':'checkbox', 'id':'remote-user-on',
+              'disabled':True,
+              'help':'Provides experimental remote Tor access',
+              },
+             {'desc':'Allow remote assist',
+              'type':'checkbox', 'id':'remote-admin-on',
+              'warn':'Allows complete remote control of device',
+              'disabled':True,
+              },
+             ]},
+
+        {'title':'System logs',
+         'id':'cLogs',
+         'viewport':'log-view',
+         'view_ro':True,
+         'advanced':True,
+         'controls':[
+             {'desc':'Mail log',
+              'type':'link', 'id':'get-mail-log',
+             },
+             {'desc':'Recent login history',
+              'type':'link', 'id':'get-user-log',
+             },
+             {'desc':'Web frontend',
+              'type':'link', 'id':'get-web-log',
+              },
+             ]},
+
+        {'title':'Mail filters',
+         'id':'cFilter',
+         'viewport':'mail-filter',
+         'view_ro':False,
+         'advanced':True,
+         'controls':[
+             {'desc':'Update',
+              'type':'link', 'id':'update-filter',
+              },
+             ]},
+
+        {'title':'Mailing lists',
+         'id':'cMailman',
+         'advanced':True,
+         'controls':[
+             {'desc':'Run encrypted mail list',
+              'id':'axo-mailman',
+              'type':'checkbox', 'disabled':True,
+              }
+             ]},
+
+        # https://en.wikipedia.org/wiki/Cypherpunk_anonymous_remailer
+        {'title':'Anonymous remailing',
+         'id':'cCypherpunkAR',
+         'advanced':True,
+         'controls':[
+             {'desc':'Provide remailing services to other users',
+              'type':'checkbox', 'id':'cypherpunk-relay-on',
+              'disabled':True,
+              },
+             {'desc':'Use remailing for outbound email',
+              'type':'checkbox', 'id':'cypherpunk-outbound-on',
+              'disabled':True,
+              },
+             {'desc':'Enable traffic analysis countermeasures',
+              'type':'checkbox', 'id':'ta-counter-on',
+              'disabled':True,
+              },
+             ]},
+
+        {'title':'WooOOOooOOo folders',
+         'id':'cFolders',
+         'advanced':True,
+         'controls':[
+             {'desc':'Administrator inbox',
+              'type':'link', 'href':reverse('emailclient.folder', kwargs={'name':'admin'}),
+              'badge':emailclient.filedb.message_count('admin'),
+              },
+             {'desc':'Trash',
+              'type':'link', 'href':reverse('emailclient.folder', kwargs={'name':'trash'}),
+              'badge':emailclient.filedb.message_count('trash'),
+              },
+             ]},
+
+        {'title':'Double dog advanced',
+         'id':'cAdvanced',
+         'controls':[
+             {'desc':'Barf forth apocalyptica',
+              'type':'link', 'href':reverse('advanced_settings'),
+              },
+             {'desc':'Always show advanced controls',
+              'type':'checkbox', 'id':'advanced-always-on',
+              'checked':Preferences.show_advanced,
+              'advanced':True,
+              },
+             ]},
+        
+        ]
+    
+    context = RequestContext(request, {
+        'title':'Settings',
+        'nav':'Settings',
+        'bg_image':'dash.jpg',
+        'vital_summary':Info_Panel,
+        'vitals':Vitals,
+        'mounts':hdd.Volumes(),
+        'services':utils.query_daemon_states(),
+        'advanced':advanced,
+        'setting_list':Settings,
+        })
+    template = loader.get_template('settings.dtl')
+    return HttpResponse(template.render(context))
+
+
+@session_pwd_wrapper
+def about(request):
+    template = loader.get_template('about.dtl')
+    Vitals = utils.Vitals(request)
+    CHAT_URL = 'https://%s:16667?nick=%s' % (Vitals['server_addr'], Vitals['ircname'])
+    CTD = {
+        'title':"What it's about.",
+        'nav':'About',
+        'bg_image':choice([
+            'aldrin.jpg',
+            'arcadia_ego.jpg',
+            'castle.jpg',
+            'fishing.jpg',
+            'highway.jpg',
+            'island.jpg',
+            'lambda.jpg',
+            'office.jpg',
+            'pier.jpg',
+            'squeeze.jpg',
+            ]),
+        'freedom_image':'logo.png',
+        'faq':[
+            {'q':'WHAT IS GOING ON?', 'a':"You're looking through LookingGlass, an encrypted mail system."},
+            {'q':'What can I do with it?',
+             'a':"Send email that will be as compartmentalized and secure as possible."},
+            {'q':'Are there any best practices I should be aware of?',
+             'a':"<a href='#cBCP' id='show-best-practices'>Yes.</a>"},
+            {'q':"Where can I get help?",
+             'a':"Please join the <a target='_blank' href='%s'><span class='glyphicon glyphicon-comment text-info'></span><span class='text-primary'> Chat</span></a> for live help.  They'll probably be able to steer you in the right direction." % (CHAT_URL)},
+            {'q':'MOAR BUZZWORDS.  MOAR COMPREHENZIF.',
+             'a':"You're looking at LookingGlass, an encrypted, forward secure, peer-to-peer, anonymous email system."},
+            {'q':'Encrypted?',
+             'a':"Yep.  All of it.  LookingGlass doesn't send unencrypted messages.  Additionally, if you pull power (or click <a class='bg-danger' id='whoa-there'><span class='glyphicon glyphicon-fire text-danger'></span> Lockdown</a>) the drive encryption should make sure your information remains secret."},
+            {'q':"But I already use encryption - why should I use this?",
+             'a':"This probably isn't for you, then - but you may be interested in forward security, or want more of your contacts to get to the same pinnacle of security excellence you're at."},
+            {'q':"What does 'forward secure' even mean?",
+             'a':"""That once you and your contact have negotiated a key pair, all messages become readable only once."""},
+            {'q':"That's ridiculous - I can print these emails out and the sender has no control over that and would never know.",
+             'a':"There really isn't much to be done about that.  Used as intended, however, we go to great lengths to keep you and your cabal safe."},
+            {'q':"What do you mean by peer-to-peer?",
+             'a':"""Every LookingGlass user runs their own mail server, and sends email directly to other users.  There is no single point of failure or compromise.  Well, besides yourself."""},
+            {'q':'How can this be anonymous if I am running a server?',
+             'a':"""Because you are running what is called a <a href='https://en.wikipedia.org/wiki/Tor_%28anonymity_network%29#Hidden_services'>hidden service</a> on the Tor anonymity network.  <a href='https://www.torproject.org/docs/hidden-services.html.en'>Here's</a> an excellent, if technical, graphic.  Some people refer to this as a 'darknet.'"""},
+            {'q':"What's with all the disabled links?",
+             'a':"Those are proposed future features that haven't been coded yet.  If they excite you, speaking up or donating would be tubular."},
+            {'q':"Why are my email subjects saying <span class='bg-info'>[SYMMETRIC]</span> now?",
+             'a':"Because you selected to <a href='%s#cGape'>keep a local copy of read-once messages</a>, which re-encrypts them.  This is <span class='bg-danger'>NOT SECURE OR RECOMMENDED</span>." % reverse('advanced_settings')},
+            {'q':'Does LookingGlass make my web browsing anonymous?',
+             'a':'Presently, no - but that is a possible future feature.'},
+            {'q':'How do I report a bug?',
+             'a':"Oh boy, already?  There is a <a href='%s'>form</a>." % reverse('bug_report')},
+            ],
+
+        
+        'best':["Activate the <a href='%s#cSession'>session passphrase</a> - set the timeout to be as short as comfortable." % reverse('settings'),
+                "Authenticate your contacts with a <a href='%s'>shared secret</a> only the two of you would know." % reverse('addressbook'),
+                "Try not to have the times that your LookingGlass server is connected to the Internet correlate too much with the times you actually use it.  This will make you a bit more difficult to identify.  LookingGlass is designed to be online all the time, and that is recommended.",
+                "Do not exchange your <b>covername</b> over an insecure channel.  This undermines the traffic analysis features of LookingGlass.",
+                ],
+
+        
+        'thanks':[
+            {'indx':'a', 'c':"<a target='_blank' href='https://github.com/rxcomm/pyaxo'>David Andersen</a>"},
+            {'indx':'g', 'c':"<a target='_blank' href='https://otr.cypherpunks.ca/news.php'>Ian Goldberg</a>"},
+            {'indx':'h', 'c':'H00dat'},
+            {'indx':'n', 'c':"<a target='_blank' href='https://bitcoin.org/bitcoin.pdf'>Satoshi Nakamoto</a>"},
+            {'indx':'p', 'c':"<a target='_blank' href='https://github.com/trevp/axolotl/wiki/newversion'>Trevor Perrin</a>"},
+            {'indx':'r', 'c':'Roakyd'},
+            {'indx':'r', 'c':'Roid'},
+            {'indx':'t', 'c':"<a target='_blank' href='https://shanetully.com/2013/08/mitm-protection-via-the-socialist-millionaire-protocol-otr-style/'>Shane Tully</a>",},
+            {'indx':'v', 'c':'Vladimir'},
+            {'indx':'x', 'c':'Xmz'},
+            {'indx':'z', 'c':'Zh'},
+            ],
+        'vitals':utils.Vitals(request),
+        }
+    context = RequestContext(request, CTD)
+    return HttpResponse(template.render(context))
+
+
+@session_pwd_wrapper
+def bug_report(request):
+    template = loader.get_template('bug_report.dtl')
+    Severity = [
+        {'id':'WISH', 'desc':"This is cool, but you know what would be REALLY cool...", 'class':'text-muted'},
+        {'id':'MINOR', 'desc':"This is harder than it needs to be...", 'class':'text-info'},
+        {'id':'MAJOR', 'desc':"I can barely make this work by...", 'class':'text-warning'},
+        {'id':'EPIC', 'desc':"So broken I can't work because...", 'class':'text-danger'},
+        ]
+    Passed = {
+        'title':'Bug Report',
+        'bg_image':'notreallyabug.jpg',
+        'severity':Severity,
+        'explanation':"""
+        Here is some text.
+        """,
+        }
+    context = RequestContext(request, Passed)
+    return HttpResponse(template.render(context))
+
+
+@session_pwd_wrapper
+def submit_bug(request):
+    for X in ['severity', 'summary']:
+        if request.POST.get(X) == None: return HttpResponse(json.dumps({'ok':False}))
+    emailclient.utils.submit_to_smtpd(
+        Destination=TTS.UPSTREAM['bug_report_email'],
+        Payload=request.POST.get('summary'),
+        Subject='BUGRPT:%s' % request.POST.get('severity'),
+        )
+    return HttpResponse(json.dumps({'ok':True}))
+
+
+def lockdown(request):
+    do_lockdown(request)
+    template = loader.get_template('lockdown.dtl')
+    context = RequestContext(request, {
+        'bg_image':'eject.jpg',
+        'title':'You know what to do',
+        })
+    return HttpResponse(template.render(context))
+
+
+def do_lockdown(request):
+    """
+    fluck y'all, i'm heading to tahiti.
+    
+    called during password bruting overfailure as well
+
+    if we have access to the passphrase, use it to encrypt the DB states
+
+    FIXME: we should also try getting the pphrase out of request.session['passphrase']
+    """
+    if exists(TTS.PASSPHRASE_CACHE):
+        PP = file(TTS.PASSPHRASE_CACHE, 'r').read()
+        os.unlink(TTS.PASSPHRASE_CACHE)
+        try: ratchet.conversation.Conversation.objects.encrypt_database(PP)
+        except: pass
+        try: smp.models.SMP.objects.encrypt_database(PP)
+        except: pass
+    request.session.flush()
+    request.session.clear_expired()
+    for V in hdd.Volumes():
+        V.lock()
+    logging.debug('lockdown complete')
+
+
+@session_pwd_wrapper
+def reboot(request):
+    subprocess.check_output(['/usr/bin/sudo', '-u', 'root', '/sbin/shutdown', '-r', 'now'])
+    return HttpResponse('dun dun dun')
+
+
+@session_pwd_wrapper
+def reset_to_defaults(request):
+    """
+    CAREFUL, MANHANDLER.
+    """
+    passphrase = request.POST.get('passphrase')
+    if not addressbook.gpg.verify_symmetric(passphrase):
+        return HttpResponse('No.')
+    subprocess.check_output(['/usr/bin/sudo', '-u', 'root', 
+                             '/usr/local/bin/LookingGlass/cleanup_startup.sh'])
+    for V in hdd.Volumes(unlisted=False):
+        V.lock()
+        try: V.remove()
+        except: pass
+    try: os.unlink(TTS.GPG['export'])
+    except: pass
+    subprocess.check_output(['/usr/bin/sudo', '-u', 'root', '/sbin/shutdown', '-r', 'now'])
+    return HttpResponse('I am become Time, the destroyer...')
+
+
+@session_pwd_wrapper
+def set_advanced(request):
+    Preferences = set_up_single_user()
+    if request.POST.get('engaged') == 'true':
+        Preferences.show_advanced = True
+    else:
+        Preferences.show_advanced = False
+    Preferences.save()
+    return HttpResponse(json.dumps({'engaged':Preferences.show_advanced}),
+                        content_type='application/json')
+
+@session_pwd_wrapper
+def db_disaster(request):
+    ratchet.conversation.Conversation.objects.init_for('ratchet')
+    ratchet.conversation.Conversation.objects.recover_database()
+    smp.models.SMP.objects.init_for('smp')
+    smp.models.SMP.objects.recover_database()
+    return HttpResponse(json.dumps({'ok':'it is done.'}),
+                        content_type='application/json')
+
+
+@session_pwd_wrapper
+def passphrase_cache(request):
+    Preferences = set_up_single_user()
+    Preferences.passphrase_cache_time = request.POST.get('cache_time',
+                                                         models.preferences.HOURLY)
+    if request.POST.get('engaged') == 'true':
+        Preferences.passphrase_cache = True
+    else:
+        Preferences.passphrase_cache = False
+    Preferences.save()
+    return HttpResponse(json.dumps({'cache_time':Preferences.passphrase_cache_time,
+                                    'engaged':Preferences.passphrase_cache,
+                                    }),
+                        content_type='application/json')
+
+
+@session_pwd_wrapper
+def ip_address(request):
+    Preferences = set_up_single_user()
+    Preferences.ip_address_type = request.POST.get('ip-address-mode',
+                                                   models.preferences.DYNAMIC_IP)
+    Preferences.set_ip(IP = request.POST.get('static-ip', '0.0.0.0'),
+                       NM = request.POST.get('netmask', '0.0.0.0'),
+                       GW = request.POST.get('gateway-ip', '0.0.0.0')
+                       )
+    Preferences.save()
+    return HttpResponse(json.dumps({'engaged':True,
+                                    'ip-address-mode':Preferences.ip_address_type}),
+                        content_type='application/json')
+
+@session_pwd_wrapper
+def symmetric_copy(request):
+    Preferences = set_up_single_user()
+    if request.POST.get('tx_engaged') == 'true':
+        Preferences.tx_symmetric_copy = True
+    else:
+        Preferences.tx_symmetric_copy = False
+    if request.POST.get('rx_engaged') == 'true':
+        Preferences.rx_symmetric_copy = True
+    else:
+        Preferences.rx_symmetric_copy = False        
+    Preferences.save()
+    return HttpResponse(json.dumps({'tx_engaged':Preferences.tx_symmetric_copy,
+                                    'rx_engaged':Preferences.rx_symmetric_copy,
+                                    }),
+                        content_type='application/json')
+
+
+@session_pwd_wrapper
+def sessions(request):
+    Preferences = set_up_single_user()
+    try:
+        # so dirty, it smells
+        timeout = int(request.POST.get('timeout'))
+        Preferences.session_timeout = timeout
+    except: pass
+    if request.POST.get('engaged') == 'true':
+        Preferences.session_passphrase = True
+    else:
+        Preferences.session_passphrase = False
+    request.session.set_expiry( Preferences.session_timeout )
+    Preferences.save()
+    ret = {'timeout':Preferences.session_timeout,
+           'engaged':Preferences.session_passphrase,
+           }
+    return HttpResponse(json.dumps(ret),
+                        content_type='application/json')
+
+
+@session_pwd_wrapper
+def mount_states(request):
+    ret = []
+    for V in hdd.Volumes():
+        ret.append({'name':V.Name, 'Mount':V.is_mounted()})
+    return HttpResponse(json.dumps(ret),
+                        content_type='application/json')
+
+
+@session_pwd_wrapper
+def server_states(request):
+    return HttpResponse(json.dumps(utils.query_daemon_states()),
+                        content_type='application/json')
+
+
+@session_pwd_wrapper
+def log_dump(request):
+    return HttpResponse(json.dumps(
+        subprocess.check_output(['/usr/bin/sudo', '-u', 'root',
+                                 '/usr/bin/tail',
+                                 '-n', '25',
+                                 '/var/log/mail.log'])
+        ), content_type='application/json')
+
+
+@session_pwd_wrapper
+def last(request):
+    ret = '%s\n%s' % (
+        str(subprocess.check_output(['/usr/bin/uptime'])),
+        str(subprocess.check_output(['/usr/bin/last', '-i'])),
+        )
+    return HttpResponse(json.dumps(ret),
+                        content_type='application/json')
+
+
+@session_pwd_wrapper
+def thirtythirty(request):
+    ret = '%s\n%s' % (
+        str(subprocess.check_output(['/usr/bin/tail', '/tmp/thirtythirty.log'])),
+        str(subprocess.check_output(['/usr/bin/tail', '/tmp/thirtythirty.err'])),
+        )
+    return HttpResponse(json.dumps(ret),
+                        content_type='application/json')
+
+
+@session_pwd_wrapper
+def update(request):    
+    Socket = TTS.UPSTREAM['update_socket']
+    ret = {'ok':False, 'status':'IDKWTFBBQ'}
+    Mode = request.GET.get('mode')
+
+    if Mode == 'listen' and not exists(Socket):
+        ret = {'ok':False, 'status':'Not running'}
+
+    elif Mode != 'listen' and exists(Socket):
+        ret = {'ok':True, 'status':'Already running'}
+        
+    elif Mode in ['download', 'unpack'] and not exists(Socket):
+        # touch request file
+        S = file(Socket, 'w')
+        S.write(json.dumps({'mode':Mode, 'request':True}))
+        S.close()
+        ret = {'ok':True, 'status':'Scanning for updates...'}
+    
+    elif Mode == 'listen' and exists(Socket):
+        Raw = file(Socket, 'r').read().strip()
+        Entries = Raw.split('\n')
+        
+        try:
+            # request file is newline-seperated JSON hashes - process last entry
+            ret = json.loads(Entries[-1])
+            
+        except ValueError:
+            # we want to keep trying
+            ret['status'] = 'Working...'
+            ret['ok'] = True
+            return HttpResponse(json.dumps(ret),
+                                content_type='application/json')
+
+        # here we deal with specific states returned by the backend
+        if ret.has_key('bogus'):
+            # fingerprint is BS
+            ret['ok'] = False
+            os.unlink(Socket)
+            logger.debug('removed socket')
+
+        elif ret.has_key('fingerprint') and ret['mode'] != 'unpack':
+            # first run: waiting for user command to unpack
+            # second run: bypass, we want the file_list
+            ret['ok'] = False
+            ret['unpackable'] = True
+            os.unlink(Socket)
+            logger.debug('removed socket')
+        
+        elif ret.has_key('file_list'):
+            # all's well
+            ret['ok'] = False
+            os.unlink(Socket)
+            logger.debug('removed socket')
+
+        elif ret.has_key('mode') and ret.has_key('request'):
+            # we're waiting for the daemon to respond...
+            ret['ok'] = True
+            ret['status'] = 'Working...'
+        
+    return HttpResponse(json.dumps(ret),
+                        content_type='application/json')

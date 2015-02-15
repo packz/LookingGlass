@@ -1,0 +1,59 @@
+{% extends "base.dtl" %}
+
+{% block local_style %}
+.mycollapse {
+  display: none;
+}
+{% endblock local_style %}
+
+{% block navbar %}
+<div class='mycollapse the-big-reveal'>
+{% include 'navbar.dtl' %}
+</div>
+{% endblock navbar %}
+
+{% block content %}
+<div class='jumbotron text-center'>
+  <h1 class='no-longer-an-option'>You're done, homefry.</h1>
+  <h1 class='mycollapse please-wait-some-more'>Please wait.</h1>
+  <h3 class='mycollapse please-wait-some-more'>Updating your cryptographic choices.</h3>
+  <h1 class='mycollapse now-available'>Time to explore!  Good luck!</h1>
+  <p>This is your last chance to save your passphrase information.</p>
+  <pre class='noselect text-left'>
+  {{ your_info }}
+  </pre>
+  <div class='no-longer-an-option'>
+    <p>Once you've got that copied down somewhere safe, we need to <button type='btn btn-lg' id='publish-btn'>publish</button> your covername to the world.</p>
+    <p><small>(If you are not at peace with your choices, you can <a href='{% url 'setup.clobber' %}'>start again</a>, as well.)</small></p>
+  </div>
+</div>
+{% endblock content %}
+
+
+{% block js %}
+function luks_complete() {
+  /* gotta wait until Key Slot 1 is filled, or user will get a redirect loop */
+  $.getJSON('{% url 'setup.updates_complete' %}', function(data) {
+    console.log(data);
+    if (data) {
+      $('.please-wait-some-more').hide();
+      $('.now-available').show();
+        setTimeout(function() {
+        $('.the-big-reveal').fadeIn('slow');
+        }, 4000);
+    } else {
+      setTimeout(function() {
+       luks_complete();
+      }, 10000);
+    };
+  });
+}
+
+$('#publish-btn').click(function(){
+  $('.no-longer-an-option').fadeOut(function(){
+    $('.please-wait-some-more').fadeIn();
+  });
+  $.get('{% url 'setup.create_user' %}');
+  luks_complete();
+  });
+{% endblock js %}

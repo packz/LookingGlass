@@ -1,0 +1,16 @@
+<div class='modal fade' id='background-request-modal' tabindex='-1'>
+  <div class='modal-dialog modal-sm'>
+    <div class='modal-content'>
+  <div class='modal-header'>
+  <button type='button' class='close' data-dismiss='modal'><span aria-hidden='true'>&times;</span><span class='sr-only'>Close</span></button>
+  <h4 class='modal-title'>Request submitted<h4>
+  </div>
+      <div class='modal-body'>
+	<div class='container-fluid'>
+          <p>I need to query the secret database in the sky for <span class='text-primary' id='modal-covername'></span>'s data.</p>
+          <p>Please be patient.</p>
+	</div>
+      </div>  
+    </div>
+  </div>
+</div>

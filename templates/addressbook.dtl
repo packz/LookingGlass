@@ -1,0 +1,210 @@
+{% extends "base.dtl" %}
+
+{% block slow_refresh %}
+<meta http-equiv="refresh" content="60" />
+{% endblock slow_refresh %}
+
+{% block local_style %}
+.hey-fathead {
+  padding-top: 20px;
+}
+.flip-flap {
+  padding-top: 10px;
+  min-height: 50px;
+}
+.time-warp-again {
+  padding-right: 10px;
+}
+#import-key {
+  resize: none;
+  font-family: monospace;
+}
+.width-lock {
+  resize: vertical;
+}
+.mycollapse {
+  display: none;
+}
+{% include 'typeahead.css' %}
+{% endblock %}
+
+{% block content %}
+{% include 'backend_modal.dtl' %}
+{% include 'passphrase_modal.dtl' %}
+
+{% if advanced %}
+{% include 'pastebox_modal.dtl' %}
+{% endif %}
+
+<div class='container'>
+  <div class='panel panel-default'>
+    <div class='panel-body'>
+
+      <ul class='nav nav-tabs' role='tablist'>
+	  <li id='ALL' {% if not index %}class='active'{% endif %}><a href='{% url 'addressbook' %}'>ALL</a></li>
+	{% for Letter in indices %}
+	  <li id='{{ Letter }}-head' {% if Letter == index %}class='active'{% endif %}><a href='{% url 'addressbook.filter' Index=Letter %}'>{{ Letter }}</a></li>
+	{% endfor %}
+	{% if headend_ok %}
+	<li class='pull-right'>
+	  <button id='add-contact' type='button' class='btn btn-default'><span class='glyphicon glyphicon-plus'></span></button>
+	    <input type='text' class='form-control typeahead' id='searchBox' placeholder='Add contact'></input>
+	</li>
+	{% else %}
+	<li class='pull-right text-info'>
+	    <p>Authenticating to upstream server.  You will be able to add contacts here shortly</p>
+	</li>
+	{% endif %}
+	{% if advanced %}
+	<li class='pull-right time-warp-again'>
+           <button id='upload' type='button' class='btn btn-default'>Upload key</button>
+	</li>
+	{% endif %}
+      </ul>
+
+      {% include 'contactlist.dtl' %}
+
+      <div class='container-fluid hey-fathead mycollapse' id='aContact'>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock content %}
+
+
+{% block js_includes %}
+<script type='text/javascript' src='/js/typeahead.bundle.js'></script>
+<script type='text/javascript' src='/js/double-metaphone.js'></script>
+{% endblock js_includes %}
+
+
+
+{% block js %}
+$('.editAKA').click(function() {
+  $(this).hide();
+  $('#' + $(this).data('ref')).show();
+  $('#' + $(this).data('ref')).focus();
+});
+
+$('.AKAbox').blur(function() {
+  $(this).hide();
+  var nV = $(this).val().toUpperCase();
+  if (nV != '') {
+    $('#' + $(this).data('ref')).text(nV);
+    $.post('{% url 'addressbook.nickname' %}',
+       {'csrfmiddlewaretoken':'{{ csrf_token }}',
+        'fingerprint':$(this).data('ref'),
+        'new-nick':nV,
+       });
+  };
+  $('#' + $(this).data('ref')).show();
+});
+
+$('.AKAbox').keypress(function(e){
+  if (e.which == 13) {
+    $(this).blur();
+  };
+});
+
+var Covernames = new Bloodhound({
+  datumTokenizer: Bloodhound.tokenizers.obj.whitespace('name'),
+  queryTokenizer: Bloodhound.tokenizers.whitespace,
+  limit: 30,
+  remote: {
+    url:'{% url 'addressbook.search' %}#%QUERY',
+   ajax:{
+      data: $.param({ 'bogus':'horseshit' }),
+      beforeSend: function(jqXhr, settings) {
+           var sB = $('#searchBox').val();
+           if (sB.split(' ').length == 2) {
+             sB = sB.split(' ')[1];
+           };
+           var twoPhone = double_metaphone(sB);
+           settings.data = $.param({
+              primary: twoPhone.primary,
+            secondary: twoPhone.secondary,
+                clear: $('#searchBox').val(),
+  csrfmiddlewaretoken: '{{ csrf_token }}',
+              });
+        },
+      type: 'POST',
+      },
+  }});
+
+Covernames.initialize();
+
+var blueMax = $('.typeahead').typeahead(
+  {minLength: 2},
+  {source: Covernames.ttAdapter(),
+   displayKey:'name',
+  });
+
+blueMax.keypress(function(e) {
+  if (e.which == 13) {
+    add_contact();
+  };
+});
+
+function add_contact() {
+  if ( $('#searchBox').val().length > 5 ) {
+    $.post('{% url 'addressbook.add' %}',
+       { 
+            covername:$('#searchBox').val().toUpperCase(),
+  csrfmiddlewaretoken: '{{ csrf_token }}'
+       });
+    $('#modal-covername').text($('#searchBox').val().toUpperCase());
+    $('.typeahead').typeahead('val', '');
+    $('#background-request-modal').modal('show');
+    $('#background-request-modal').on('hidden.bs.modal', function(e){
+     location.reload();
+    });
+  }}
+
+$('#add-contact').click(function(){
+  add_contact();
+});
+
+
+function load_a_dossier(fingerprint) {
+  $.get('{% url 'addressbook.dossier' %}/' + fingerprint {% if advanced %}+ '/advanced'{% endif %},
+     function(htm) {
+      $('#contactlist').slideUp('slow',
+       function(){
+      $('#aContact').html(htm);
+        $('#aContact').slideDown(function(){
+          location.hash = fingerprint;
+        });
+      });
+  });
+}
+
+
+$('.contact-props').click(function(){
+  load_a_dossier( $(this).data('ref') );
+});
+
+$(document).ready(function(){
+  if (location.hash != '') {
+    load_a_dossier( location.hash.substr(1) );
+  }
+});
+
+{% if advanced %}
+$('#upload').click(function(){
+   $('#pastebox-modal').modal('show');
+});
+$('#submit-import').click(function(){
+  $('#pastebox-modal').modal('hide');
+  $.post('{% url 'addressbook.key_import' %}',
+       {
+  csrfmiddlewaretoken: '{{ csrf_token }}',
+          PK:$('#import-key').val(),
+       },
+     function(data) { location.reload(); });
+});
+{% endif %}
+
+{% include 'passphrase_modal.js' %}
+
+{% endblock %}

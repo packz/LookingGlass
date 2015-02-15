@@ -1,0 +1,63 @@
+{% load hyphens %}
+{% load cycle from future %}
+
+<div class='container-fluid hey-fathead' id='contactlist'>
+  <div class='row'>
+    <div class='col-md-8 col-md-offset-2 col-sm-12 col-xs-12'>
+    {% for K in friends|dictsort:'magic' %}
+      <div class='container-fluid'> 
+	<div class='row flip-flap {% cycle '' 'bg-info' %}'>
+	  <div class='col-md-1'>
+	    {% if K.user_state >= 30 and not K.is_me %}
+	    <a title='Compose' 
+	       href='{% url 'emailclient.compose' FP=K.fingerprint %}'>
+	      <span class='glyphicon glyphicon-pencil text-success'></span>
+	    </a>
+	    {% endif %}
+	  </div>
+	  <div class='col-md-5'>
+	    <p>{% if K.nickname %}{{ K.nickname }}{% else %}{{ K.covername }}{% endif %}{% if K.is_me %}<span class='text-primary'> [THIS IS YOU]</span>{% endif %}</p>
+	    {% if advanced %}
+	    <p class='text-muted small maybe-long'>{{ K.fingerprint }}</p>
+	    {% endif %}
+	  </div>
+	  <div class='col-md-5' title='{{ state_names|get_item:K.user_state }}'>
+	      <div class='text-muted text-center small maybe-long'>
+		{% if K.user_state == 100 or K.user_state == 0 %}<strong>{% endif %}
+		  {{ state_names|get_item:K.user_state }}
+		  {% if K.user_state == 100 or K.user_state == 0 %}</strong>{% endif %}
+	      </div>
+	      <div class='progress'>
+		<div class='progress-bar {% if K.user_state < 25 %}
+		     progress-bar-danger
+		{% elif K.user_state < 75 %}
+		     progress-bar-warning
+		{% elif K.user_state < 100 %}
+		     progress-bar-info
+		{% elif K.user_state == 100 %}
+		     progress-bar-success
+		{% endif %}' 
+		     role='progressbar' 
+		     aria-valuenow='{{ K.user_state }}' 
+		     aria-valuemin='0' 
+		     aria-valuemax='100' 
+		     style='width:{{ K.user_state }}%;'>
+		<span>
+		  {{ K.user_state }}%
+		</span>
+		</div>
+	      </div>
+	  </div>
+	  <div class='col-md-1'>
+	    <button type='button' 
+		    data-ref='{{ K.fingerprint }}'
+		    class='btn btn-info contact-props'>
+	      <span class='glyphicon glyphicon-cog'></span>
+	    </button>
+	  </div>
+	</div>
+      </div> 
+    {% endfor %}
+    </div>
+  </div>
+</div>

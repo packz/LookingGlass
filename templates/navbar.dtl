@@ -1,0 +1,60 @@
+<nav class='navbar navbar-default navbar-fixed-top' role='navigation'>
+  <div class='container-fluid'>
+
+    <div class='navbar-header {% if nav == 'About' %}active{% endif %}'>
+      <button type='button' class='navbar-toggle' data-toggle='collapse' data-target='#full-navbar-1'>
+        <span class='sr-only'>Nav</span>
+        <span class='icon-bar left-hand-icons'></span>
+        <span class='icon-bar left-hand-icons'></span>
+        <span class='icon-bar left-hand-icons'></span>
+      </button>
+      <a class='navbar-brand' href='{% url 'about' %}'><img src='/img/brand.png'></a>
+    </div>
+    <!-- header -->
+
+
+    <div class='collapse navbar-collapse' id='full-navbar-1'>
+      <ul class='nav navbar-nav'>
+
+        <li class='{% if nav == 'Email' %}active{% endif %}'>
+          <a href='{% url 'emailclient.inbox' %}'><span class='glyphicon glyphicon-envelope left-hand-icons'></span> Email</a>
+        </li>
+
+        <li class='{% if nav == 'Contacts' %}active{% endif %}'>
+          <a href='{% url 'addressbook' %}'><span class='glyphicon glyphicon-book left-hand-icons'></span> Contacts</a>
+        </li>
+
+        {% if vitals %}
+          <li>
+            <a href='https://{{ vitals.server_addr }}:16667?nick={{ vitals.ircname }}' target='_blank'><span class='glyphicon glyphicon-comment left-hand-icons'></span> Chat</a>
+          </li>
+        {% endif %}
+
+        <li class='disabled'>
+          <a><span class='glyphicon glyphicon-credit-card left-hand-icons'></span> Wallet</a>
+        </li>
+
+        <li class='disabled'>
+          <a><span class='glyphicon glyphicon-bullhorn left-hand-icons'></span> News</a>
+        </li>
+
+      </ul><!-- end left navbar -->
+
+      <ul class='nav navbar-nav navbar-right'>
+        <li class='{% if nav == 'Settings' %}active{% endif %}'>
+          <a class='bg-info' href='{% url 'settings' %}'><span class='glyphicon glyphicon-dashboard right-hand-icons'></span> Settings</a>
+        </li>
+	{% comment %}
+	<li>
+	  <a href='LOGOUT' class='bg-warning'><span class='glyphicon glyphicon-eject'></span> Logout</a>
+	</li>
+	{% endcomment %}
+        <li>
+          <a href='LOCKDOWN' class='bg-danger'><span class='glyphicon glyphicon-fire on-fire'></span> Lockdown</a>
+        </li>
+      </ul>
+
+    </div> <!-- full navbar -->
+
+  </div>
+</nav>

@@ -1,0 +1,92 @@
+{% extends "base.dtl" %}
+
+{% block local_style %}
+.headspace {
+  padding-top: 3px;
+}
+.mycollapse {
+  display: none;
+}
+{% endblock local_style %}
+
+{% block content %}
+  <div class='container'>
+
+    <div class='panel panel-default'>
+      <div class='panel-heading'>
+        <ul class='nav nav-pills'>
+
+          <li class='dropdown'>
+            <a class='dropdown-toggle' data-toggle='dropdown' href='#'>
+	      <span class='glyphicon glyphicon-folder-close'></span> Folder: {{ title }} <span class='caret'></span>
+	    </a>
+            <ul class='dropdown-menu' role='menu'>
+              {% for F in folder_list %}
+		<li>
+		  <a href='{% url 'emailclient.folder' F.real_name %}'>
+		    {{ F.pretty_name }}{% if F.new_mail > 0 %}<span class='badge pull-right'>{{ F.new_mail }}</span>{% endif %}
+		  </a>
+		</li>
+              {% endfor %}
+	      <li class='divider'></li>
+	      <li><a href='#' class='new-folder'>New Folder</a></li>
+            </ul>
+          </li>
+
+	  <li>
+	    <a href='{% url 'emailclient.compose' %}'><span class='glyphicon glyphicon-pencil'></span> Compose</a>
+	  </li>
+
+	  {% if title != 'Composition' %}
+
+	  <li class='pull-right dropdown disabled only-when-selected' title='Move to folder'>
+	    <a href='#' class='dropdown-toggle only-when-selected disabled' id='move-msg' data-toggle='dropdown'>
+	      <span class='glyphicon glyphicon-folder-open'></span>
+	    </a>
+	    <ul class='dropdown-menu' role='menu'>
+              {% for F in folder_list %}
+		<li>
+		  <a href='#' class='move-folder' data-foldername='{{ F.real_name }}'>
+		    {{ F.pretty_name }}
+		  </a>
+		</li>
+              {% endfor %}
+	      <li class='divider'></li>
+	      <li><a href='#' class='new-folder'>New Folder</a></li>
+	    </ul>
+	  </li>
+
+	  {% if custom_folder %}
+	  <li>
+	    <a href='#' id='trash-folder' data-foldername='{{ title }}' title='Delete folder'><span class='glyphicon text-danger glyphicon-remove'></span></a>
+	  </li>
+	  {% endif %}
+
+	  <li class='headspace'>
+	    <input type='text' id='new-folder-input' class='form-control mycollapse' placeholder='New Folder Name'></input>
+	  </li>
+
+	  <li class='pull-right disabled only-when-selected' title='Trash'>
+	    <a href='#' id='trash-msg'><span class='glyphicon glyphicon-trash'></span></a>
+	  </li>
+
+	  <li class='pull-right disabled only-when-selected' title='Mark as unread'>
+	    <a href='#' id='unread-msg'><span class='glyphicon glyphicon-eye-close'></span></a>
+	  </li>
+
+	  <li class='pull-right' title='Select all'>
+	    <a href='#' id='select-all'><span class='glyphicon glyphicon-globe'></span></a>
+	  </li>
+	  {% endif %}
+
+        </ul>
+      </div>
+
+      <div class='panel-body' id='thePanel'>
+	{% block panel_body %}
+	{% endblock panel_body %}
+      </div>
+
+    </div>
+  </div>
+{% endblock content %}

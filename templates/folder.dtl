@@ -1,0 +1,133 @@
+{% extends "email_base.dtl" %}
+{% load hyphens %}
+
+{% block panel_body %}
+  <div class='container-fluid'>
+  <form id='msgForm' method='POST'>
+    <input type='hidden' id='addFlag' name='addFlag'>
+    <input type='hidden' id='remFlag' name='remFlag'>
+    <input type='hidden' id='srcFolder' name='srcFolder' value='{{ srcFolder }}'>
+    <input type='hidden' id='destFolder' name='destFolder'>
+    <input type='hidden' id='returnType' name='returnType' value='folder'>
+    {% csrf_token %}
+    {% for Msg in sorted %}
+      {% with Msg|message_key as MK %}
+      {% if 'S' in Msg|get_flags %}
+	<div class='row' id='{{ MK }}'>
+      {% else %}
+	<div class='row bg-info' id='{{ MK }}'>
+      {% endif %}
+      <div class='col-md-1 text-right col-xs-1'>
+	{% with Msg|message_type as MT %}
+	{% if MT == 'PGP-MSG' %}
+	  <span title='GPG encrypted message' class='glyphicon glyphicon-lock text-danger'></span>
+	{% elif MT == 'PGP-CLEARSIGN' %}
+	  <span title='GPG signed message' class='glyphicon glyphicon-certificate text-danger'></span>
+	{% elif MT == 'AXO-HS' %}
+	  <span title='Axolotl handshake' class='glyphicon glyphicon-transfer text-danger'></span>
+	{% elif MT == 'AXO-MSG' %}
+	  <span title='Axolotl encrypted message' class='glyphicon glyphicon-link text-danger'></span>
+	{% endif %}
+	{% endwith %}
+	{% if 'T' in Msg|get_flags %}
+	  <span data-toggle='tooltip' title='Message will be deleted at midnight' class='glyphicon glyphicon-remove-sign text-danger'></span>
+	{% endif %}
+      </div>
+      <div class='col-md-1 text-right col-xs-1'>
+	<input type='checkbox' class='mail-selector' name='MK' value='{{ MK }}'>
+      </div>
+      <div class='col-md-3 col-xs-3 maybe-long'>
+	<a href='{% url 'emailclient.view' Key=MK %}'>
+	  {% if title == 'drafts' or title == 'sent' %}
+	    {{ Msg.To|nickname }}
+	  {% else %}
+	    {{ Msg.From|nickname }}
+	  {% endif %}
+	</a>
+      </div>
+      <div class='col-md-5 col-xs-4'>
+	<a href='{% url 'emailclient.view' Key=MK %}'>{{ Msg.subject|truncatewords:10 }}</a>
+      </div>
+      <div class='col-md-2 col-xs-3 maybe-long'>
+	<a href='{% url 'emailclient.view' Key=MK %}'>{{ Msg|format_date }}</a>
+      </div>
+	  </div>
+    {% endwith %}
+    {% endfor %}
+    </form>
+  </div>
+{% endblock panel_body %}
+
+
+{% block js %}
+
+var SA_TOGGLE = true;
+
+$('#select-all').click(function() {
+  $('input:checkbox').prop('checked', SA_TOGGLE);
+  if (SA_TOGGLE) {
+    $('.only-when-selected').removeClass('disabled');
+  } else {
+    $('.only-when-selected').addClass('disabled');
+  };
+  SA_TOGGLE = !SA_TOGGLE;
+});
+
+$('.mail-selector').change(function() {
+  if ($('input:checkbox').is(':checked')) {
+    $('.only-when-selected').removeClass('disabled');
+  } else {
+    $('.only-when-selected').addClass('disabled');
+  };
+});
+
+$('#unread-msg').click(function(){
+  $('#remFlag').val('S');
+  $.post('{% url 'emailclient.flag' %}',
+  $('#msgForm').serialize(),
+  function(data) {
+  for (M in data) {
+  console.log('Unreading> ' + data[M].MK);
+  $(document.getElementById(data[M].MK)).addClass('bg-info');
+  };
+  $('input:checkbox').prop('checked', false);
+  $('.only-when-selected').addClass('disabled');
+  },
+  'json');
+});
+
+{% if title == 'trash' %}
+$('#trash-msg').click(function() {
+  if (confirm('PERMANENTLY delete ALL checked messages?')) {
+    $.post('{% url 'emailclient.discard' %}',
+       $('#msgForm').serialize(),
+       function(data) {
+         for (M in data) {
+            console.log('Double trashed> ' + data[M].MK);
+            $(document.getElementById(data[M])).hide();
+         };
+         $('.only-when-selected').addClass('disabled');
+       },
+      'json');
+  };
+});
+$('.glyphicon-remove-sign').tooltip();
+{% else %}
+$('#trash-msg').click(function() {
+  $('#addFlag').val('T');
+  $.post('{% url 'emailclient.flag' %}',
+  $('#msgForm').serialize(),
+  function(data) {
+  for (M in data) {
+  console.log('Trashing> ' + data[M].MK);
+  $(document.getElementById(data[M].MK)).addClass('mycollapse');
+  };
+  $('.only-when-selected').addClass('disabled');
+  },
+  'json');
+});
+{% endif %}
+
+{% include 'folder_mgmt.js' %}
+
+{% endblock js %}

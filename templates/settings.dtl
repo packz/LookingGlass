@@ -1,0 +1,553 @@
+{% extends "base.dtl" %}
+{% load cycle from future %}
+
+{% block local_style %}
+.i-like-big-butts {
+  padding-bottom: 10px;
+  }
+.desmash {
+  padding: 10px;
+  }
+.lined-col {
+  border-bottom: 1px solid #ccc;
+  }
+textarea {
+  resize: vertical;
+  width: 100%;
+}
+p {
+  padding-top: 10px;
+}
+a[disabled] {
+  pointer-events: none;
+  color: grey;
+  text-decoration: line-through;
+}
+.mycollapse {
+  display: none;
+}
+{% endblock local_style %}
+
+
+{% block content %}
+{% include 'passphrase_modal.dtl' %}
+
+  <div class='panel-group container' id='infoAccordion' aria-multiselectable='true'>
+    <div class='panel panel-default'>
+
+
+      <div class='panel-heading'>
+	<h4 class='panel-title'>
+	  <a data-toggle='collapse' data-parent='#infoAccordion' href='#cVitals' aria-expanded='true'>Copious amounts of hexadecimal you might care to gaze upon</a>
+	</h4>
+      </div>
+      <div id='cVitals' class='panel-collapse collapse'>
+	<div class='panel-body'>
+	  {% for info in vital_summary %}
+	    <div class='row {% cycle 'bg-info' '' %}'>
+	      <div class='col-md-3 col-md-offset-1 lined-col'>
+		<p>{{ info.desc }}</p>
+	      </div>
+	      <div class='col-md-6 maybe-long lined-col text-muted'>
+		<p>
+		{{ info.value|safe }}  {% if info.help %}<a href='#' tabindex='{{ forloop.counter }}' id='help-{{ info.name }}' data-toggle='popover' data-content='{{ info.help }}' data-trigger='focus'><span class='glyphicon glyphicon-question-sign text-info'></span></a>{% endif %}
+		</p>
+	      </div>
+	    </div>
+	  {% endfor %}
+	</div>
+      </div>
+
+
+      <div class='panel panel-default'>
+
+	<div class='panel-heading'>
+	  <h4 class='panel-title'>
+	    <a data-toggle='collapse' data-parent='#infoAccordion' href='#cSystem'>System status</a>
+	  </h4>
+	</div>
+	<div id='cSystem' class='panel-collapse collapse'>
+	  <div class='panel-body' id='system'>
+
+	    <div class='row'>
+	      <div class='col-md-6'>
+		<div class='container-fluid'>
+		  <div class='row'>
+		    <div class='col-md-12 text-center'>
+		      <h4>Encryption status</h4>
+		    </div>
+		  </div>
+		  {% for M in mounts|dictsort:'Description' %}
+		    <div class='row {% cycle 'bg-info' '' %}'>
+		      <div class='col-md-6 col-xs-6 lined-col text-right'>
+			<p>{{ M.Description }}</p>
+		      </div>
+		      <div class='col-md-6 col-xs-6 lined-col'>
+			<p>
+			<span id='mount-{{ M.Name }}-ok' class='glyphicon glyphicon-ok-circle seems-ok {% if not M.is_mounted %}mycollapse{% endif %}'></span>
+			<span id='mount-{{ M.Name }}-jacked' class='glyphicon glyphicon-remove-circle on-fire {% if M.is_mounted %}mycollapse{% endif %}'></span>
+			</p>
+		      </div>
+		    </div>
+		  {% endfor %}
+		</div>
+	      </div>
+
+	      <div class='col-md-6'>
+		<div class='container-fluid'>
+		  <div class='row'>
+		    <div class='col-md-12 text-center'>
+		      <h4>Services status</h4>
+		    </div>
+		  </div>
+		  {% for S in services|dictsort:'description' %}
+		    <div class='row {% cycle 'bg-info' '' %}'>
+		      <div class='col-md-6 col-xs-6 lined-col text-right'>
+			<p>{{ S.description }}</p>
+		      </div>
+		      <div class='col-md-6 col-xs-6 lined-col'>
+			<p>
+			<span id='proc-{{ S.name }}-ok' class='glyphicon glyphicon-ok-circle seems-ok {% if not S.running %}mycollapse{% endif %}'></span>
+			<span id='proc-{{ S.name }}-jacked' class='glyphicon glyphicon-remove-circle on-fire {% if S.running %}mycollapse{% endif %}'></span>
+			</p>
+		      </div>
+		    </div>
+		  {% endfor %}
+		</div>
+	      </div>
+	    
+	    </div>
+	  </div>
+	</div>
+      </div>
+
+    </div>
+  </div><!-- /infoAccordion -->
+
+
+  <div class='panel-group container' id='settingAccordion' role='tablist' aria-multiselectable='true'>
+    <div class='panel panel-default'>
+
+      {% for setting in setting_list %}
+      <div class='panel-heading {{ setting.id }}-class {% if setting.advanced == True %}collapse advanced{% endif %}' role='tab'>
+	<h4 class='panel-title'>
+	  <a data-toggle='collapse' data-parent='#settingAccordion' href='#{{ setting.id }}' aria-expanded='true' aria-controls='{{ setting.id }}'>{{ setting.title }}</a>
+	</h4>
+      </div>
+      <a id='{{ setting.id }}-anchor'></a>
+      <div id='{{ setting.id }}' class='panel-collapse collapse'>
+	<div class='panel-body'>
+	  {% if 'desc' in setting %}
+	    <h3>{{ setting.desc }}</h3>
+	  {% endif %}
+	  {% if 'viewport' in setting %}
+	    <textarea {% if setting.view_ro %}disabled{% endif %} rows='10' type='form-control' id='{{ setting.viewport }}'>SWEET, SWEET DATA.  FULL TO BURSTING.</textarea>
+	  {% endif %}
+	  <div class='form-group'>
+	    {% for control in setting.controls %}
+		<div class='input-group'>
+		  {% if control.type == 'password' %}
+		    <span class='input-group-addon'>{{ control.desc }}</span>
+		    <input type='password' class='form-control passphrase {{ control.id }}-class' id='{{ control.id }}'>
+		    <span class='input-group-addon'>
+		      <input id='{{ control.id }}-show' type='checkbox' 
+			     data-target='#{{ control.id }}' 
+			     class='password-shower'><label> Show</label></span>
+		  {% elif control.type == 'text' %}
+		    <span class='input-group-addon'>{{ control.desc }}</span>
+		    <input type='text' id='{{ control.id }}' {% if control.disabled %}DISABLED{% endif %} class='form-control' placeholder='{{ control.placeholder|default:'' }}' value='{{ control.value|default:'' }}'>
+		  {% elif control.type == 'checkbox' %}
+		    <div class='checkbox'>
+		      <label class='{{ control.id }}-klass'>
+			<input type='checkbox' id='{{ control.id }}'{% if control.disabled %} disabled{% endif %}{% if control.checked == True %} checked{% endif %}> {{ control.desc }}
+		      </label>
+		    </div>  
+		  {% elif control.type == 'button' %}
+		    <div class='container desmash'>
+		      <button type='button' class='btn btn-lg' id='{{ control.id }}' {% if control.disabled %} disabled{% endif %}>{{ control.desc }}</button>
+		    </div>
+		  {% elif control.type == 'buttonbar' %}
+		    <div class='container-fluid desmash'>
+		      <div class='btn-group' role='group'>
+			{% for B in control.buttons %}
+			<button type='button' class='btn btn-default {% if B.hidden %}mycollapse{% endif %}' id='{{ B.id }}' {% if B.disabled %}disabled{% endif %}>{{ B.desc }}</button>
+			{% endfor %}
+		      </div>
+		    </div>
+		  {% elif control.type == 'link' %}
+		    <div class='container desmash'>
+		      <a id='{{ control.id }}' {% if control.href and not control.disabled %}href='{{ control.href }}'{% endif %} {% if control.target %}target='{{ control.target }}'{% endif %} {% if control.disabled %}disabled{% endif %}>{{ control.desc }}{% if control.badge %} <span class='badge'>{{ control.badge }}</span>{% endif %}</a>
+		    </div>
+		  {% elif control.type == 'select' %}
+		    <div class='container desmash {{ control.id }}-klass'>
+		      <h4>{{ control.desc }}</h4>
+		      <div class='radio'>
+			<fieldset id='{{ control.id }}'>
+			{% for ID, Name in control.choices %}
+			  <p>
+			    <label>
+			      <input type='radio' name='{{ control.id }}'
+				     value='{{ ID }}' 
+				     {% if control.disabled %}DISABLED{% endif %} 
+				     {% if control.option_checked == ID %}CHECKED{% endif %}>
+				     {{ Name }}
+			    </label>
+			  </p>
+			{% endfor %}
+			</fieldset>
+		      </div>
+		    </div>
+		  {% endif %}
+		  {% if control.help %}
+		    <span class='help-block'>{{ control.help }}</span>
+		  {% endif %}
+		  {% if control.warn %}
+		    <h4><span class='warn-block text-danger bg-danger'>{{ control.warn }}</span></h4>
+		  {% endif %}
+		</div>
+	    {% endfor %}
+	  </div>
+	  {% if 'entropy_meter' in setting %}
+	    <div class='entropy_meter'>
+	      <p>Your password has around <span class='text-info' id='{{ setting.entropy_meter }}_entropy'>0</span> bits of entropy.</p>
+	      <p>Time to guess looks like: <span class='text-info' id='{{ setting.entropy_meter }}_time'>none at all</span>.</p>
+	    </div>
+	  {% endif %}
+	</div>
+      </div>
+      {% endfor %}
+
+    </div>
+  </div><!-- /settingsAccordion -->
+{% endblock content %}
+
+
+{% block js %}
+{% include 'passphrase_modal.js' %}
+
+$('.collapse').collapse();
+$('.collapse').collapse('hide');
+
+var REFRESHER = false;
+var PASSPHRASE_MODE = 'reset-to-defaults';
+
+
+function load_mounts() {
+  if (REFRESHER) {
+    $.getJSON('{% url 'settings.mounts' %}', function(data) {
+      for (M in data) {
+        if (data[M].Mount) {
+         $('#mount-' + data[M].name + '-ok').show();
+         $('#mount-' + data[M].name + '-jacked').hide();
+        } else {
+         $('#mount-' + data[M].name + '-ok').hide();
+         $('#mount-' + data[M].name + '-jacked').show();
+        };
+      };
+    });
+    setTimeout(function() {
+      load_mounts();
+    }, 5000);
+   };
+};
+
+function load_procs() {
+  if (REFRESHER) {
+    $.getJSON('{% url 'settings.servers' %}', function(data) {
+      for (M in data) {
+        if (data[M].running) {
+         $('#proc-' + data[M].name + '-ok').show();
+         $('#proc-' + data[M].name + '-jacked').hide();
+        } else {
+         $('#proc-' + data[M].name + '-ok').hide();
+         $('#proc-' + data[M].name + '-jacked').show();
+        };
+      };
+    });
+    setTimeout(function() {
+      load_procs();
+    }, 5000);
+   };
+};
+
+$('#cSystem').on('shown.bs.collapse', function() {
+  REFRESHER = true;
+  load_mounts();
+  load_procs();
+});
+
+$('#cSystem').on('hidden.bs.collapse', function() {
+  REFRESHER = false;
+});
+
+function toggle_static_ip_settings(which) {
+  if (which == 'Static') {
+   $('#static-ip').removeAttr('disabled');
+   $('#netmask').removeAttr('disabled');
+   $('#gateway-ip').removeAttr('disabled');
+   $('#static-ip-send').removeAttr('disabled');
+  } else {
+   $('#static-ip').attr('disabled', true);
+   $('#netmask').attr('disabled', true);
+   $('#gateway-ip').attr('disabled', true);
+   $('#static-ip-send').attr('disabled', true);
+  };
+}
+
+function ip_mode_change() {
+  $.post('{% url 'settings.ip_address' %}',
+     {'csrfmiddlewaretoken':'{{ csrf_token }}',
+      'ip-address-mode':$('#ip-address-mode :checked').val(),
+      'static-ip':$('#static-ip').val(),
+      'netmask':$('#netmask').val(),
+      'gateway-ip':$('#gateway-ip').val(),
+  }, function(data) {
+  if (data.engaged) {
+  $('#cIP').css('background-color', '#dff0d8');
+  } else {
+  $('#cIP').css('background-color', 'rgb(242,222,222)');
+  };
+  setTimeout(function(){
+  $('#cIP').css('background-color', 'white');
+  }, 100);});
+};
+
+$('input:radio[name=ip-address-mode]').click(function(){
+  toggle_static_ip_settings($(this).val());
+});
+
+$('#static-ip-send').click(function(){
+  ip_mode_change();
+});
+
+$('input:radio[value=DHCP]').click(function(){
+  ip_mode_change();
+});
+
+function passphrase_submitted() {
+  /* for now, we assume this is in re: system wipe */
+  $.post('{% url 'system-reset' %}',
+    {'csrfmiddlewaretoken': '{{ csrf_token }}',
+     'passphrase': $('#passphrase').val(),
+    });
+};
+
+$('#reboot').click(function() {
+  if (confirm('ZipZap?')) {
+  location.assign('{% url 'reboot' %}');
+  }});
+
+$('#reset-to-defaults').click(function() {
+  if (confirm('THIS WILL ERASE EVERYTHING')) {
+    $('#passphrase-modal').modal('show');
+  };
+});
+
+function status_updater() {
+  $.getJSON('{% url 'settings.update' %}',{
+     'mode':'listen',
+  }, function(data) {
+  $('#update-status').text(data.status);
+    if (data.ok) {
+      setTimeout(function() {
+       status_updater();
+      }, 2500);
+    };
+    if (data.unpackable) {
+     $('#update-check').collapse('hide');
+     $('#update-unpack').collapse('show');
+    }
+    if (data.bogus) {
+     $('#update-status').css('color', 'red');
+    };
+  });
+}
+
+$('#update-unpack').click(function() {
+  $('#update-unpack').attr('disabled', true);
+  $.getJSON('{% url 'settings.update' %}',{
+    'mode':'unpack',
+  }, function(data){
+    $('#update-status').text(data.status);
+  });
+  setTimeout(function() {
+  status_updater();
+  }, 2500);
+});
+
+$('#update-check').click(function() {
+  $('#update-check').attr('disabled', true);
+  $.getJSON('{% url 'settings.update' %}',{
+    'mode':'download',
+  }, function(data){
+    $('#update-status').text(data.status);
+  });
+  setTimeout(function() {
+  status_updater();
+  }, 2500);
+});
+
+$('#get-mail-log').click(function() {
+  $.getJSON('{% url 'settings.log_dump' %}', function(data) {
+    $('#log-view').val(data);
+  });
+});
+
+$('#get-user-log').click(function() {
+  $.getJSON('{% url 'settings.last' %}', function(data) {
+    $('#log-view').val(data);
+  });
+});
+
+$('#get-web-log').click(function() {
+  $.getJSON('{% url 'settings.thirtythirty' %}', function(data) {
+    $('#log-view').val(data);
+  });
+});
+
+
+function toggle_sessions() {
+  $.post('{% url 'settings.sessions' %}',
+         {'timeout':$('#session-timeout').val(),
+          'engaged':$('#sessions-on').is(':checked'),
+          'csrfmiddlewaretoken':'{{ csrf_token }}',
+         }, function(data) {
+         if (data.engaged) {
+           $('#cSession').css('background-color', '#dff0d8');
+         } else {
+           $('#cSession').css('background-color', 'rgb(242,222,222)');
+         };
+         setTimeout(function(){
+           $('#cSession').css('background-color', 'white');
+         }, 100);
+  });
+}
+
+$('#sessions-on').click(function() {
+  toggle_sessions();
+});
+
+$('#session-timeout').blur(function() {
+  toggle_sessions();
+});
+
+$('#session-timeout').keypress(function(e){
+  if (e.which == 13) {
+    toggle_sessions();
+  };
+});
+
+
+$('#database-recover').click(function() {
+  if (confirm('You have been warned.  Continue?')) {
+  $.post('{% url 'settings.db_disaster' %}',
+         {'csrfmiddlewaretoken':'{{ csrf_token }}'});
+  };
+});
+
+
+function passphrase_cache() {
+  $.post('{% url 'settings.passphrase_cache' %}',
+         {'cache_time':$('#pp-cache-timeout :checked').val(),
+          'engaged':$('#pp-cache-on').is(':checked'),
+          'csrfmiddlewaretoken':'{{ csrf_token }}',
+         }, function(data) {
+         if (data.engaged) {
+           $('#cPWcache').css('background-color', '#dff0d8');
+         } else {
+           $('#cPWcache').css('background-color', 'rgb(242,222,222)');
+         };
+         setTimeout(function(){
+           $('#cPWcache').css('background-color', 'white');
+         }, 100);
+  });
+}
+
+$('#pp-cache-on').change(function(){
+  /*  these sort of things never really cache on...  */
+  passphrase_cache();
+});
+
+$('.pp-cache-timeout-klass').click(function(){
+  passphrase_cache();
+});
+
+
+function symmetric_copy() {
+  $.post('{% url 'settings.symmetric_copy' %}',
+         {'tx_engaged':$('#tx-symmetric-on').is(':checked'),
+          'rx_engaged':$('#rx-symmetric-on').is(':checked'),
+          'csrfmiddlewaretoken':'{{ csrf_token }}',
+         }, function(data) {
+         if (data.tx_engaged) {
+           $('.tx-symmetric-on-klass').css('background-color', '#dff0d8');
+         } else {
+           $('.tx-symmetric-on-klass').css('background-color', 'rgb(242,222,222)');
+         };
+         if (data.rx_engaged) {
+           $('.rx-symmetric-on-klass').css('background-color', '#dff0d8');
+         } else {
+           $('.rx-symmetric-on-klass').css('background-color', 'rgb(242,222,222)');
+         };
+         setTimeout(function(){
+           $('.tx-symmetric-on-klass').css('background-color', 'white');
+           $('.rx-symmetric-on-klass').css('background-color', 'white');
+         }, 100);
+  });
+}
+
+$('#tx-symmetric-on').click(function() {
+ symmetric_copy();
+});
+
+$('#rx-symmetric-on').click(function() {
+ symmetric_copy();
+});
+
+
+function toggle_advanced() {
+  $.post('{% url 'settings.set-advanced' %}',
+         {'engaged':$('#advanced-always-on').is(':checked'),
+          'csrfmiddlewaretoken':'{{ csrf_token }}',
+         }, function(data) {
+         if (data.engaged) {
+           $('#cAdvanced').css('background-color', '#dff0d8');
+         } else {
+           $('#cAdvanced').css('background-color', 'rgb(242,222,222)');
+         };
+         setTimeout(function(){
+           $('#cAdvanced').css('background-color', 'white');
+         }, 100);
+  });
+}
+
+
+$('#advanced-always-on').click(function(){
+  toggle_advanced();
+});
+
+{% if advanced %}
+$('.advanced').collapse('show');
+{% endif %}
+
+{% for info in vital_summary %}
+{% if info.help %}
+$('#help-{{ info.name }}').popover();
+{% endif %}
+{% endfor %}
+
+$('.password-shower').click(function(){
+if ($(this).is(':checked')) {
+  $( $(this).data('target') ).attr('type', 'text');
+} else {
+  $( $(this).data('target') ).attr('type', 'password');
+};
+});
+
+$(document).ready(function(){
+  if (window.location.hash != '') {
+    $(window.location.hash).collapse('show');
+  };
+});
+
+{% endblock js %}

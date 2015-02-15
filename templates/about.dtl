@@ -1,0 +1,119 @@
+{% extends "base.dtl" %}
+
+{% block local_style %}
+#tehimg {
+  margin-left: auto;
+  margin-right: auto;
+}
+.lowdown {
+  margin-top: 2000px;
+}
+.cThru {
+  opacity: 0.95;
+}
+{% endblock local_style %}
+
+{% block content %}
+<div class='container lowdown'>
+  <div class='panel panel-default cThru'>
+    <div class='panel-heading'>
+      <img id='tehimg' src='/img/{{ freedom_image }}' class='img-responsive img-rounded'>
+    </div>
+    <div class='panel-body'>
+      <div class='panel-group' id='whizbanger'>
+	<div class='panel panel-default'>
+	  <div class='panel-heading'>
+	    <h1 class='panel-title'>
+	      <a data-toggle='collapse' data-parent='#whizbanger' href='#cFAQ'>FAQs</a>
+	    </h1>
+	  </div>
+	  <div id='cFAQ' class='panel-collapse collapse in'>
+	    <div class='panel-body'>
+	      <dl>
+		{% for Q in faq %}
+		  <dt>
+		    <span class='text-muted'>{{ Q.q|safe }}</span>
+		  </dt>
+		  <dd>
+		    <p><span class='glyphicon glyphicon-chevron-right text-info'></span> {{ Q.a|safe }}</p>
+		  </dd>
+		{% endfor %}
+	      </dl>
+	    </div>
+	  </div>
+	</div>
+      <div class='panel panel-default'>
+	  <div class='panel-heading'>
+	    <h1 class='panel-title'>
+	      <a data-toggle='collapse' data-parent='#whizbanger' id='best_practice' href='#cBCP'>Best Practices</a>
+	    </h1>
+	  </div>
+	<div id='cBCP' class='panel-collapse collapse'>
+	  <div class='panel-body'>
+	    <ol>
+	      {% for bcp in best %}
+		<li>{{ bcp|safe }}</li>
+	      {% endfor %}
+	    </ol>
+	  </div>
+	</div>
+      </div>
+      <div class='panel panel-default'>
+	<div class='panel-heading'>
+	  <h1 class='panel-title'>
+	    <a data-toggle='collapse' data-parent='#whizbanger' id='tanks' href='#cThanx'>Thank You</a>
+	  </h1>
+	</div>
+	<div id='cThanx' class='panel-collapse collapse'>
+	  <div class='panel-body'>
+	    <ul>
+	      {% for thank in thanks|dictsort:'indx' %}
+		<li>{{ thank.c|safe }}</li>
+	      {% endfor %}
+	    </ul>
+	  </div>
+	</div>
+      </div>
+      <hr>
+      <div class='container-fluid text-right'>
+	<p class='text-right'><a href='https://www.circle.com'>Donations</a> <a href='https://coinbase.com'>always</a> <a href='https://localbitcoins.com/'>welcome</a>: 1P6cCtnVUwQyMKRrUQmSS1ahYpNRbzqVYa</p>
+      </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}
+
+{% block js %}
+$('#usage_report').click(function(){
+  $('#urep').submit();
+});
+
+
+$('#whoa-there').click(function(){
+  if (confirm('This is just an example link - you sure you want to do this?')) {
+    location.assign('{% url 'lockdown' %}');
+  };
+});
+
+
+function show_bcp() {
+    $('#cBCP').collapse('show');
+  $('#cThanx').collapse('hide');
+    $('#cFAQ').collapse('hide');
+};
+
+$('#show-best-practices').click(function(){show_bcp();});
+
+$(document).ready(function() {
+  var wBottom = $(window).height();
+  wBottom -= 270;
+  $('.lowdown').animate({
+  'margin-top': wBottom,
+  }, 3000);
+
+  if(window.location.hash == '#cBCP') {
+    show_bcp();
+  };
+});
+{% endblock js %}

@@ -1,0 +1,13 @@
+<div class='modal fade' id='pastebox-modal'>
+  <div class='modal-dialog'>
+    <div class='modal-content'>
+      <div class='modal-body'>
+	<div class='input-group'>
+	  <h4>Paste public key here:</h4>
+	  <textarea id='import-key' name='import-key' cols='65' rows='20' class='form-control'></textarea>
+	  <button id='submit-import' class='btn btn-default'>Upload</button>
+	</div>
+      </div>  
+    </div>
+  </div>
+</div>

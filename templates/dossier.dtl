@@ -1,0 +1,279 @@
+{% load hyphens %}
+
+<div class='row'>
+  <div class='col-md-1 text-primary'>
+    <span title='Bail back to list' id='eject-maverick' class='glyphicon glyphicon-eject'></span>
+  </div>
+
+  <div class='col-md-3 col-md-offset-1 text-right'>
+    {% if K.is_me %}
+      <h3>You are:</h3>
+    {% else %}
+      <h3>Dossier for:</h3>
+    {% endif %}
+  </div>
+  <div class='col-md-5'>
+    <h3>
+      <input type='text'
+	     class='form-control AKAbox mycollapse'
+	     id='{{ K.fingerprint }}-control'
+	     data-ref='{{ K.fingerprint }}'
+	     placeholder='{% if K.nickname %}{{ K.nickname }}{% else %}{{ K.covername }}{% endif %}'>
+      <a title='Click to change nickname' 
+	 class='editAKA' id='{{ K.fingerprint }}'
+	 data-ref='{{ K.fingerprint }}-control'>
+	{% if K.nickname %}{{ K.nickname }}{% else %}{{ K.covername }}{% endif %}
+      </a>
+    </h3>
+  </div>
+</div>
+<div class='row'>
+  <div class='col-md-4'>
+    <p>Covername: {{ K.covername }}</p>
+  </div>
+  <div class='col-md-4 col-md-offset-4 text-right'>
+    {% if K.expires == None %}
+      <p class='text-danger'><span class='glyphicon glyphicon-warning-sign'></span> No key expiration set.</p>
+    {% elif K.expires <= today %}
+	<p class='text-danger'><span class='glyphicon glyphicon-warning-sign'></span> Key is expired.</p>
+    {% elif K.expires <= key_expiration_warning %}
+	<p class='text-danger'><span class='glyphicon glyphicon-warning-sign'></span> Key expires soon: {{ K.expires }}</p>
+    {% else %}
+	<p>Key expires: {{ K.expires }}</p>
+    {% endif %}
+  </div>
+</div>
+<div class='row'>
+  <div class='col-md-6'>
+    {% if K.email %}
+      <p class='maybe-long'>Email: {{ K.email }}</p>
+    {% endif %}
+  </div>
+  <div class='col-md-4 col-md-offset-2 text-right'>
+    {% if K.user_state >= 60 and K.user_state < 100 and K.smp_failures != 0 %}
+      <p>Authentication failures: <span class='text-danger'>{{ K.smp_failures }}</span></p>
+    {% endif %}
+  </div>
+</div>
+<hr>
+{% if K.is_me %}
+<div class='row'>
+  <div class='col-md-6 col-md-offset-3 text-center'>
+    <h3>Your public key:</h3>
+  </div>
+</div>
+<div class='row'>
+  <div class='col-md-7 col-md-offset-2'>
+    <textarea cols='80' rows='35' class='width-lock' disabled>{{ K.public_key }}</textarea>
+  </div>
+</div>
+{% elif not K.is_me %}
+{% comment %}
+
+All below gets commented out if this is the user's own address.  Go deep.
+
+{% endcomment %}
+{% if advanced %}
+<div class='row'>
+  <div class='col-md-offset-3 col-md-3'>
+    <p>Your Fingerprint:</p>
+  </div>
+  <div class='col-md-3'>
+    <p>{{ my_fingerprint }}</p>
+  </div>
+</div>
+<div class='row'>
+  <div class='col-md-offset-3 col-md-3'>
+    <p>Their Fingerprint:</p>
+  </div>
+  <div class='col-md-3'>
+    <p>{{ their_fingerprint }}</p>
+  </div>
+</div>
+<hr>
+<div class='row'>
+  <div class='col-md-6 col-md-offset-3 text-center'>
+    <h3>Their public key:</h3>
+  </div>
+</div>
+<div class='row'>
+  <div class='col-md-7 col-md-offset-2'>
+    <textarea cols='80' rows='35' class='width-lock' disabled>{{ K.public_key }}</textarea>
+  </div>
+</div>
+<hr>
+{% if K.user_state == 80 and previous_smp_step %}
+<div class='row'>
+  <div class='col-md-6 col-md-offset-3 text-center'>
+    <h3>Raw Socialist Millionaire step:</h3>
+  </div>
+</div>
+<div class='row'>
+  <div class='col-md-7 col-md-offset-2'>
+    <textarea cols='80' rows='35' class='width-lock' disabled>{{ previous_smp_step }}</textarea>
+  </div>
+</div>
+<hr>
+{% endif %}
+{% endif %}
+<div class='row'>
+  <div class='col-md-10 col-md-offset-1'>
+    <h4 class='text-center'>Current security state</h4>
+    <div class='progress'>
+      <div class='progress-bar {% if K.user_state < 25 %}
+	   progress-bar-danger
+      {% elif K.user_state < 75 %}
+	   progress-bar-warning
+      {% elif K.user_state < 100 %}
+	   progress-bar-info
+      {% elif K.user_state == 100 %}
+	   progress-bar-success
+      {% endif %}' 
+	   role='progressbar' 
+	   aria-valuenow='{{ K.user_state }}' 
+	   aria-valuemin='0' 
+	   aria-valuemax='100' 
+	   style='width:{{ K.user_state }}%;'>
+      <span>
+	{{ K.user_state }}%
+      </span>
+      </div>
+    </div>
+  </div>
+</div>
+<div class='row'>
+  <div class='col-md-10 col-md-offset-1'>
+    <p>{{ Verbose|get_item:K.user_state|safe }}</p>
+  </div>
+</div>
+<hr>
+<div class='row text-center'>
+  <div class='col-md-3'>
+    {% if K.user_state > 20 %}
+    <a class='btn btn-default' title='Compose' href='{% url 'emailclient.compose' FP=K.fingerprint %}'>
+      <span class='text-success'>
+	<span class='glyphicon glyphicon-pencil'></span> Compose
+      </span>
+    </a>
+    {% endif %}
+  </div>
+  <div class='col-md-3'>    
+    {% if K.user_state == 0 or K.user_state == 40 or K.user_state == 60 or K.user_state == 80 %}
+      {% if K.expires >= today %}
+	<a class='btn btn-default {% if K.user_state == 60 %}mycollapse{% endif %}' id='handshaker' title='{{ Handshake_Title }}'>
+	  <span class='text-primary'>
+	    <span class='glyphicon glyphicon-hand-right'></span> {{ Handshake_Title }} <span class='glyphicon glyphicon-hand-left'></span>
+	  </span>
+	</a>
+      {% endif %}
+    {% endif %}
+  </div>
+  <div class='col-md-3'>
+    {% if K.user_state == 60 %}
+    <input type='text' class='form-control smp' id='smp_question' placeholder='Secret question' {% if Question %}value='{{ Question }}' title='Contact has already set the secret question' disabled{% endif %}>
+    <input type='text' class='form-control smp' id='smp_secret' placeholder='Shared secret'>
+    {% endif %}
+  </div>
+  <div class='col-md-3'>
+    <a class='btn btn-default' title='Delete' id='delete-addr'>
+      <span class='text-danger'><span class='glyphicon glyphicon-remove'></span> Delete</span>
+    </a>
+  </div>
+</div>
+{% endif %}
+
+<script>
+$('.editAKA').click(function() {
+  $(this).hide(function() {
+   $('#' + $(this).data('ref')).show();
+   $('#' + $(this).data('ref')).focus();
+  });
+});
+
+$('.AKAbox').blur(function() {
+  $(this).hide();
+  var nV = $(this).val().toUpperCase();
+  if (nV != '') {
+    $('#' + $(this).data('ref')).text(nV);
+    $.post('{% url 'addressbook.nickname' %}',
+       {'csrfmiddlewaretoken':'{{ csrf_token }}',
+        'fingerprint':$(this).data('ref'),
+        'new-nick':nV,
+       });
+  };
+  $('#' + $(this).data('ref')).show();
+});
+
+$('.AKAbox').keypress(function(e){
+  if (e.which == 13) {
+    $(this).blur();
+  };
+});
+
+$('#eject-maverick').click(function() {
+  $('#aContact').slideUp('slow',
+			 function(){
+			   $('#contactlist').slideDown(function(){
+			     location.hash = '';
+			   });
+			 });
+});
+
+function handshakery() {
+  {% if K.user_state == 60 %}
+  $('#smp_secret').attr('type', 'password');
+  $('#handshaker').prop('disabled', true);
+  {% endif %}
+  $.post('{% url 'addressbook.push_to_queue' %}',
+	 {'csrfmiddlewaretoken':'{{ csrf_token }}',
+          'fingerprint':'{{ K.fingerprint }}',
+	  'passphrase':$('#passphrase').val(),
+	  {% if K.user_state == 60 %}
+	  'question':$('#smp_question').val(),
+	  'secret':$('#smp_secret').val(),
+	  {% endif %}
+	 }, function(data) {
+	   if (! data.ok) {
+	     if (/passphrase/.test(data.reason)) {
+	       $('#passphrase-modal').modal('show');
+	     } else {
+	       alert(data.reason);
+	       $('#passphrase').val('');
+	     };
+	     {% if K.user_state == 60 %} /* NOT_VETTED */
+	     $('#smp_secret').attr('type', 'text');
+	     $('#handshaker').prop('disabled', true);
+	     {% endif %}
+	   } else {
+	     location.reload();
+	   };
+	 });
+ }
+
+$('#handshaker').click(function(){handshakery()});
+function passphrase_submitted(){handshakery()};
+
+{% if K.user_state == 60 %}
+$('.smp').keyup(function() {
+  if (($('#smp_question').val() != '') && ($('#smp_secret').val() != '')) {
+    $('#handshaker').fadeIn();
+  } else {
+    $('#handshaker').fadeOut();
+  }
+});
+{% endif %}
+
+$('#delete-addr').click(function(){
+  if (confirm('Permanently delete address for {% if K.nickname %}{{ K.nickname }}{% else %}{{ K.covername }}{% endif %}?')) {
+    $.post('{% url 'addressbook.delete' %}',
+           {
+  csrfmiddlewaretoken: '{{ csrf_token }}',
+          FP:'{{ K.fingerprint }}',
+           },
+         function(data) {
+	   location.hash = '',
+	   location.reload();
+            });
+  };
+});
+</script>

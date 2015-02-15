@@ -1,0 +1,254 @@
+{% extends "email_base.dtl" %}
+{% load hyphens %}
+
+{% block local_style %}
+.message-container {
+  min-height: 250px;
+}
+.message-body {
+   padding: 50px;
+   min-height: 100px;
+}
+.mycollapse {
+  display: none;
+}
+{% endblock local_style %}
+
+
+{% block panel_body %}
+
+{% include 'passphrase_modal.dtl' %}
+
+<div class='container-fluid'>
+  
+<div class='row'>
+   <div class='col-md-8'>
+    <h4>{{ Msg.subject|truncatechars:70 }}</h4>
+   </div>
+   <div class='col-md-4 text-right'>
+       <h4>
+       <a href='{% url 'emailclient.view' Key=nextMsg %}' type='button' class='btn btn-default {% if not nextMsg %}invisible{% endif %}'>
+       <span class='glyphicon glyphicon-chevron-down'></span>
+       </a>
+       <a href='{% url 'emailclient.view' Key=prevMsg %}' type='button' class='btn btn-default {% if not prevMsg %}invisible{% endif %}'>
+       <span class='glyphicon glyphicon-chevron-up'></span>
+       </a>
+       </h4>
+   </div>
+</div>
+
+<div class='row'>
+<div class='col-md-4'>
+  <p class='mycollapse' id='signature-data'>Signed on: <span id='signed-on'></span></p>
+</div>
+<div class='col-md-4 col-md-offset-4 text-right'>
+  <form method='POST' id='msgForm'>
+    {% csrf_token %}
+    <input type='hidden' name='body' id='body' value=''>
+    <input type='hidden' name='fp' value='{{ fingerprint }}'>
+    <input type='hidden' id='destFolder' name='destFolder'>
+    <input type='hidden' id='returnType' name='returnType' value='message'>
+    <input type='hidden' name='MK' id='MK' value='{{ Key }}'>
+    <input type='hidden' name='axo-failsafe' id='axo-failsafe' value='false'>
+    {% if title == 'drafts' or title == 'sent' %}
+      <input type='hidden' name='to' value='{{ Msg.to }}'>
+      <input type='hidden' name='subject' value='{{ Msg.subject }}'>
+      <h5><a id='composeSubmit'>{{ Msg.to }}</a></h5>
+    {% else %}
+      <input type='hidden' name='to' value='{{ Msg.from }}'>
+      <input type='hidden' name='subject' value='Re: {{ Msg.subject }}'>
+      <h5><a id='composeSubmit'>{{ Msg.from|nickname }}</a></h5>
+    {% endif %}
+  </form>
+</div>
+</div>
+<div class='row'>
+<div class='col-md-4 col-md-offset-8 text-right'>
+  <span>{{ Msg.date|format_date }}</span>
+</div>
+</div>
+
+  <hr>
+  <div class='container-fluid message-container'>
+    <div class='message-loading text-center'><h1>Loading...</h1></div>
+    <div class='message-encryption-warning text-center mycollapse text-danger'><h1>MESSAGE WAS NOT ENCRYPTED</h1></div>
+    <div class='message-signed-warning text-center mycollapse text-danger'><h1>MESSAGE WAS NOT SIGNED</h1></div>
+    {% if symmetric %}
+      <div class='message-axolotl-warning text-center mycollapse'><h3>Message will be <span class='text-info'>copied locally</span> once decrypted.</h3></div>
+    {% else %}
+      <div class='message-axolotl-warning text-center mycollapse'><h3>Message will be <span class='text-danger'>destroyed</span> once decrypted.</h3></div>
+    {% endif %}
+    <div class='container-fluid'>
+      <div class='text-center mycollapse' id='message-locked'>
+	<button type='button' class='btn btn-default btn-danger' data-toggle='modal' data-target='#passphrase-modal'>
+	  <h2><span class='gpg-button glyphicon glyphicon-lock'></span><span class='axo-button glyphicon glyphicon-link mycollapse'></span></h2>
+	  <h4 class='gpg-button lock-text'>DECRYPT</h4>
+	  <h4 class='axo-button mycollapse lock-text'>OPEN & DELETE</h4>
+	</button>
+      </div>
+    </div>
+    <pre id='message-body' class='mycollapse'></pre>
+    {% if advanced %}
+      <hr>
+    <div id='show-raw' class='mycollapse'>
+      <h3>Raw message follows</h3>
+      <pre id='message-raw' class='bg-primary'></pre>
+    </div>
+    {% endif %}
+  </div>
+{% endblock panel_body %}
+
+
+{% block js %}
+
+{% if advanced %}
+$('#show-raw').show();
+{% endif %}
+
+$('#composeSubmit').click(function() {
+  $('#msgForm').attr('action', '{% url 'emailclient.compose' %}');
+  $('#msgForm').submit();
+});
+
+function message_load() {
+  console.log('loading message {{ Key }} contents');
+  $.post('{% url 'emailclient.receive' Key=Key %}',
+         {'csrfmiddlewaretoken':'{{ csrf_token }}',
+          'axo-failsafe':$('#axo-failsafe').val(),
+          'passphrase':$('#passphrase').val(),
+         },
+         function(data){
+       $('#message-raw').text(data.rawdog);
+    if (data.ok) {
+       if (data.msg_type == 'PGP-MSG') {
+         console.log('cleared to display PGP message');
+         $('#signed-on').html(data.signed_at);
+         $('.message-loading').fadeOut('slow', function() {
+            $('#message-body').addClass('bg-info');
+            $('#message-body').text(data.decrypt);
+            $('#message-body').fadeIn();
+            if (! data.signed_at) {
+              $('.message-signed-warning').fadeIn('slow');
+            } else {
+              $('#signature-data').fadeIn();
+            }
+         });
+         $('#body').val(data.decrypt);
+       } else if (data.msg_type == 'AXO-MSG') {
+         console.log('by the time you read this, the keys are gone');
+            $('.message-axolotl-warning').fadeOut(function() {
+            $('.message-loading').fadeOut('slow', function() {
+              $('#message-body').addClass('bg-info');
+              $('#message-body').text(data.decrypt);
+              $('#message-body').fadeIn();
+            });
+            });
+            $('#body').val(data.decrypt);
+       } else if (data.msg_type == 'AXO-HS') {
+         console.log("this is a handshake - you shouldn't have to see this.");
+         $('#message-body').addClass('bg-danger');
+         $('#message-body').text('Axolotl handshake - please file a bug report.  There has been an error on the backend.');
+         $('.message-loading').fadeOut('slow', function() {
+          $('#message-body').fadeIn();
+         });  
+       };
+    } else { /* data != Ok */
+      console.log('looks like it is still encrypted');
+      if (data.msg_type === null) {
+       console.log('message appears to be plaintext');
+       $('.message-loading').fadeOut('slow', function() {
+            $('#message-body').text(data.payload);
+            $('#message-body').addClass('bg-danger');
+            $('.message-encryption-warning').fadeIn('slow', function() {
+              $('#message-body').fadeIn();
+            });
+       });
+    } else if (data.msg_type == 'AXO-MSG') {
+       console.log('warn user before burning the keys');
+          $('.gpg-button').hide();
+          $('.axo-button').show();
+          $('#message-locked').fadeIn('slow');
+          $('#axo-failsafe').val('true');
+          $('.message-loading').fadeOut('slow', function() {
+            $('.message-axolotl-warning').fadeIn('slow');
+          });
+          {% if symmetric %}
+	    console.log("oh!  but we don't give a rip about security, so hold up...");
+            $('#message-locked').fadeOut('slow');
+	    message_load();
+	  {% endif %}
+       } else if (data.msg_type == 'PGP-MSG') {
+       console.log('automagically request user keys...');
+       $('.message-loading').fadeOut('slow', function() {
+          $('#message-locked').fadeIn('slow');
+          $('#passphrase-modal').modal('show');
+       });
+       } else if (data.msg_type == 'FAIL') {
+       console.log('uh oh');
+       $('.message-axolotl-warning').fadeOut(function(){
+       $('.message-loading').fadeOut();
+       $('#message-body').addClass('bg-danger text-center strong');
+       $('#message-body').text(data.payload);
+       $('#message-body').fadeIn();
+});
+       }
+    }
+  }, 'json');
+};
+
+$(document).ready(function(){
+  $('.only-when-selected').removeClass('disabled');
+  $('#select-all').addClass('disabled');
+  message_load();
+});
+
+function passphrase_submitted() {
+  $('#message-locked').fadeOut('slow', function() {
+   $('.lock-text').text('Try Again');
+  });
+  message_load();
+};
+
+{% if title == 'trash' %}
+$('#trash-msg').click(function() {
+  $.post('{% url 'emailclient.discard' %}',
+  {
+  'MK':'{{ Key }}',
+  'csrfmiddlewaretoken':'{{ csrf_token }}',
+  },
+  function(data) {
+    {% if nextMsg %}
+    location.assign('{% url 'emailclient.view' Key=nextMsg %}');
+    {% elif prevMsg %}
+    location.assign('{% url 'emailclient.view' Key=prevMsg %}');
+    {% else %}
+    location.assign('{% url 'emailclient.folder' title %}');
+    {% endif %}
+  },
+  'json');
+});
+{% else %}
+$('#trash-msg').click(function() {
+  $.post('{% url 'emailclient.flag' %}',
+  {
+  'csrfmiddlewaretoken':'{{ csrf_token }}',
+  'MK':'{{ Key }}',
+  'addFlag':'T',
+  },
+  function(data) {
+    {% if nextMsg %}
+    location.assign('{% url 'emailclient.view' Key=nextMsg %}');
+    {% elif prevMsg %}
+    location.assign('{% url 'emailclient.view' Key=prevMsg %}');
+    {% else %}
+    location.assign('{% url 'emailclient.folder' title %}');
+    {% endif %}
+  },
+  'json');
+});
+{% endif %}
+
+{% include 'folder_mgmt.js' %}
+{% include 'passphrase_modal.js' %}
+
+{% endblock js %}

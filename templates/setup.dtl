@@ -1,0 +1,180 @@
+{% extends "base.dtl" %}
+
+{% block local_style %}
+.mycollapse {
+  display: none;
+}
+{% endblock local_style %}
+
+{% block navbar %}{% endblock %}
+
+{% block content %}
+  <div class='explanation well text-center'>
+    <p>{{ explanation|safe }}</p>
+  </div>
+  
+  <form id='les_formes' action='{{ next }}' method='post'>
+  {% csrf_token %}
+
+  <div class='passphrase_selection'>
+    <div class='well text-center'>
+	<p>Here is a randomized sample from my exhaustive database.</p>
+    <p class='text-info'>
+      <button type='button' class='btn btn-info btn-lg passphrase' id='example_passphrase'>[PLEASE WAIT]</button>
+      <input type='hidden' id='provided_passphrase' name='{{ input_name }}' value='...'>
+    </p>
+    <p>To accept and continue, click it.</p>
+    </div>
+
+{% if covername %}
+
+  <div class='well text-center'>
+    <p>Maybe you'd like a <a class='gen_cover'>better one</a>, or some <a target='_blank' href='{{ help_url }}'>reading material</a>?</p>
+  </div>
+
+{% else %}
+
+    <div class='well text-center'>
+    <p>You could also <a class='gen_pass'>request a different one</a>, <a id='show_advanced'>use your own</a> or see some <a target='_blank' href='{{ help_url }}'>reading material</a>.</p>
+  </div>
+  </div>
+  
+  <div class='advanced mycollapse text-center'>
+
+    <div class='well'>
+  <div class='row'>
+  <div class='col-md-4 col-md-offset-4'>
+  <div class='passphrase_entry input-group'>
+    <span class='input-group-addon'>Passphrase:</span>
+    <input type='text' id='custom_passphrase' name='custom_passphrase' class='form-control' placeholder='your top secret passphrase'>
+    <span class='input-group-btn'>
+      <button class='btn btn-default' id='also_submit' type='button'>Submit</button>
+    </span>
+  </div>
+  </div>
+  </div>
+  </div>
+
+  <div class='entropy_meter well'>
+    <p>This passphrase has around <span id='pp_entropy'>0</span> bits of entropy.</p>
+    <p>Time to guess looks like: <span id='pp_time'>none at all</span>.</p>
+  </div>
+
+  <div class='well text-center'>
+    <p>You can ask me to <a id='hide_advanced'>generate another</a> or show me some <a target='_blank' href='{{ help_url }}' %}'>reading material</a>.</p>
+  </div>
+
+  </div>
+{% endif %}
+  
+  </form>
+{% endblock content %}
+
+
+{% block js_includes %}
+<script type='text/javascript' src='/js/zxcvbn-async.js'></script>
+{% endblock js_includes %}
+
+  
+{% block js %}
+
+var Entropized = true;
+
+$('#show_advanced').click(function(){
+  var pp = $('#provided_passphrase').val();
+  $('#custom_passphrase').val(pp);
+  process_custom_pp(pp);
+   $('.passphrase_selection').fadeOut(function() {
+      $('.advanced').show();
+     });
+});
+
+$('#hide_advanced').click(function() {
+   request_random();
+   $('.advanced').fadeOut(function() {
+      $('.passphrase_selection').fadeIn();
+     });
+});
+
+function process_custom_pp(passphrase) {
+  var rate_it = zxcvbn(passphrase,
+    /* these are penalized local words / previous passphrases */
+               [ 'lookingglass',
+                 'passphrase',
+                 'entropy',
+                 'encrypt',
+                 'reading',
+                 'material',
+                 'instant',
+                 'hours',
+                 'days',
+                 'months',
+                 'years',
+                 'centuries',
+                 'bits',
+                 'guess',
+                 'sensitive',
+                 'data',
+                 'unlock',
+                 'your top secret passphrase',
+                 'covername',{% for W in word_list %}
+                 '{{ W }}',{% endfor %}]);
+  $('#provided_passphrase').val(passphrase);
+  $('#pp_entropy').text(rate_it.entropy);
+  $('#pp_time').text(rate_it.crack_time_display);
+  if (parseInt(rate_it.entropy) < 45) {
+    Entropized = false;
+    $('#also_submit').attr('disabled', true);
+  } else {
+    Entropized = true;
+    $('#also_submit').attr('disabled', false);
+  };
+}
+
+$('#custom_passphrase').keyup(function() {
+  process_custom_pp($(this).val());
+  });
+  
+$('#example_passphrase').click(function() {
+   $('#les_formes').submit();  
+});
+
+$('#example_covername').click(function() {
+   $('#les_formes').submit();  
+});
+
+$('#also_submit').click(function() {
+   $('#les_formes').submit();  
+});
+
+$('.gen_pass').click(function(){ request_random() });
+$('.gen_cover').click(function(){ request_random() });
+
+function request_random() {
+  Entropized = true;
+  $('#example_passphrase').prop('disabled', true);
+  $('#example_passphrase').text('[PLEASE WAIT]');
+  {% if covername %}
+    $.getJSON('{% url 'setup.gen_covername' %}', function(data){
+  {% else %}
+    $.getJSON('{% url 'setup.gen_pass' %}', function(data){
+  {% endif %}
+     $('#example_passphrase').text(data.value);
+     $('#provided_passphrase').val(data.value);
+     $('#example_passphrase_box').fadeIn();
+     $('#example_passphrase').fadeIn();
+    $('#example_passphrase').prop('disabled', false);
+  });
+};
+
+$(document).ready(function(){
+  request_random();
+});
+
+$('#les_formes').submit(function(e){
+  if (Entropized == false) {
+    e.preventDefault();
+  };
+});
+  
+{% endblock js %}
