@@ -15,12 +15,9 @@ import os
 
 import addressbook
 import emailclient.filedb
-import thirtythirty.hdd
-import thirtythirty.models
+import thirtythirty
 import ratchet
 import smp
-import thirtythirty.exception
-import thirtythirty.utils
 
 import thirtythirty.settings as TTS
 from thirtythirty.gpgauth import session_pwd_wrapper, set_up_single_user
@@ -691,6 +688,8 @@ def about(request):
              'a':"Because you selected to <a href='%s#cGape'>keep a local copy of read-once messages</a>, which re-encrypts them.  This is <span class='bg-danger'>NOT SECURE OR RECOMMENDED</span>." % reverse('advanced_settings')},
             {'q':'Does LookingGlass make my web browsing anonymous?',
              'a':'Presently, no - but that is a possible future feature.'},
+            {'q':'Can I view the source?',
+             'a':'Sure - you can be a wizard and log into the box, or you could go look at more out-of-sync code at <a href="https://github.com/last-box/LookingGlass">GitHub</a>.'},
             {'q':'How do I report a bug?',
              'a':"Oh boy, already?  There is a <a href='%s'>form</a>." % reverse('bug_report')},
             ],
@@ -771,7 +770,7 @@ def submit_bug(request):
                                passphrase=Passphrase)
                 Attach.append('%s.asc' % E)
     logger.debug('Sending bug report...')
-    emailclient.utils.submit_to_smtpd(
+    emailclient.thirtythirty.utils.submit_to_smtpd(
         Attachments=Attach,
         Destination=TTS.UPSTREAM['bug_report_email'],
         Payload=request.POST.get('summary'),
@@ -967,7 +966,7 @@ def last(request):
 
 
 @session_pwd_wrapper
-def thirtythirty(request):
+def thirtythirty_logs(request):
     ret = '%s\n%s' % (
         str(subprocess.check_output(['/usr/bin/tail', '/tmp/thirtythirty.log'])),
         str(subprocess.check_output(['/usr/bin/tail', '/tmp/thirtythirty.err'])),

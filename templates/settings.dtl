@@ -332,8 +332,12 @@ $('input:radio[value=DHCP]').click(function(){
   ip_mode_change();
 });
 
-$('.kick').click(function(e){
-  $.get('{% url 'settings.kick' %}/' + this.id);
+$('.kick').click(function(){
+  $(this).addClass('btn-success');
+  $.get('{% url 'settings.kick' %}/' + this.id,
+  function() {
+    $(this).removeClass('btn-success');
+  }.bind(this));
 });
 
 $('#restorefile').change(function(e) {
@@ -390,7 +394,7 @@ $('#get-user-log').click(function() {
 });
 
 $('#get-web-log').click(function() {
-  $.getJSON('{% url 'settings.thirtythirty' %}', function(data) {
+  $.getJSON('{% url 'settings.thirtythirty_logs' %}', function(data) {
     $('#log-view').val(data);
   });
 });

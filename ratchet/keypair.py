@@ -3,7 +3,7 @@ from django.db import models
 
 from curve25519 import keys as ECkey
 
-#import ratchet
+import ratchet
 
 class Keypair(models.Model):
     tx = models.BinaryField(null=True)

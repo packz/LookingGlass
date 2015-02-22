@@ -23,6 +23,12 @@ class Command(BaseCommand):
                     default=False,
                     help="Check for updates and download to cache",
                     ),
+        make_option('--force',
+                    action='store_true',
+                    dest='force',
+                    default=False,
+                    help="Override rate limiter",
+                    ),
         make_option('--email-user',
                     action='store_true',
                     dest='email',
@@ -67,7 +73,7 @@ class Command(BaseCommand):
             From='Sysop <root>')
 
     def handle(self, *args, **settings):
-        U = thirtythirty.updater.Updater()
+        U = thirtythirty.updater.Updater()            
         
         GMR = U.GetMostRecent(asString=True)
         UDA = U.MoreRecentAvailable()

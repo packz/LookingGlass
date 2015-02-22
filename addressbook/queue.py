@@ -12,6 +12,7 @@ from types import StringType
 
 import hashcash
 
+import addressbook
 import ratchet
 import smp
 import emailclient.utils
@@ -321,7 +322,7 @@ We'll try again in a bit and see if it magically starts working.
                         headers=Loop_Header,
                         )
                     logger.debug('Axo SYN SMTP queued to: %s' % Message.address.email)
-                except:
+                except ratchet.exception.Missing_Handshake:
                     logger.error('Axo already shook - may need to delete/rebuild this contact')
             else:
                 # FIXME: anonymous handshake button on dossier advanced

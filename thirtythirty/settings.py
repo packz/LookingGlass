@@ -377,8 +377,8 @@ GPG = {
 HASHCASH = {
     'RATE_LIMIT_SECONDS':300,
     'BACKOFF':{
-        'UPSTREAM':'/tmp/upstream-backoff.lock',
         'QUEUE':'/tmp/queue-backoff.lock',
+        'UPSTREAM':'/tmp/upstream-backoff.lock',
         },
     'BITS':{
         'WEBUI':18,

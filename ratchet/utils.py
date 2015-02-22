@@ -7,7 +7,7 @@ from types import DictType
 import binascii
 import json
 
-#import ratchet
+import thirtythirty.settings as TTS
 
 def human_readable(crazy_binary_data=None,
                    drop_octets=False):
@@ -113,7 +113,7 @@ class b64Formatter(object):
         if not Format: return bPayload
         else:
             fPayload = self.__fold_to_width(bPayload)
-            return self.__str_format % (ratchet.LOOKINGGLASS_VERSION_STRING, fPayload) 
+            return self.__str_format % (TTS.LOOKINGGLASS_VERSION_STRING, fPayload) 
 
 
     def to_b64(self, Payload=None):

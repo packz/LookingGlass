@@ -10,7 +10,7 @@ from struct import unpack_from
 from types import BufferType
 
 import thirtythirty.db_locker
-#import ratchet
+import ratchet
 
 import logging
 logger = logging.getLogger(__name__)
