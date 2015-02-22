@@ -1,4 +1,6 @@
-# LookingGlass: forward secure, distributed, pseudonymous email
+# [LookingGlass](http://lookingglass.email): forward secure, distributed, pseudonymous email
+
+http://lookingglass.email
 
 ---
 
@@ -71,9 +73,3 @@
   Tor uses [onion routing](https://en.wikipedia.org/wiki/Onion_routing) to anonymize network traffic.  One of the features it provides is known as [hidden services](https://www.torproject.org/docs/hidden-services.html.en) - a method of obscuring the location of a server.
 
   Each LookingGlass server expects email from the Tor network, and other LookingGlass clients connect via its hidden service address.  This is again adapted from a chat client in present use - [TorChat](https://en.wikipedia.org/wiki/TorChat).
-
----
-
-# I WANT TO DO THIS
-
-Getting started guide available [here](https://sdtrssmsbmw7eqm4.tor2web.org) or over Tor [here](http://sdtrssmsbmw7eqm4.onion).
