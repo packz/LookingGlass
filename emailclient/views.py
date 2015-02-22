@@ -7,12 +7,11 @@ from django.db.models import Q
 
 import datetime
 import json
-from re import sub
-from types import StringType
+import re
+from types import StringType, ListType
 
 import addressbook
 import emailclient
-import filedb
 import ratchet
 import thirtythirty
 
@@ -36,14 +35,17 @@ def folder(request, name=''):
     if name not in ['', 'inbox', 'admin', 'sent', 'trash', 'drafts']:
         custom_folder = True
 
+#    logger.debug('Got request for folder `%s`' % name)
+
     context = RequestContext(request, {
         'title':pretty_name,
         'nav':'Email',
+        'new_mail_count':emailclient.filedb.new_mail_in_inbox(),
         'bg_image':'inbox.jpg',
         'vitals':thirtythirty.utils.Vitals(request),
-        'sorted':filedb.sorted_messages_in_folder(folderName=magic_inbox.lstrip()),
+        'sorted':emailclient.filedb.sorted_messages_in_folder(folderName=magic_inbox.lstrip()),
         'srcFolder':name,
-        'folder_list':filedb.list_folders(sanitize=True),
+        'folder_list':emailclient.filedb.list_folders(sanitize=True),
         'custom_folder':custom_folder,
         })
     template = loader.get_template('folder.dtl')
@@ -55,7 +57,7 @@ def view(request, Key=None, advanced=False):
     Preferences = set_up_single_user()
     if Preferences.show_advanced: advanced = True
     
-    FolderHash = filedb.folder_from_msg_key(Key)
+    FolderHash = emailclient.filedb.folder_from_msg_key(Key)
     if not FolderHash: return redirect('emailclient.inbox')
 
     Msg = FolderHash['mbx'].get(Key)
@@ -72,24 +74,25 @@ def view(request, Key=None, advanced=False):
         ).first()
     if Fingerprint: Fingerprint = Fingerprint.fingerprint
     
-    Folder_Keys = filedb.sorted_messages_in_folder(messageKey=Key)
+    Folder_Keys = emailclient.filedb.sorted_messages_in_folder(messageKey=Key)
     Next = None
     Prev = None
     for X in range(0, len(Folder_Keys)):
-        MK = filedb.msg_key_from_msg(Folder_Keys[X])
+        MK = emailclient.filedb.msg_key_from_msg(Folder_Keys[X])
         if MK == Key:
             if X > 0:
-                Prev = filedb.msg_key_from_msg(Folder_Keys[X-1])
+                Prev = emailclient.filedb.msg_key_from_msg(Folder_Keys[X-1])
             if X < len(Folder_Keys)-1:
-                Next = filedb.msg_key_from_msg(Folder_Keys[X+1])
+                Next = emailclient.filedb.msg_key_from_msg(Folder_Keys[X+1])
             break
 
     context = RequestContext(request, {
         'title':FolderHash['pretty_name'],
         'nav':'Email',
+        'new_mail_count':emailclient.filedb.new_mail_in_inbox(),
         'bg_image':'inbox.jpg',
         'vitals':thirtythirty.utils.Vitals(request),
-        'folder_list':filedb.list_folders(sanitize=True),
+        'folder_list':emailclient.filedb.list_folders(sanitize=True),
         'fingerprint':Fingerprint,
         'advanced':advanced,
         'symmetric':Preferences.rx_symmetric_copy,
@@ -107,21 +110,30 @@ def compose(request, Name=None, FP=None):
     magic = {}
     for X in ['to', 'subject', 'body', 'MK']:
         if request.POST.get(X):
-            magic[X] = sub('\\\\n', '\n', request.POST.get(X))
+            magic[X] = re.sub('\\\\n', '\n', request.POST.get(X))
     if FP or request.POST.get('fp', None):
         if request.POST.get('fp', None):
             FP = request.POST.get('fp', None)
-        A = addressbook.address.Address.objects.get(fingerprint=FP)
-        magic['to'] = A.nickname
-        if not magic['to']: magic['to'] = A.covername
-        magic['fp'] = FP
+        try:
+            A = addressbook.address.Address.objects.get(fingerprint=FP)
+            magic['to'] = A.nickname
+            if not magic['to']: magic['to'] = A.covername
+            magic['fp'] = FP
+        except:
+            # we have run into an email generated locally, perhaps.
+            # let this pass to the compose window, so we can save draft, if there has been a mistake
+            pass
+    # reply is email-style quoted
+    if magic.has_key('body'):
+        magic['body'] = re.sub('(?m)^', '> ', magic['body'])
     context = RequestContext(request, {
         'title':'Composition',
         'nav':'Email',
+        'new_mail_count':emailclient.filedb.new_mail_in_inbox(),
         'bg_image':'compose.jpg',
         'vitals':thirtythirty.utils.Vitals(request),
-        'folder_list':filedb.list_folders(sanitize=True),
-        'friends':addressbook.address.Address.objects.filter(is_me=False),
+        'folder_list':emailclient.filedb.list_folders(sanitize=True),
+        'friends':addressbook.address.Address.objects.filter(is_me=False, system_use=False),
         'magic':magic,
         })
     template = loader.get_template('compose.dtl')
@@ -141,8 +153,11 @@ def send(request):
     To = request.POST.get('to', None)
     Addr = addressbook.address.Address.objects.filter(
         Q(fingerprint__iexact=request.POST.get('fingerprint')) |\
-        Q(email__iexact=To)
+        Q(email__iexact=To) |\
+        Q(covername__iexact=To) |\
+        Q(nickname__iexact=To)
         )
+    logger.debug(Addr)
     if len(Addr) != 1:
         return HttpResponse(json.dumps({'ok':False,
                                         'extra':'Address clown show'}))
@@ -151,7 +166,7 @@ def send(request):
         
     if (request.POST.get('mode') == 'save'):
         return HttpResponse(json.dumps(
-            filedb.save_local(to=Addr.email,
+            emailclient.filedb.save_local(to=Addr.email,
                               subject=request.POST.get('subject'),
                               body=request.POST.get('body'),
                               passphrase=PP,
@@ -159,16 +174,14 @@ def send(request):
                               )), content_type='application/json')
 
     elif Addr.user_state == addressbook.address.Address.KNOWN:
-
+        # GPG
         Preferences = set_up_single_user()
         if Preferences.tx_symmetric_copy:
-            logger.debug('Saving draft')
-            filedb.save_local(to=Addr.email,
+            emailclient.filedb.save_local(to=Addr.email,
                               subject=request.POST.get('subject'),
                               body=request.POST.get('body'),
                               passphrase=PP,
                               Folder='sent',
-                              MK=request.POST.get('MK', None),
                               )
 
         emailclient.utils.submit_to_smtpd(
@@ -185,16 +198,14 @@ def send(request):
             }),content_type='application/json')
 
     elif Addr.user_state > addressbook.address.Address.KNOWN:
-
+        # Axolotl
         Preferences = set_up_single_user()
         if Preferences.tx_symmetric_copy:
-            logger.debug('Saving draft')
-            filedb.save_local(to=Addr.email,
+            emailclient.filedb.save_local(to=Addr.email,
                               subject=request.POST.get('subject'),
                               body=request.POST.get('body'),
                               passphrase=PP,
                               Folder='sent',
-                              MK=request.POST.get('MK', None),
                               )
 
         ratchet.conversation.Conversation.objects.init_for('ratchet')
@@ -221,16 +232,13 @@ def send(request):
 
 @session_pwd_wrapper
 def receive(request, Key=None):
-    from re import search
-    from types import ListType
-
-    FolderHash = filedb.folder_from_msg_key(Key)
+    FolderHash = emailclient.filedb.folder_from_msg_key(Key)
     if not FolderHash:
         return HttpResponse(json.dumps({'ok':False, 'status':'nonesuch'}),
                             content_type='application/json')
     Msg = FolderHash['mbx'].get(Key)
     # mark as 'S'een
-    filedb.flag(Key, addFlag='S')
+    emailclient.filedb.flag(Key, addFlag='S')
 
     Passphrase = None
     if request.POST.get('passphrase'):
@@ -318,21 +326,21 @@ def receive(request, Key=None):
                 Payload = Convo.decrypt(Msg.as_string())
             except ratchet.exception.RatchetException:
                 Payload = '* Decrypt failed: %s *' % Addr.magic()
-                filedb.discard(Key)
+                emailclient.filedb.discard(Key)
                 return HttpResponse(
                     json.dumps({'ok':False,
                                 'msg_type':'FAIL',
                                 'payload':Payload}))
-            filedb.discard(Key)
+            emailclient.filedb.discard(Key)
 
             if Preferences.rx_symmetric_copy:
-                M = filedb.save_local(to=Msg['to'],
+                M = emailclient.filedb.save_local(to=Msg['to'],
                                       ffrom=Msg['from'],
                                       date=Msg['date'],
                                       subject='[SYMMETRIC] %s' % Msg['subject'],
                                       body=Payload,
                                       passphrase=Passphrase,
-                                      Folder='',
+                                      Folder='', # inbox
                                       )
                 logger.debug('Made a symmetric copy: %s' % (M['extra']))
                                   
@@ -364,7 +372,7 @@ def receive(request, Key=None):
 def discard(request):
     ret = []
     for MK in request.POST.getlist('MK'):
-        if filedb.discard(MK):
+        if emailclient.filedb.discard(MK):
             ret.append(MK)
     return HttpResponse(
         json.dumps(ret),
@@ -379,10 +387,10 @@ def move(request):
     returnType = request.POST.get('returnType')
     for MK in request.POST.getlist('MK'):
         if srcFolder == 'trash':
-            filedb.flag(MK, remFlag='T')
+            emailclient.filedb.flag(MK, remFlag='T')
         if destFolder == 'trash':
-            filedb.flag(MK, addFlag='T')
-        NewKey = filedb.move(MK, folderName=destFolder)
+            emailclient.filedb.flag(MK, addFlag='T')
+        NewKey = emailclient.filedb.move(MK, folderName=destFolder)
         if NewKey: ret.append(NewKey)
     if returnType == 'message':
         # redirect rather than just return, so the URL is pretty
@@ -399,14 +407,14 @@ def flag(request):
     addFlag = request.POST.get('addFlag')
     remFlag = request.POST.get('remFlag')
     for MK in request.POST.getlist('MK'):
-        FM = filedb.flag(MK,
+        FM = emailclient.filedb.flag(MK,
                          addFlag=addFlag,
                          remFlag=remFlag)
         if not FM['ok']:
             ret.append({'ok':False, 'MK':MK})
         else:
             if 'T' in addFlag:
-                filedb.move(MK, folderName='trash')
+                emailclient.filedb.move(MK, folderName='trash')
             ret.append({'ok':True, 'MK':MK, 'extra':FM['extra']})
     return HttpResponse(json.dumps(ret),
                         content_type='application/json')
@@ -416,14 +424,14 @@ def flag(request):
 def create_folder(request):
     folderName = request.POST.get('destFolder')
     srcFolder = request.POST.get('srcFolder')
-    Sanitized = filedb.create_folder(folderName)['folderName']
+    Sanitized = emailclient.filedb.create_folder(folderName)['folderName']
     for MK in request.POST.getlist('MK'):
-        filedb.move(MK, folderName=Sanitized)
+        emailclient.filedb.move(MK, folderName=Sanitized)
     return redirect('emailclient.folder', name=srcFolder)
 
 
 @session_pwd_wrapper
 def delete_folder(request):
     folderName = request.POST.get('folderName')
-    return HttpResponse(json.dumps(filedb.delete_folder(folderName)),
+    return HttpResponse(json.dumps(emailclient.filedb.delete_folder(folderName)),
                         content_type='application/json')

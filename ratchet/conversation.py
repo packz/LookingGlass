@@ -3,14 +3,14 @@ from django.db import models
 from django.utils import timezone
 
 from curve25519 import keys as ECkey
-from datetime import datetime, timedelta
+from datetime import timedelta
 from hashlib import sha224, sha256
 from passlib.utils.pbkdf2 import pbkdf2
 from struct import unpack_from
-from types import BufferType, StringType
+from types import BufferType
 
 import thirtythirty.db_locker
-import ratchet
+#import ratchet
 
 import logging
 logger = logging.getLogger(__name__)
@@ -48,6 +48,9 @@ class ConversationMgr(thirtythirty.db_locker.LockManager,
         """
         Others there are whose hands have sunbeams in them...
         """
+        if ((not unique_key) or
+            (not passphrase)):
+            return None
         self.init_for('ratchet')
         Convo = self.create(UniqueKey=unique_key)
         Convo.begin_at_the_beginening()

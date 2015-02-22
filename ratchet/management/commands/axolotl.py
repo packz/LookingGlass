@@ -5,7 +5,6 @@ from django.core.management.base import BaseCommand
 import getpass
 from optparse import make_option
 import os
-from re import sub
 from sys import stdin
 
 import addressbook
@@ -215,7 +214,7 @@ class Command(BaseCommand):
                             logger.warning('%s is already shook one' % Addr.email)
                         if settings['autosend']:
                             logger.debug('Queuing an Axolotl SYN to %s' % Addr.email)
-                            Entry = addressbook.queue.Queue.objects.create(
+                            addressbook.queue.Queue.objects.create(
                                 address = Addr,
                                 direction = addressbook.queue.Queue.TX,
                                 message_type = addressbook.queue.Queue.AXOLOTL,

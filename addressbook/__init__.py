@@ -6,9 +6,9 @@ GPG = gnupg.GPG(gnupghome=TTS.GPG['root'],
                 options=TTS.GPG['options'])
 GPG.encoding = TTS.GPG['encoding']
 
-import exception
-import address
-import covername
-import gpg
-import queue
-import utils
+import addressbook.exception
+import addressbook.address
+import addressbook.covername
+import addressbook.gpg
+import addressbook.queue
+import addressbook.utils

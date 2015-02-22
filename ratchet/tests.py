@@ -3,22 +3,17 @@ from django.test import TestCase
 from django.db import IntegrityError
 
 import uuid
-from os.path import exists
 
-import conversation
-import exception
-import keypair
-import handshake
-import utils
+import ratchet
 
 class RatchetTest(TestCase):
     def geterset(self, k1name='.ALICE', k2name='.BOB'):
         try:
-            Alice = conversation.Conversation.objects.initiate_handshake_for(k2name)
-            Bob   = conversation.Conversation.objects.initiate_handshake_for(k1name)
+            Alice = ratchet.conversation.Conversation.objects.initiate_handshake_for(k2name)
+            Bob   = ratchet.conversation.Conversation.objects.initiate_handshake_for(k1name)
         except IntegrityError:
-            Alice = conversation.Conversation.objects.get(UniqueKey=k2name)
-            Bob = conversation.Conversation.objects.get(UniqueKey=k1name)
+            Alice = ratchet.conversation.Conversation.objects.get(UniqueKey=k2name)
+            Bob = ratchet.conversation.Conversation.objects.get(UniqueKey=k1name)
         return Alice, Bob
 
 
@@ -27,8 +22,8 @@ class RatchetTest(TestCase):
         if not BobName: BobName = str(uuid.uuid4())
         Alice, Bob = self.geterset(AliceName, BobName)
 
-        Alice_HS = handshake.HandshakeFactory( Import=Alice.my_handshake() )
-        Bob_HS   = handshake.HandshakeFactory( Import=Bob.my_handshake() )
+        Alice_HS = ratchet.handshake.HandshakeFactory( Import=Alice.my_handshake() )
+        Bob_HS   = ratchet.handshake.HandshakeFactory( Import=Bob.my_handshake() )
 
         Alice.greetings(Bob_HS)
         Bob.greetings(Alice_HS)
@@ -40,8 +35,8 @@ class RatchetTest(TestCase):
 
     def test_fingerprint_transmits(self):
         Alice, Bob = self.geterset()
-        Alice_HS = handshake.HandshakeFactory( Import=Alice.my_handshake() )
-        Bob_HS   = handshake.HandshakeFactory( Import=Bob.my_handshake() )
+        Alice_HS = ratchet.handshake.HandshakeFactory( Import=Alice.my_handshake() )
+        Bob_HS   = ratchet.handshake.HandshakeFactory( Import=Bob.my_handshake() )
 
         Alice.greetings(Bob_HS)
         Bob.greetings(Alice_HS)
@@ -51,8 +46,8 @@ class RatchetTest(TestCase):
 
 
     def test_overshake(self):
-        A, B = self.cut_to_the_jibber_jabber('aloose', 'borb')
-        self.assertRaises(exception.Missing_Handshake, self.cut_to_the_jibber_jabber, 'aloose', 'borb')
+        self.cut_to_the_jibber_jabber('aloose', 'borb')
+        self.assertRaises(ratchet.exception.Missing_Handshake, self.cut_to_the_jibber_jabber, 'aloose', 'borb')
         
     
     def test_handshake_deletes(self):
@@ -63,8 +58,8 @@ class RatchetTest(TestCase):
         self.assertEqual(hasattr(Alice, 'Handshake'), True)
         self.assertEqual(hasattr(Bob, 'Handshake'), True)
 
-        Alice_HS = handshake.HandshakeFactory( Import=Alice.my_handshake() )
-        Bob_HS   = handshake.HandshakeFactory( Import=Bob.my_handshake() )
+        Alice_HS = ratchet.handshake.HandshakeFactory( Import=Alice.my_handshake() )
+        Bob_HS   = ratchet.handshake.HandshakeFactory( Import=Bob.my_handshake() )
 
         Alice.greetings(Bob_HS)
         Bob.greetings(Alice_HS)

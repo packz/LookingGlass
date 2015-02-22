@@ -2,6 +2,8 @@
 class CryptDBException(Exception):
     def __init__(self, value):
         self.value = value
+        Exception.__init__(self)
+        
     def __str__(self):
         return repr(self.value)
     
@@ -20,6 +22,8 @@ class Missing_Database(CryptDBException): pass
 class LuksException(Exception):
     def __init__(self, value):
         self.value = value
+        Exception.__init__(self)
+        
     def __str__(self):
         return repr(self.value)
 

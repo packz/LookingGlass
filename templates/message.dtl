@@ -5,9 +5,12 @@
 .message-container {
   min-height: 250px;
 }
-.message-body {
+#message-body {
    padding: 50px;
    min-height: 100px;
+   white-space: pre-wrap;
+   white-space: -moz-pre-wrap;
+   word-wrap: break-word;
 }
 .mycollapse {
   display: none;
@@ -105,9 +108,17 @@
 $('#show-raw').show();
 {% endif %}
 
-$('#composeSubmit').click(function() {
+function reply_to() {
   $('#msgForm').attr('action', '{% url 'emailclient.compose' %}');
   $('#msgForm').submit();
+}
+
+$('#composeSubmit').click(function() {
+  reply_to();
+});
+
+$('#reply').click(function() {
+  reply_to();
 });
 
 function message_load() {
@@ -137,6 +148,7 @@ function message_load() {
        } else if (data.msg_type == 'AXO-MSG') {
          console.log('by the time you read this, the keys are gone');
             $('.message-axolotl-warning').fadeOut(function() {
+	    $('.hide-axo-decrypted').fadeOut();
             $('.message-loading').fadeOut('slow', function() {
               $('#message-body').addClass('bg-info');
               $('#message-body').text(data.decrypt);
@@ -197,6 +209,8 @@ function message_load() {
 };
 
 $(document).ready(function(){
+  $('.hide-in-message').hide();
+  $('.show-in-message').show();
   $('.only-when-selected').removeClass('disabled');
   $('#select-all').addClass('disabled');
   message_load();

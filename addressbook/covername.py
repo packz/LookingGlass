@@ -5,7 +5,9 @@ import thirtythirty.settings as TTS
 def __rand(which=None, number=1):
     ret = []
     Random_Lines = subprocess.check_output([
-        'rl', '--count', str(number), '%s/%s' % (TTS.COVERNAME_DB['directory'], which)])[:-1]
+        'rl', '--count', str(number),
+        '%s/%s' % (TTS.COVERNAME_DB['directory'],
+                   which)])[:-1]
     for X in Random_Lines.split(','):
         ret.append( X.strip() )
     return ret

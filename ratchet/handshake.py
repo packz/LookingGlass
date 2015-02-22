@@ -1,6 +1,4 @@
 
-from binascii import a2b_base64, b2a_base64, hexlify, unhexlify
-from os import urandom
 from types import StringType, DictType
 
 import addressbook
@@ -81,7 +79,7 @@ Version: %s
         if type(jPayload) is StringType:
             raise(ratchet.exception.Broken_Format(
                 'I think this may be an encrypted, not anonymous, handshake'))
-        for K,V in self.from_b64(jPayload).items():
+        for K, V in self.from_b64(jPayload).items():
             setattr(self, K, V)
 
 
@@ -118,6 +116,9 @@ Version: %s
             'DHRatchetTx',
             'HandshakeTx',
             ]
+        self.FPrint = None
+        self.DHIdentityTx = None
+        self.HandshakeTx = None
         super(EncryptedHandshake, self
               ).__init__(str_format = sFormat,
                          re_format = rFormat,
@@ -150,7 +151,7 @@ Version: %s
                 'Could not decrypt our handshake'))
         self.FPrint = jPayload.pubkey_fingerprint
         Payload = self.deserialize(jPayload.data)
-        for K,V in self.from_b64(Payload).items():
+        for K, V in self.from_b64(Payload).items():
             if K == 'FPrint':
                 logger.warning('Someone tried to slip me a fingerprint...')
                 continue

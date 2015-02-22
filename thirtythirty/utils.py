@@ -13,7 +13,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 def Vitals(request=None):
-    GPG_Dir = '/home/%s/.gnupg' % TTS.USERNAME
     Electrum_Data = '/home/%s/.electrum/wallets/default_wallet' % TTS.USERNAME
     
     ret = {
@@ -58,12 +57,12 @@ def IP_Info(in_particular=None, interface='eth0'):
     for Line in subprocess.check_output(['route', '-n']).split('\n'):
         GW_Finder = re.search('^0.0.0.0\W+(?P<Gateway>[\.0-9]+)\W+', Line)
         if GW_Finder:
-            for X,Y in GW_Finder.groupdict().items():
+            for X, Y in GW_Finder.groupdict().items():
                 ret[X] = Y
     for Line in subprocess.check_output(['ifconfig', interface]).split('\n'):
         IP_Scan = re.search('inet addr:(?P<Address>[\.0-9]+).*Mask:(?P<Netmask>[\.0-9]+)', Line)
         if IP_Scan:
-            for X,Y in IP_Scan.groupdict().items():
+            for X, Y in IP_Scan.groupdict().items():
                 ret[X] = Y
     if in_particular and ret.has_key(in_particular):
         return ret[in_particular]
@@ -98,7 +97,7 @@ def query_daemon_states(specifically=None):
     return ret
 
 
-def popen_wrapper(arglist=[], stdin=None,
+def popen_wrapper(arglist=None, stdin=None,
                   sudo=True,
                   debug=True):
     """
@@ -106,6 +105,7 @@ def popen_wrapper(arglist=[], stdin=None,
 
     Can't use StringIO here, /usr/bin/make will often crap out a bunch of stuff.
     """
+    if not arglist: arglist = []
     SO = tempfile.NamedTemporaryFile()
     SE = tempfile.NamedTemporaryFile()
 #    if debug:

@@ -7,7 +7,7 @@ import subprocess
 import os.path
 
 import addressbook
-import exception  # FIXME: instead of returning False all the time, we should probably raise Bad_Passphrase...
+
 from thirtythirty.gpgauth import set_up_single_user
 
 import thirtythirty.settings as TTS
@@ -93,6 +93,10 @@ def export():
     Me = addressbook.address.Address.objects.filter(is_me=True).first()
     if not Me: return False
     return addressbook.GPG.export_keys(Me.fingerprint)
+
+
+def Import(keydata=None):
+    return addressbook.GPG.import_keys(keydata)
     
 
 def decrypt(msg=None, passphrase=None):

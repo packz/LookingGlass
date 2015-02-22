@@ -1,6 +1,10 @@
 {% extends "email_base.dtl" %}
 {% load hyphens %}
 
+{% block slow_refresh %}
+<meta http-equiv="refresh" content="60" />
+{% endblock slow_refresh %}
+
 {% block panel_body %}
   <div class='container-fluid'>
   <form id='msgForm' method='POST'>
@@ -126,6 +130,12 @@ $('#trash-msg').click(function() {
   },
   'json');
 });
+
+$(document).ready(function() {
+  $('.hide-in-message').show();
+  $('.show-in-message').hide();
+});
+
 {% endif %}
 
 {% include 'folder_mgmt.js' %}

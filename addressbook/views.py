@@ -3,7 +3,6 @@ from django.core.urlresolvers import reverse
 from django.db import models
 from django.db.models import Q
 from django.http import HttpResponse
-from django.shortcuts import render, redirect
 from django.template import RequestContext, loader
 
 import re
@@ -11,6 +10,7 @@ import json
 import datetime
 
 import addressbook
+import emailclient
 import ratchet
 import smp
 import thirtythirty
@@ -42,7 +42,7 @@ def home(request, Index=None, advanced=False):
             Q(covername__contains = ' %s' % Index) # filter last name too
             ).filter(system_use=False)
         
-    Indices = set([ X.magic()[0] for X in addressbook.address.Address.objects.all() ]) # set() uniques the results
+    Indices = set([ X.magic()[0] for X in addressbook.address.Address.objects.filter(system_use=False) ]) # set() uniques the results
     state_hash = {}
     for K,V in addressbook.address.Address.user_state_choices:
         state_hash[K] = V
@@ -53,17 +53,20 @@ def home(request, Index=None, advanced=False):
     if Me.comment and Me.comment != 'accepted LUKS passphrase':
         Headend_Ok = True
         
-    context = RequestContext(request, {'title':'Contacts',
-                                       'nav':'Contacts',
-                                       'bg_image':'the-stacks.jpg',
-                                       'vitals':thirtythirty.utils.Vitals(request),
-                                       'indices':sorted(Indices),
-                                       'index':Index,
-                                       'advanced':advanced,
-                                       'friends':Addressbook,
-                                       'headend_ok':Headend_Ok,
-                                       'state_names':state_hash,
-                                       })
+    context = RequestContext(
+        request,
+        {'title':'Contacts',
+         'nav':'Contacts',
+         'new_mail_count':emailclient.filedb.new_mail_in_inbox(),
+         'bg_image':'the-stacks.jpg',
+         'vitals':thirtythirty.utils.Vitals(request),
+         'indices':sorted(Indices),
+         'index':Index,
+         'advanced':advanced,
+         'friends':Addressbook,
+         'headend_ok':Headend_Ok,
+         'state_names':state_hash,
+         })
     template = loader.get_template('addressbook.dtl')
     return HttpResponse(template.render(context))
 
@@ -76,7 +79,7 @@ def dossier(request, Fingerprint=None, advanced=False):
     Vitalis = thirtythirty.utils.Vitals(request)
 
     state_hash = {}
-    for K,V in addressbook.address.Address.user_state_choices:
+    for K, V in addressbook.address.Address.user_state_choices:
         state_hash[K] = V
     try:
         Addr = addressbook.address.Address.objects.get(fingerprint=Fingerprint)
@@ -110,13 +113,20 @@ def dossier(request, Fingerprint=None, advanced=False):
         try: Ratchet_Objects.decrypt_database(PP)
         except thirtythirty.exception.Target_Exists: pass
 
-        MyRatchet = ratchet.conversation.Conversation.objects.filter(UniqueKey=Fingerprint).first()
+        MyRatchet = ratchet.conversation.Conversation.objects.filter(
+            UniqueKey=Fingerprint
+            ).first()
         if MyRatchet:
             req['my_fingerprint'] = MyRatchet.my_fingerprint()
             req['their_fingerprint'] = MyRatchet.their_fingerprint()
-        MySMP = smp.models.SMP.objects.filter(UniqueKey=Fingerprint).first()
+        MySMP = smp.models.SMP.objects.filter(
+            UniqueKey=Fingerprint
+            ).first()
         Q = None
-        try: Q = addressbook.queue.Queue.objects.filter(address__fingerprint=Fingerprint).latest()
+        try:
+            Q = addressbook.queue.Queue.objects.filter(
+            address__fingerprint=Fingerprint
+            ).latest()
         except: pass
         if Q:
             req['previous_smp_step'] = Q.body
@@ -125,7 +135,7 @@ def dossier(request, Fingerprint=None, advanced=False):
             req['Question'] = MySMP.Question
 
     
-    for K,V in addressbook.address.Address.Verbose.iteritems():
+    for K, V in addressbook.address.Address.Verbose.iteritems():
         BR = re.sub('BUG_REPORT_URL', reverse('bug_report'), V)
         CU = re.sub('CHAT_URL', 'https://%s:16667?nick=%s' % ( Vitalis['server_addr'], 
                                                                Vitalis['ircname']), BR)
@@ -173,10 +183,6 @@ def delete(request):
     ret = {'ok':False, 'FP':FP}
     if ((FP) and ('passphrase' in request.session)):
         PP = request.session['passphrase']
-        try: SMP_Objects.decrypt_database(PP)
-        except thirtythirty.exception.Target_Exists: pass
-        try: Ratchet_Objects.decrypt_database(PP)
-        except thirtythirty.exception.Target_Exists: pass
         
         try:
             A = addressbook.address.Address.objects.get(
@@ -184,19 +190,14 @@ def delete(request):
                 is_me=False,
                 )
         except addressbook.address.Address.DoesNotExist:
-            return HttpResponse(json.dumps({'ok':False,
-                                            'FP':FP}),
+            return HttpResponse(json.dumps(ret),
                                 content_type='application/json')
-            
-        Addr = addressbook.address.Address.objects.delete_key(fingerprint=FP)
-        Axo = ratchet.conversation.Conversation.objects.filter(UniqueKey=FP).delete()
-        Smp = smp.models.SMP.objects.filter(UniqueKey=FP).delete()
-        logger.debug('user %s deleted' % A)
-        ret = {'ok':True,
-               'addr':Addr,
-               'axo':Axo,
-               'smp':Smp,
-               'FP':FP}
+
+        if addressbook.address.Address.objects.delete_key(fingerprint=A.fingerprint,
+                                                          passphrase=PP):
+            logger.debug('user %s deleted' % A)
+            ret = {'ok':True,
+                   'FP':FP}
     return HttpResponse(json.dumps(ret),
                         content_type='application/json')
 
@@ -276,7 +277,7 @@ def push_to_queue(request):
     if Who.user_state == addressbook.address.Address.KNOWN:
         # Axolotl Handshake
         logger.debug('Queuing an Axolotl SYN to %s' % Who.email)
-        Entry = addressbook.queue.Queue.objects.create(
+        addressbook.queue.Queue.objects.create(
             address = Who,
             direction = addressbook.queue.Queue.TX,
             message_type = addressbook.queue.Queue.AXOLOTL,
@@ -350,9 +351,9 @@ def push_to_queue(request):
             logger.critical('I have no saved state for %s and so suck and fail' % Who.email)
             Who.smp_failures = models.F('smp_failures') + 1
             Who.save()
-            Queue.objects.filter(address=Who,
-                                 direction=addressbook.queue.Queue.SMP_Replay,
-                                 ).delete()
+            addressbook.queue.Queue.objects.filter(address=Who,
+                                                   direction=addressbook.queue.Queue.SMP_Replay,
+                                                   ).delete()
             S.delete()
 
     # initiate the beginnening

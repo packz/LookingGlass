@@ -7,8 +7,8 @@ VERSION_FILE = os.path.join(BASE_DIR, 'VERSION')
 try:
     LOOKINGGLASS_VERSION = eval(file(VERSION_FILE, 'r').read().strip()) # yup, i did it
 except:
-    LOOKINGGLASS_VERSION = (0, 0)
-LOOKINGGLASS_VERSION_STRING = 'LookingGlass V%02d.%02d' % LOOKINGGLASS_VERSION
+    LOOKINGGLASS_VERSION = (0, 0, 0)
+LOOKINGGLASS_VERSION_STRING = 'LookingGlass V%02d.%02d.%02d' % LOOKINGGLASS_VERSION
 
 # makes authentication a bit faster, at the expense of ZOMG security
 PASSPHRASE_CACHE = '/run/shm/passphrase_cache'
@@ -17,8 +17,8 @@ PASSPHRASE_CACHE = '/run/shm/passphrase_cache'
 UPSTREAM = {
     'bug_report_email':'last.box@sdtrssmsbmw7eqm4.onion',
     'keyserver':       'sdtrssmsbmw7eqm4.onion:58008',
+    'update_log':'/tmp/update.log',
     'update_cache':'/tmp/cache',
-    'update_socket':'/run/shm/updates.sock', # don't change w/o updating updaterd
     'updates':[{'type':'RSYNC',
                 'uri':'rsync://sdtrssmsbmw7eqm4.onion:51239',
                 },
@@ -26,6 +26,7 @@ UPSTREAM = {
     'trusted_prints':[
         # these need to be system_use, not imported by the user
         'A4D0785226C649011F01F5EE2E08B316D5BE3439',
+        '9D78B8A6E3F607D0D705DEB8EF12B2899AE46EB7',
         ],
     }
 
@@ -373,8 +374,15 @@ GPG = {
 
 # Hashcash - proof of work for DDOS protection
 
-HASHCASH_BITS = {
-    'WEBUI':18,
-    'MILTER':20,
-    'UPSTREAM':20,
+HASHCASH = {
+    'RATE_LIMIT_SECONDS':300,
+    'BACKOFF':{
+        'UPSTREAM':'/tmp/upstream-backoff.lock',
+        'QUEUE':'/tmp/queue-backoff.lock',
+        },
+    'BITS':{
+        'WEBUI':18,
+        'MILTER':20,
+        'UPSTREAM':20,
+        },
     }

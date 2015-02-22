@@ -7,13 +7,13 @@ import os
 import sqlite3
 import datetime
 
-import exception
-import db_locker
+import thirtythirty.exception
+import thirtythirty.db_locker
 
 class DatabaseTest(TestCase):
     @classmethod
     def setUpClass(cls):
-        D = db_locker.LockManager()
+        D = thirtythirty.db_locker.LockManager()
         for X in ['NAME', 'LOCKED', 'BACKUP']:
             try: os.remove(D.Test[X])
             except OSError: pass
@@ -21,7 +21,7 @@ class DatabaseTest(TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        D = db_locker.LockManager()
+        D = thirtythirty.db_locker.LockManager()
         for X in ['NAME', 'LOCKED', 'BACKUP']:
             try: os.remove(D.Test[X])
             except OSError: pass
@@ -32,7 +32,7 @@ class DatabaseTest(TestCase):
         
     
     def make_empty_db(self):
-        D = db_locker.LockManager()
+        D = thirtythirty.db_locker.LockManager()
         if exists(D.Test['NAME']): return
         conn = sqlite3.connect(D.Test['NAME'],
                                detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
@@ -51,9 +51,9 @@ class DatabaseTest(TestCase):
         
     
     def test_bad_passwd(self):
-        D = db_locker.LockManager()
+        D = thirtythirty.db_locker.LockManager()
         D.init_for()
-        self.assertRaises(exception.Bad_Passphrase, D.encrypt, '1235')
+        self.assertRaises(thirtythirty.exception.Bad_Passphrase, D.encrypt, '1235')
 
 
     def check_decrypt_within_time_limit(self, D):
@@ -77,7 +77,7 @@ class DatabaseTest(TestCase):
         
 
     def test_encrypt(self):
-        D = db_locker.LockManager()
+        D = thirtythirty.db_locker.LockManager()
         D.init_for()
         self.assertEqual(exists(D.Test['LOCKED']), False)
         self.assertEqual(exists(D.Test['NAME']), True)

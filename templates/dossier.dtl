@@ -76,7 +76,7 @@ All below gets commented out if this is the user's own address.  Go deep.
 {% if advanced %}
 <div class='row'>
   <div class='col-md-offset-3 col-md-3'>
-    <p>Your Fingerprint:</p>
+    <p>Your Axolotl Fingerprint:</p>
   </div>
   <div class='col-md-3'>
     <p>{{ my_fingerprint }}</p>
@@ -84,7 +84,7 @@ All below gets commented out if this is the user's own address.  Go deep.
 </div>
 <div class='row'>
   <div class='col-md-offset-3 col-md-3'>
-    <p>Their Fingerprint:</p>
+    <p>Their Axolotl Fingerprint:</p>
   </div>
   <div class='col-md-3'>
     <p>{{ their_fingerprint }}</p>

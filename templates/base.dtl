@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang='en'>
 <head>
-<title>{{ title }}</title>
+<title>{{ title }}{% if new_mail_count and new_mail_count > 0 %} - {{ new_mail_count }}{% endif %}</title>
 {% block slow_refresh %}{% endblock slow_refresh %}
 <meta name='viewport' content='width=device-width, initial-scale=1'>
 <link href="/css/bootstrap.css" rel="stylesheet">

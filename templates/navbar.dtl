@@ -17,7 +17,7 @@
       <ul class='nav navbar-nav'>
 
         <li class='{% if nav == 'Email' %}active{% endif %}'>
-          <a href='{% url 'emailclient.inbox' %}'><span class='glyphicon glyphicon-envelope left-hand-icons'></span> Email</a>
+          <a href='{% url 'emailclient.inbox' %}'><span class='glyphicon glyphicon-envelope left-hand-icons'></span> Email{% if new_mail_count > 0 %}&nbsp;<span class='badge pull-right'>{{ new_mail_count }}</span>{% endif %}</a>
         </li>
 
         <li class='{% if nav == 'Contacts' %}active{% endif %}'>

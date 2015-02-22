@@ -1,6 +1,6 @@
 
-from django.shortcuts import render, redirect
-from django.http import HttpResponse, HttpResponseRedirect
+from django.shortcuts import redirect
+from django.http import HttpResponse
 from django.template import RequestContext, loader
 
 from django.contrib.auth import authenticate, login
@@ -8,21 +8,19 @@ from django.core.urlresolvers import reverse
 
 from os.path import exists
 from random import choice
-from re import search, sub
 import datetime
 import json
 import subprocess
 import os
-import re
 
 import addressbook
 import emailclient.filedb
-import hdd
-import models
+import thirtythirty.hdd
+import thirtythirty.models
 import ratchet
 import smp
 import thirtythirty.exception
-import utils
+import thirtythirty.utils
 
 import thirtythirty.settings as TTS
 from thirtythirty.gpgauth import session_pwd_wrapper, set_up_single_user
@@ -37,11 +35,11 @@ def too_many_logins():
     Time_Lock = datetime.datetime.now() - \
                 datetime.timedelta(minutes=Minutes)
 
-    models.LoginRateLimiter.objects.filter(
+    thirtythirty.models.LoginRateLimiter.objects.filter(
         issued_at__lte=Time_Lock
         ).delete()
 
-    if models.LoginRateLimiter.objects.filter(
+    if thirtythirty.models.LoginRateLimiter.objects.filter(
         issued_at__lte=datetime.datetime.now()
         ).filter(
         issued_at__gte=Time_Lock
@@ -54,7 +52,7 @@ def too_many_logins():
 
 
 def password_prompt(request, warno=None, Next=None):    
-    if not hdd.drives_exist():
+    if not thirtythirty.hdd.drives_exist():
         return redirect('setup.index')
     
     if too_many_logins():
@@ -63,11 +61,11 @@ def password_prompt(request, warno=None, Next=None):
         You are doing that too much.  Now you must wait.
         """)
     
-    C = models.LoginRateLimiter.objects.token()
+    C = thirtythirty.models.LoginRateLimiter.objects.token()
     ret = {
         'title':'Unlock drive',
         'bg_image':'vault.jpg',
-        'bits':TTS.HASHCASH_BITS['WEBUI'],
+        'bits':TTS.HASHCASH['BITS']['WEBUI'],
         'challenge':C.challenge,
         'submit_to':reverse('drive_unlock'),
         'next':Next,
@@ -75,7 +73,7 @@ def password_prompt(request, warno=None, Next=None):
         'warning_text':warno,
         }
 
-    if hdd.drives_are_unlocked():
+    if thirtythirty.hdd.drives_are_unlocked():
         ret['title'] = 'Log in'
         ret['bg_image'] = 'yard.jpg'
         ret['submit_to'] = reverse('session_unlock')
@@ -93,16 +91,17 @@ def are_drives_unlocked(request):
     Unlock_Lock = '/var/lock/unlockerd.lock'
     Percent = 0
     Why_yes_they_are = 'NO'
-    if hdd.drives_are_unlocked():
+    if thirtythirty.hdd.drives_are_unlocked():
         Why_yes_they_are = 'YES'
         Percent = 100
     elif os.path.exists(Unlock_Lock):
         Why_yes_they_are = 'RUNNING'
-        for V in hdd.Volumes():
+        for V in thirtythirty.hdd.Volumes():
             if V.is_mounted():
                 Percent += (100.00 / len(TTS.LUKS['mounts']))
     return HttpResponse(json.dumps({'ok':Why_yes_they_are,
-                                    'percent':Percent}))
+                                    'percent':Percent}),
+                        content_type='application/json')
 
 
 def drive_unlock(request):
@@ -112,17 +111,17 @@ def drive_unlock(request):
         You are doing that too much.  Now you must wait.
         """)
 
-    if hdd.drives_are_unlocked():
+    if thirtythirty.hdd.drives_are_unlocked():
         return redirect('accounts.login')
     
     HCM = request.POST.get('HCM', None)
     Challenge = HCM.split(':')[3]
     try:
-        LRM = models.LoginRateLimiter.objects.get(
+        LRM = thirtythirty.models.LoginRateLimiter.objects.get(
             challenge=Challenge)
-    except models.LoginRateLimiter.DoesNotExist:
+    except thirtythirty.models.LoginRateLimiter.DoesNotExist:
         return HttpResponse("That challenge expired - please go back and try again.")
-    if not LRM.verify(stamp=HCM, bits=TTS.HASHCASH_BITS['WEBUI']):
+    if not LRM.verify(stamp=HCM, bits=TTS.HASHCASH['BITS']['WEBUI']):
         return HttpResponse("That challenge doesn't verify - please go back and try again.")
 
     logger.debug("Hashcash checks out - let's try to fire the drives up")
@@ -133,7 +132,8 @@ def drive_unlock(request):
     fh.write(K)
     fh.close()
 
-    return HttpResponse(json.dumps({'ok':True}))
+    return HttpResponse(json.dumps({'ok':True}),
+                        content_type='application/json')
     
 
 def session_unlock(request):
@@ -146,11 +146,11 @@ def session_unlock(request):
     HCM = request.POST.get('HCM', None)
     Challenge = HCM.split(':')[3]
     try:
-        LRM = models.LoginRateLimiter.objects.get(
+        LRM = thirtythirty.models.LoginRateLimiter.objects.get(
             challenge=Challenge)
-    except models.LoginRateLimiter.DoesNotExist:
+    except thirtythirty.models.LoginRateLimiter.DoesNotExist:
         return HttpResponse('Challenge poorly responded to.  Go back and try again.')
-    if not LRM.verify(stamp=HCM, bits=TTS.HASHCASH_BITS['WEBUI']):
+    if not LRM.verify(stamp=HCM, bits=TTS.HASHCASH['BITS']['WEBUI']):
         return HttpResponse("Cash doesn't verify.  Go back and try again.")
 
     logger.debug('Hashcash verifies, now checking passphrase')
@@ -169,7 +169,7 @@ def session_unlock(request):
 
 
 def index(request, Next=None):
-    if not hdd.drives_exist():
+    if not thirtythirty.hdd.drives_exist():
         return redirect('setup.index')
     else:
         return redirect('emailclient.inbox')
@@ -177,7 +177,7 @@ def index(request, Next=None):
 
 @session_pwd_wrapper
 def settings(request, advanced=False):
-    Vitals = utils.Vitals(request)
+    Vitals = thirtythirty.utils.Vitals(request)
     Preferences = set_up_single_user()
     if Preferences.show_advanced: advanced = True
     
@@ -246,17 +246,17 @@ def settings(request, advanced=False):
               },
              {'desc':'Static IP address',
               'type':'text', 'id':'static-ip',
-              'value':utils.IP_Info('Address'),
+              'value':thirtythirty.utils.IP_Info('Address'),
               'disabled':Preferences.ip_address_type == Preferences.DYNAMIC_IP,
               },
              {'desc':'Netmask',
               'type':'text', 'id':'netmask',
-              'value':utils.IP_Info('Netmask'),
+              'value':thirtythirty.utils.IP_Info('Netmask'),
               'disabled':Preferences.ip_address_type == Preferences.DYNAMIC_IP,
               },
              {'desc':'Gateway IP address',
               'type':'text', 'id':'gateway-ip',
-              'value':utils.IP_Info('Gateway'),
+              'value':thirtythirty.utils.IP_Info('Gateway'),
               'disabled':Preferences.ip_address_type == Preferences.DYNAMIC_IP,
               },
              {'desc':'Accept', 'type':'button',
@@ -313,35 +313,54 @@ def settings(request, advanced=False):
               },
              ]},
 
+        {'title':'Process management',
+         'id':'cProcess',
+         'advanced':True,
+         'controls':[
+             {'desc':'Flush mail queue',
+              'type':'button',
+              'class':'kick',
+              'id':'postqueue-flush',
+              },
+             {'desc':'Restart mail subsystem',
+              'type':'button',
+              'class':'kick',
+              'id':'postfix-restart',
+              },
+             {'desc':'Restart Tor',
+              'type':'button',
+              'class':'kick',
+              'id':'tor-restart',
+              },
+             {'desc':'Restart WebUI',
+              'type':'button',
+              'class':'kick',
+              'id':'django-restart',
+              },
+             ]},
+
         {'title':'System administration',
          'id':'cSysadmin',
          'controls':[
              {'desc':'Report bug',
-              'type':'link', 'href':reverse('bug_report'),
+              'type':'button', 'href':reverse('bug_report'),
              },
-             {'desc':'Check for updates',
-              'type':'buttonbar', 'id':'update',
-              'buttons':[{'desc':'Check',
-                          'id':'update-check'},
-                         {'desc':'Status',
-                          'id':'update-status',
-                          'disabled':True},
-                         {'desc':'Update',
-                          'id':'update-unpack',
-                          'hidden':True},
-                         ],
+             {'desc':'Update',
+              'class':'bg-info',
+              'type':'button', 'id':'update',
+              'disabled':True,
+              'help':'(No updates available)',
               },
-             {'desc':'Backup state',
-              'type':'link', 'id':'sysbackup',
-              'href':'backup',  # FIXME: reverse()
-              'help':'[Backup not yet written]',
+             {'desc':'Backup',
+              'type':'button', 'id':'sysbackup',
+              'href':reverse('settings.backup'),
+              },
+             {'desc':'Restore',
+              'type':'button', 'id':'sysrestore',
               'disabled':True,
               },
-             {'desc':'Restore state',
-              'type':'link', 'id':'sysrestore',
-              'href':'restore', # FIXME: reverse()
-              'help':'[Restore not yet written]',
-              'disabled':True,
+             {'desc':'Restore from file',
+              'type':'file', 'id':'restorefile',
               },
              {'desc':'Respond to status queries',
               'type':'checkbox', 'id':'allow-status',
@@ -349,7 +368,7 @@ def settings(request, advanced=False):
               'checked':True, 'disabled':True,
              },
              {'desc':'Local wizard login',
-              'type':'link', 'href':'https://%s:4200' % Vitals['server_addr'],
+              'type':'button', 'href':'https://%s:4200' % Vitals['server_addr'],
               'target':'_blank',
               'help':'Emergency login for nearby wizards',
               },
@@ -380,7 +399,7 @@ def settings(request, advanced=False):
               },
              {'desc':'Passphrase cache cleared:',
               'type':'select', 'id':'pp-cache-timeout',
-              'choices':models.preferences.passphrase_cache_timeouts,
+              'choices':thirtythirty.models.preferences.passphrase_cache_timeouts,
               'option_checked':Preferences.passphrase_cache_time,
               }
              ]},
@@ -524,11 +543,12 @@ def settings(request, advanced=False):
     context = RequestContext(request, {
         'title':'Settings',
         'nav':'Settings',
+        'new_mail_count':emailclient.filedb.new_mail_in_inbox(),
         'bg_image':'dash.jpg',
         'vital_summary':Info_Panel,
         'vitals':Vitals,
-        'mounts':hdd.Volumes(),
-        'services':utils.query_daemon_states(),
+        'mounts':thirtythirty.hdd.Volumes(),
+        'services':thirtythirty.utils.query_daemon_states(),
         'advanced':advanced,
         'setting_list':Settings,
         })
@@ -537,13 +557,99 @@ def settings(request, advanced=False):
 
 
 @session_pwd_wrapper
+def kick(request, process=None):
+    """
+    note the initial slash - due to parsing of RE in url.py
+    """
+    if process == '/postqueue-flush':
+        subprocess.call(['/usr/bin/sudo', '-u', 'root',
+                         '/usr/sbin/postqueue', '-f'])
+        return HttpResponse('postqueue')
+    elif process == '/postfix-restart':
+        subprocess.call(['/usr/bin/sudo', '-u', 'root',
+                         '/usr/bin/make', '--directory', '/etc/postfix', 'reload'])
+        return HttpResponse('postfix')
+    elif process == '/tor-restart':
+        subprocess.call(['/usr/bin/sudo', '-u', 'root',
+                         '/etc/init.d/tor', 'restart'])
+        return HttpResponse('tor')
+    elif process == '/django-restart':
+        subprocess.call(['/usr/bin/sudo', '-u', 'root',
+                         '/usr/bin/supervisorctl', 'restart', 'gunicorn'])
+        return HttpResponse('django')
+    else:
+        return HttpResponse('no')
+
+@session_pwd_wrapper
+def backup(request):
+    """
+    Wrap up contact list, hidden service private key, and GPG private key.
+    Encrypt symmetrically.
+    Dump.
+    """
+    Passphrase = request.POST.get('passphrase')
+    if not Passphrase and os.path.exists(TTS.PASSPHRASE_CACHE):
+        Passphrase = file(TTS.PASSPHRASE_CACHE, 'r').read()
+    if not Passphrase or not addressbook.gpg.verify_symmetric(Passphrase):
+        return HttpResponse('I need a passphrase.  :(')
+    Backup = []
+    for A in addressbook.address.Address.objects.filter(system_use=False):
+        Backup.append({'covername':A.covername,
+                       'email':A.email,
+                       'fingerprint':A.fingerprint,
+                       'nickname':A.nickname,
+                       'is_me':A.is_me,
+                       'type':'contact',
+                       })
+    Backup.append({'type':'hs_prv',
+                   'key':subprocess.check_output(['/usr/bin/sudo', '-u', 'root', '/bin/cat', '/var/lib/tor/hidden_service/private_key'])})
+    Backup.append({'type':'gpg_prv',
+                   'key':subprocess.check_output(['/usr/bin/gpg', '--armor', '--export-secret-keys'])})
+    Zip = addressbook.gpg.symmetric(msg=json.dumps(Backup), passphrase=Passphrase)
+    return HttpResponse(Zip,
+                        content_type='plain/text')
+
+@session_pwd_wrapper
+def restore(request):
+    Passphrase = request.POST.get('passphrase')
+    if not Passphrase and os.path.exists(TTS.PASSPHRASE_CACHE):
+        Passphrase = file(TTS.PASSPHRASE_CACHE, 'r').read()
+    if not Passphrase or not addressbook.gpg.verify_symmetric(Passphrase):
+        return HttpResponse('I need a passphrase.  :(')
+    if not request.FILES.has_key('backupfile'):
+        return HttpResponse('no file')
+    JSON = str(addressbook.gpg.decrypt(msg=request.FILES['backupfile'].read(),
+                                       passphrase=Passphrase))
+    try:
+        Backup = json.loads(JSON)
+    except:
+        return HttpResponse('bad JSON',
+                            content_type='plain/text')
+    for Entry in Backup:
+        if not Entry.has_key('type'):
+            logger.warning('Dropped: %s' % Entry)
+            continue
+        if Entry['type'] == 'contact':
+            addressbook.address.Address.objects.add_by_fingerprint(Entry['fingerprint'])
+        # FIXME: bug bd3c4898
+        # elif Entry['type'] == 'hs_prv':
+        #     pass
+        # elif Entry['type'] == 'gpg_prv':
+        #     if len(addressbook.gpg.Import(Entry['key']).fingerprints) == 1:
+        #         addressbook.address.Address.objects.rebuild_addressbook()
+        #         logger.debug('Imported private key')            
+    return HttpResponse('yes',
+                        content_type='plain/text')
+
+@session_pwd_wrapper
 def about(request):
     template = loader.get_template('about.dtl')
-    Vitals = utils.Vitals(request)
+    Vitals = thirtythirty.utils.Vitals(request)
     CHAT_URL = 'https://%s:16667?nick=%s' % (Vitals['server_addr'], Vitals['ircname'])
     CTD = {
         'title':"What it's about.",
         'nav':'About',
+        'new_mail_count':emailclient.filedb.new_mail_in_inbox(),
         'bg_image':choice([
             'aldrin.jpg',
             'arcadia_ego.jpg',
@@ -590,11 +696,13 @@ def about(request):
             ],
 
         
-        'best':["Activate the <a href='%s#cSession'>session passphrase</a> - set the timeout to be as short as comfortable." % reverse('settings'),
-                "Authenticate your contacts with a <a href='%s'>shared secret</a> only the two of you would know." % reverse('addressbook'),
-                "Try not to have the times that your LookingGlass server is connected to the Internet correlate too much with the times you actually use it.  This will make you a bit more difficult to identify.  LookingGlass is designed to be online all the time, and that is recommended.",
-                "Do not exchange your <b>covername</b> over an insecure channel.  This undermines the traffic analysis features of LookingGlass.",
-                ],
+        'best':[
+            "Use your browser in <i>incognito</i> or <i>private browsing</i> mode.  This keeps incriminating residual data on your computer to a minimum.",
+            "Activate the <a href='%s#cSession'>session passphrase</a> - set the timeout to be as short as comfortable." % reverse('settings'),
+            "Authenticate your contacts with a <a href='%s'>shared secret</a> only the two of you would know." % reverse('addressbook'),
+            "Try not to have the times that your LookingGlass server is connected to the Internet correlate too much with the times you actually use it.  This will make you a bit more difficult to identify.  LookingGlass is designed to be online all the time, and that is recommended.",
+            "Do not exchange your <b>covername</b> over an insecure channel.  This undermines the traffic analysis features of LookingGlass.",
+            ],
 
         
         'thanks':[
@@ -610,7 +718,7 @@ def about(request):
             {'indx':'x', 'c':'Xmz'},
             {'indx':'z', 'c':'Zh'},
             ],
-        'vitals':utils.Vitals(request),
+        'vitals':thirtythirty.utils.Vitals(request),
         }
     context = RequestContext(request, CTD)
     return HttpResponse(template.render(context))
@@ -639,14 +747,38 @@ def bug_report(request):
 
 @session_pwd_wrapper
 def submit_bug(request):
+    Passphrase = request.POST.get('passphrase')
+    if not Passphrase and os.path.exists(TTS.PASSPHRASE_CACHE):
+        Passphrase = file(TTS.PASSPHRASE_CACHE, 'r').read()
     for X in ['severity', 'summary']:
-        if request.POST.get(X) == None: return HttpResponse(json.dumps({'ok':False}))
+        if request.POST.get(X) == None:
+            return HttpResponse(json.dumps({'ok':False}),
+                                content_type='application/json')
+    Attach = []
+    # if shit's bad enough, send along the logs
+    if request.POST.get('severity') in ['MAJOR', 'EPIC']:
+        if not Passphrase:
+            Attach = ['/tmp/thirtythirty.err',
+                      '/tmp/thirtythirty.log',]
+        else:
+            Encrypt = ['/tmp/thirtythirty.err',
+                       '/tmp/thirtythirty.log',]
+            # encrypt the logs
+            BRE = addressbook.address.Address.objects.filter(
+                email=TTS.UPSTREAM['bug_report_email'].upper()).first()
+            for E in Encrypt:
+                BRE.asymmetric(filename=E,
+                               passphrase=Passphrase)
+                Attach.append('%s.asc' % E)
+    logger.debug('Sending bug report...')
     emailclient.utils.submit_to_smtpd(
+        Attachments=Attach,
         Destination=TTS.UPSTREAM['bug_report_email'],
         Payload=request.POST.get('summary'),
         Subject='BUGRPT:%s' % request.POST.get('severity'),
         )
-    return HttpResponse(json.dumps({'ok':True}))
+    return HttpResponse(json.dumps({'ok':True}),
+                        content_type='application/json')
 
 
 def lockdown(request):
@@ -678,7 +810,7 @@ def do_lockdown(request):
         except: pass
     request.session.flush()
     request.session.clear_expired()
-    for V in hdd.Volumes():
+    for V in thirtythirty.hdd.Volumes():
         V.lock()
     logging.debug('lockdown complete')
 
@@ -699,7 +831,7 @@ def reset_to_defaults(request):
         return HttpResponse('No.')
     subprocess.check_output(['/usr/bin/sudo', '-u', 'root', 
                              '/usr/local/bin/LookingGlass/cleanup_startup.sh'])
-    for V in hdd.Volumes(unlisted=False):
+    for V in thirtythirty.hdd.Volumes(unlisted=False):
         V.lock()
         try: V.remove()
         except: pass
@@ -734,7 +866,7 @@ def db_disaster(request):
 def passphrase_cache(request):
     Preferences = set_up_single_user()
     Preferences.passphrase_cache_time = request.POST.get('cache_time',
-                                                         models.preferences.HOURLY)
+                                                         thirtythirty.models.preferences.HOURLY)
     if request.POST.get('engaged') == 'true':
         Preferences.passphrase_cache = True
     else:
@@ -750,7 +882,7 @@ def passphrase_cache(request):
 def ip_address(request):
     Preferences = set_up_single_user()
     Preferences.ip_address_type = request.POST.get('ip-address-mode',
-                                                   models.preferences.DYNAMIC_IP)
+                                                   thirtythirty.models.preferences.DYNAMIC_IP)
     Preferences.set_ip(IP = request.POST.get('static-ip', '0.0.0.0'),
                        NM = request.POST.get('netmask', '0.0.0.0'),
                        GW = request.POST.get('gateway-ip', '0.0.0.0')
@@ -802,7 +934,7 @@ def sessions(request):
 @session_pwd_wrapper
 def mount_states(request):
     ret = []
-    for V in hdd.Volumes():
+    for V in thirtythirty.hdd.Volumes():
         ret.append({'name':V.Name, 'Mount':V.is_mounted()})
     return HttpResponse(json.dumps(ret),
                         content_type='application/json')
@@ -810,7 +942,7 @@ def mount_states(request):
 
 @session_pwd_wrapper
 def server_states(request):
-    return HttpResponse(json.dumps(utils.query_daemon_states()),
+    return HttpResponse(json.dumps(thirtythirty.utils.query_daemon_states()),
                         content_type='application/json')
 
 

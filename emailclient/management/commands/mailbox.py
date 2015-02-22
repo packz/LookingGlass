@@ -1,7 +1,6 @@
 
 from django.core.management.base import BaseCommand
 
-import getpass
 from optparse import make_option
 
 import emailclient.filedb
@@ -10,7 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
-    args = '<None>'
+    args = '[MAILBOX|KEYS...]'
     help = 'Mailbox commands'
 
     option_list = BaseCommand.option_list + (
@@ -18,9 +17,19 @@ class Command(BaseCommand):
                     action='store_true',
                     default=False,
                     dest='dump',
-                    help='Dump mailbox contents'),
+                    help='Dump message keys'),
         )
 
     def handle(self, *args, **settings):
-        for Msg in emailclient.filedb.sorted_messages_in_folder(folderName=''):
-            print emailclient.filedb.msg_key_from_msg(Msg)
+        if settings['dump']:
+            if len(args) == 0:
+                args = ['']
+            for Folder in args:
+                for Msg in emailclient.filedb.sorted_messages_in_folder(folderName=Folder):
+                    print emailclient.filedb.msg_key_from_msg(Msg)
+        else:
+            for MsgID in args:
+                Msg = emailclient.filedb.fast_folder_find(MsgID).get(MsgID)
+                if Msg:
+                    print Msg
+

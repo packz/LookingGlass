@@ -4,15 +4,15 @@ from django.core.management.base import BaseCommand
 from optparse import make_option
 
 import getpass
-import os
 from os.path import exists
+from subprocess import call
 
 import addressbook.gpg
 import thirtythirty.exception
 import ratchet
 import smp.models
 
-from thirtythirty.settings import PASSPHRASE_CACHE
+import thirtythirty.settings as TTS
 
 import logging
 logger = logging.getLogger(__name__)
@@ -42,12 +42,6 @@ class Command(BaseCommand):
                     default=None,
                     help='Encrypt ratchet database',
                     ),
-        make_option('--clear-cache',
-                    action='store_true',
-                    dest='clear_cache',
-                    default=False,
-                    help='Clear the passphrase cache',
-                    ),
         make_option('--recover',
                     action='store_const',
                     dest='mode',
@@ -70,8 +64,8 @@ class Command(BaseCommand):
 
     
     def handle(self, *args, **settings):
-        if ((exists(PASSPHRASE_CACHE)) and (not settings['passphrase'])):
-            settings['passphrase'] = file(PASSPHRASE_CACHE, 'r').read()
+        if ((exists(TTS.PASSPHRASE_CACHE)) and (not settings['passphrase'])):
+            settings['passphrase'] = file(TTS.PASSPHRASE_CACHE, 'r').read()
 
         if not settings['passphrase'] and not settings['headless']:
             P = getpass.getpass()
@@ -89,10 +83,6 @@ class Command(BaseCommand):
                 # silent exit for cron
                 exit()
 
-        if settings['clear_cache']:
-            os.unlink(PASSPHRASE_CACHE)
-            if settings['verbose']: logger.debug('%s deleted' % PASSPHRASE_CACHE)
-
         ratchet.conversation.Conversation.objects.init_for('ratchet')
         smp.models.SMP.objects.init_for('smp')
 
@@ -100,8 +90,12 @@ class Command(BaseCommand):
             try: ratchet.conversation.Conversation.objects.encrypt_database(settings['passphrase'])
             except thirtythirty.exception.Target_Exists as e:
                 if settings['verbose']: logger.warning(e)
+            except thirtythirty.exception.Missing_Database as e:
+                if settings['verbose']: logger.warning(e)
             try: smp.models.SMP.objects.encrypt_database(settings['passphrase'])
             except thirtythirty.exception.Target_Exists as e:
+                if settings['verbose']: logger.warning(e)
+            except thirtythirty.exception.Missing_Database as e:
                 if settings['verbose']: logger.warning(e)
                 
         elif settings['mode'] == 'unlock':

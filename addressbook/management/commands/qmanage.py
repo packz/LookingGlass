@@ -18,7 +18,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
-    args = '<None>'
+    args = '[QUEUE_IDs...]'
     help = 'Manage asynchronous queue'
 
     option_list = BaseCommand.option_list + (
@@ -28,10 +28,10 @@ class Command(BaseCommand):
                     dest='dump',
                     help='Dump queue contents'),
         make_option('--delete',
-                    action='store',
-                    default=None,
+                    action='store_true',
+                    default=False,
                     dest='delete',
-                    help='Delete queue item by ID'),
+                    help='Delete by ID'),
         make_option('--register',
                     action='store_true',
                     default=False,
@@ -106,6 +106,11 @@ class Command(BaseCommand):
                                                                      message_type=addressbook.queue.Queue.AXOLOTL).count() != 0:
                 logger.warning('Already have a Axolotl handshake queued via %s' % Msg['Message-Id'])
                 return True
+            if 'X-Lookingglass-Axo-Loop' in Msg:
+                RL = addressbook.utils.time_lock()
+                if RL.is_locked('QUEUE'):
+                    logger.critical('We may have a loop here.  Proactively stall out until we get things straight.')
+                    return False
             logger.debug('Axolotl handshake queued from %s' % Msg['From'])
             addressbook.queue.Queue.objects.create(address=Addr,
                                                    body=Payload,
@@ -155,7 +160,8 @@ class Command(BaseCommand):
             exit(Exit)
 
         elif settings['delete']:
-            addressbook.queue.Queue.objects.filter(id=settings['delete']).delete()
+            for QID in args:
+                addressbook.queue.Queue.objects.filter(id=QID).delete()
             print addressbook.queue.Queue.objects.all()
             exit()
 

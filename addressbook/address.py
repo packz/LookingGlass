@@ -8,9 +8,19 @@ import uuid
 import addressbook
 import ratchet
 import smp.models
+import thirtythirty
+
+import thirtythirty.settings as TTS
 
 import logging
 logger = logging.getLogger(__name__)
+
+Ratchet_Objects = ratchet.conversation.Conversation.objects
+Ratchet_Objects.init_for('ratchet')
+
+SMP_Objects = smp.models.SMP.objects
+SMP_Objects.init_for('smp')
+
 
 class AddressMgr(models.Manager):
     def __parse_uid(self, uid=None):
@@ -18,10 +28,12 @@ class AddressMgr(models.Manager):
         if the use case is >more< users on LG, then this should be more strict
         right now, allows backwards compat with GPG users that aren't on the bandwagon
         """
-        UE = re.search('^(?P<Name>[^(]+) (\((?P<Comment>[^\)]+)\) )?<(?P<Email>[^@]+@[^\)]+)>$', uid)
+        UE = re.search(
+            '^(?P<Name>[^(]+) (\((?P<Comment>[^\)]+)\) )?<(?P<Email>[^@]+@[^\)]+)>$',
+            uid)
         if not UE: return False
         ret = {}
-        for K,V in UE.groupdict().items():
+        for K, V in UE.groupdict().items():
             if V: ret[K] = V.upper()
         Name = UE.group('Name').split(' ')
         if len(Name) == 2:
@@ -43,15 +55,47 @@ class AddressMgr(models.Manager):
     def delete_key(self, fingerprint=None, passphrase=None):
         """
         coordinates deleting address state
+
+        y u try to ruin my package manager?
         """
-        if not fingerprint: return None
-        addressbook.queue.Queue.objects.filter(address=self,
-                                               direction=addressbook.queue.Queue.SMP_Replay,
-                                               ).delete()
-        addressbook.GPG.delete_keys(fingerprint)
-        addressbook.address.Address.objects.get(fingerprint=fingerprint).delete()
-        ratchet.conversation.Conversation.objects.filter(UniqueKey=fingerprint).delete()
-        smp.models.SMP.objects.filter(UniqueKey=fingerprint).delete()
+        if not passphrase:
+            return False
+        if not fingerprint:
+            return False
+        
+        try: SMP_Objects.decrypt_database(passphrase)
+        except thirtythirty.exception.Target_Exists: pass
+        try: Ratchet_Objects.decrypt_database(passphrase)
+        except thirtythirty.exception.Target_Exists: pass
+
+        try:
+            addressbook.queue.Queue.objects.filter(
+                address=self,
+                direction=addressbook.queue.Queue.SMP_Replay,
+                ).delete()
+            if fingerprint in TTS.UPSTREAM['trusted_prints']:
+                logger.warning('Nice try - you cannot delete this user')
+                A = addressbook.address.Address.objects.get(
+                    fingerprint=fingerprint
+                    )
+                A.system_use = True
+                A.user_state = addressbook.address.Address.KNOWN
+                A.save()
+            else:
+                addressbook.GPG.delete_keys(fingerprint)
+                addressbook.address.Address.objects.get(
+                    fingerprint=fingerprint
+                    ).delete()
+            logger.warning('You can however, drop the extended attributes.')
+            ratchet.conversation.Conversation.objects.filter(
+                UniqueKey=fingerprint
+                ).delete()
+            smp.models.SMP.objects.filter(
+                UniqueKey=fingerprint
+                ).delete()
+        except:
+            return False
+        
         return True
 
 
@@ -63,15 +107,22 @@ class AddressMgr(models.Manager):
         if len(Covername.split(' ')) != 2: return None
         try:
             A = Address.objects.get(covername=Covername)
+            if A.covername == 'LAST BOX':
+                A.system_use = False
+                A.save()
         except Address.DoesNotExist:
             A = Address.objects.create(fingerprint=str(uuid.uuid4()),
                                        email=str(uuid.uuid4()),
                                        covername=Covername)
             A.save()
-        H = addressbook.queue.Queue.objects.create(address=A,
-                                                   direction=addressbook.queue.Queue.TX,
-                                                   message_type=addressbook.queue.Queue.GPG_PK_PULL,
-                                                   body=Covername)
+            H = addressbook.queue.Queue.objects.create(
+                address=A,
+                direction=addressbook.queue.Queue.TX,
+                message_type=addressbook.queue.Queue.GPG_PK_PULL,
+                body=Covername,
+                messageid=uuid.uuid4(), # Don't remove this, even though `default` should handle it...  it wasn't.
+                )
+            logger.debug('Added request for %s' % Covername)
         return A
 
     def add_by_email(self, email=None):
@@ -82,33 +133,42 @@ class AddressMgr(models.Manager):
 
     def add_by_fingerprint(self, fingerprint=None):
         fprint = re.sub('[^A-F0-9]+', '', fingerprint.upper())
-        if not (8 <= len(fprint) <= 40): return None
+        if not (8 <= len(fprint) <= 40):
+            return False
         try:
             A = Address.objects.get(fingerprint=fprint)
         except Address.DoesNotExist:
             A = Address.objects.create(fingerprint=fprint,
                                        email=str(uuid.uuid4()))
-        H = addressbook.queue.Queue.objects.create(address=A,
-                                                   direction=addressbook.queue.Queue.TX,
-                                                   message_type=addressbook.queue.Queue.GPG_PK_PULL,
-                                                   body=fprint)
+            H = addressbook.queue.Queue.objects.create(
+                address=A,
+                messageid=str(uuid.uuid4()), # Don't remove this, even though `default` should handle it...  it wasn't.
+                direction=addressbook.queue.Queue.TX,
+                message_type=addressbook.queue.Queue.GPG_PK_PULL,
+                body=fprint)
+            logger.debug('Added request for %s' % fprint)
         return A
 
 
     def remove_removed(self):
         ret = []
         GPG_Keys = [ X['fingerprint'].upper() for X in addressbook.GPG.list_keys() ]
-        for Key in Address.objects.filter(is_me=False, system_use=False):
+        for Key in Address.objects.filter(
+            is_me=False,
+            system_use=False,
+            ):
             if Key.fingerprint.upper() not in GPG_Keys:
                 ret.append(Key.covername)
                 Key.delete()
         return ret
     
     
-    def rebuild_addressbook(self, system_use=False):
+    def rebuild_addressbook(self):
         ret = []
         for Key in addressbook.GPG.list_keys():
-            A, created = Address.objects.get_or_create(fingerprint = Key['fingerprint'].upper())
+            A, created = Address.objects.get_or_create(
+                fingerprint = Key['fingerprint'].upper()
+                )
             if not created:
                 logger.debug('I already know %s' % A.email)
                 continue
@@ -118,15 +178,21 @@ class AddressMgr(models.Manager):
                 A.user_state = Address.AUTHED
             else:
                 A.user_state = Address.KNOWN
-            if system_use:
-                A.system_use = True
             if Key['expires'] != '':
-                A.expires = datetime.date.fromtimestamp(int(Key['expires']))
+                A.expires = datetime.date.fromtimestamp(
+                    int(Key['expires'])
+                    )
             Parsed = self.__parse_uid(Key['uids'][0])
             if Parsed:
-                if Parsed.has_key('Name'): A.covername = Parsed['Name']
-                if Parsed.has_key('Comment'): A.comment = Parsed['Comment']
-                if Parsed.has_key('Email'): A.email = Parsed['Email']
+                if Parsed.has_key('Name'):
+                    A.covername = Parsed['Name']
+                if Parsed.has_key('Comment'):
+                    A.comment = Parsed['Comment']
+                if Parsed.has_key('Email'):
+                    A.email = Parsed['Email']
+            if Key['fingerprint'].upper() in TTS.UPSTREAM['trusted_prints']:
+                logger.debug('%s recognised as system_use' % A.email)
+                A.system_use = True
             A.save()
             logger.debug("Hello, %s - let's get to know each other." % A.email)
         return ret
@@ -157,7 +223,10 @@ class Address(models.Model):
     violating the SPOT rule like a boss
     """
     nickname = models.CharField(max_length=50, null=True)
-    fingerprint = models.CharField(primary_key=True, max_length=40, default=str(uuid.uuid4()))
+    fingerprint = models.CharField(
+        primary_key=True,
+        max_length=40,
+        default=str(uuid.uuid4())) # borken?
 
     covername    = models.CharField(max_length=85, unique=True)
     comment      = models.CharField(max_length=100, null=True)
@@ -262,18 +331,30 @@ class Address(models.Model):
 
     def asymmetric(self, msg=None,
                    armor=True,
+                   filename=None,
                    passphrase=None):
         """
         Armor is turned off for encrypted Axolotl handshake
         """
         if not passphrase: return False
-        result = addressbook.GPG.encrypt(msg,
-                                         armor=armor,
-                                         recipients=self.fingerprint,
-                                         always_trust=True,
-                                         sign=addressbook.utils.my_address().fingerprint,
-                                         passphrase=passphrase)
+        if not filename:
+            result = addressbook.GPG.encrypt(msg,
+                                             armor=armor,
+                                             recipients=self.fingerprint,
+                                             always_trust=True,
+                                             sign=addressbook.utils.my_address().fingerprint,
+                                             passphrase=passphrase)
+        else:
+            result = addressbook.GPG.encrypt_file(file(filename, 'rb'),
+                                                  output='%s.asc' % filename,
+                                                  armor=armor,
+                                                  recipients=self.fingerprint,
+                                                  always_trust=True,
+                                                  sign=addressbook.utils.my_address().fingerprint,
+                                                  passphrase=passphrase)
         # FIXME: error states passed in result.stderr should raise exceptions here...
-        if not result.ok: return False
+        if not result.ok:
+            logger.critical('Something jacked up in GPG encryption... %s' % str(result.__dict__))
+            return False
         if armor: return str(result)
         return result

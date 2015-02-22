@@ -14,17 +14,12 @@ class Command(BaseCommand):
                     default=False,
                     dest='delete',
                     help='Delete addressbook entries that do not exist in GPG keychain'),
-        make_option('--system-use',
-                    action='store_true',
-                    default=False,
-                    dest='system_use',
-                    help='Keys imported will be tagged "system use"'),
         )
 
     def handle(self, *args, **settings):
         if settings['delete']:
             print addressbook.address.Address.objects.remove_removed()
         
-        for Imported in addressbook.address.Address.objects.rebuild_addressbook(settings['system_use']):
+        for Imported in addressbook.address.Address.objects.rebuild_addressbook():
             print Imported
         

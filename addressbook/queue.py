@@ -6,14 +6,12 @@ import binascii
 import httplib
 import json
 import re
-import subprocess
 import socket
 from uuid import uuid4
 from types import StringType
 
 import hashcash
 
-import addressbook
 import ratchet
 import smp
 import emailclient.utils
@@ -41,7 +39,6 @@ class QRunner(models.Manager):
         """
         ret = []
         A = addressbook.utils.my_address()
-        FP = str(A.fingerprint).upper()
         for X in sorted(A.fingerprint.upper()[-8:]):
             if X not in ret:
                 ret.append(X)
@@ -58,7 +55,14 @@ class QRunner(models.Manager):
         Connect via JSON API to server
 
         Modifies 'ok' in JSON to TEMPFAIL/FAIL/OK rather than True/False
+
+        Rate limiter keeps us polite
         """
+        RL = addressbook.utils.time_lock()
+        if RL.is_locked('UPSTREAM'):
+            logger.warning('We are querying the keyserver too hard - backing off')
+            return {'ok':'TEMPFAIL',
+                    'reason':'We are querying the keyserver too hard - backing off'}
         Headers = {
             'Content-type':'application/json',
             'Accept':'text/plain',
@@ -69,7 +73,7 @@ class QRunner(models.Manager):
                          json.dumps(data),
                          Headers)
         except socket.timeout:
-            logger.error('Connect timeout - cannot reach %s' % TTS.KEYSERVER_URL)
+            logger.error('Connect timeout - cannot reach %s' % TTS.UPSTREAM['keyserver'])
             return {'ok':'TEMPFAIL', 'reason':'Cannot connect to PK server.  try again later.'}
         X = None
         try:
@@ -86,10 +90,12 @@ class QRunner(models.Manager):
 
     def __queue_local(self, destination=None,
                       payload=None,
-                      headers=[]):
+                      headers=None):
         """
         P2P connection to other LG2 users
         """
+        if not headers:
+            headers = []
         Headers = [
             ('X-Lookingglass-Overhead', 'True'),
             ]
@@ -102,7 +108,9 @@ class QRunner(models.Manager):
 
         
     
-    def Run(self, passphrase=None, do_not_repeat_these=[]):
+    def Run(self, passphrase=None, do_not_repeat_these=None):
+        if not do_not_repeat_these:
+            do_not_repeat_these = []
         Engine = {
             Queue.AXOLOTL:'Axolotl',
 #            Queue.AXOANONHS:'Anonymous_Axolotl',
@@ -144,7 +152,7 @@ class QRunner(models.Manager):
         PK = addressbook.GPG.export_keys(FP)
         Notify = {
             'public_key':str(PK),
-            'hashcash':hashcash.mint(FP, bits=TTS.HASHCASH_BITS['UPSTREAM']),
+            'hashcash':hashcash.mint(FP, bits=TTS.HASHCASH['BITS']['UPSTREAM']),
             'request-id':str(uuid4()),
             'server':{
                 'version':TTS.LOOKINGGLASS_VERSION_STRING,
@@ -191,6 +199,7 @@ We'll try registration again and see if it magically starts working.
         
 
     def Pull_PK(self, passphrase=None, Message=None):
+        Me = addressbook.utils.my_address()
         if Message and Message.direction == Queue.RX:
             logger.warning('Got a PK request RX message unexpectedly')
             return False
@@ -208,7 +217,7 @@ We'll try registration again and see if it magically starts working.
                                                binary=True)
         Request['signature'] = binascii.b2a_base64(Detached_Binary.data)
         Request['hashcash'] = hashcash.mint(self.__make_resource(Request[Type]),
-                                            bits=TTS.HASHCASH_BITS['UPSTREAM'])
+                                            bits=TTS.HASHCASH['BITS']['UPSTREAM'])
         Func = 'pull_by_covername'
         if Type == 'fingerprint':
             Func = 'pull_by_fingerprint'
@@ -302,13 +311,18 @@ We'll try again in a bit and see if it magically starts working.
                 Loop_Header = []
                 if re.search('multiple init', Message.body):
                     logger.warning('multiple init attempts - add header to warn other side of possible loop')
+                    # FIXME: this should be a constant somewhere
                     Loop_Header.append(('X-Lookingglass-Axo-Loop', 'True'))
-                self.__queue_local(
-                    destination=Message.address.email,
-                    payload=Convo.my_handshake(Passphrase=passphrase),
-                    headers=Loop_Header,
-                    )
-                logger.debug('Axo SYN SMTP queued to: %s' % Message.address.email)
+                try:
+                    HS = Convo.my_handshake(Passphrase=passphrase)
+                    self.__queue_local(
+                        destination=Message.address.email,
+                        payload=HS,
+                        headers=Loop_Header,
+                        )
+                    logger.debug('Axo SYN SMTP queued to: %s' % Message.address.email)
+                except:
+                    logger.error('Axo already shook - may need to delete/rebuild this contact')
             else:
                 # FIXME: anonymous handshake button on dossier advanced
                 logger.warning("This doesn't look like a hidden service domain.  I don't talk to those people.  Time for the advanced menu.")
@@ -317,6 +331,10 @@ We'll try again in a bit and see if it magically starts working.
             try:
                 HS = ratchet.handshake.EncryptedHandshake(Import=Message.body,
                                                           Passphrase=passphrase)
+                if HS.FPrint == None:
+                    logger.critical('Axo handshake from %s came without a fingerprint - could be bad news.  Deleting.' % Message.address)
+                    Message.delete()
+                    return
             except ratchet.exception.Bad_Passphrase:
                 logger.critical("Can't see into this handshake!")
                 Message.delete()

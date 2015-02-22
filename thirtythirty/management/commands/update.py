@@ -3,29 +3,37 @@ from django.core.management.base import BaseCommand
 
 from optparse import make_option
 
-import json
-import os
-import time
+import addressbook
+import emailclient
 
 import thirtythirty.updater
 import thirtythirty.settings as TTS
+
+import logging
+logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
     args = '[Server_URI]'
     help = 'System upgrader'
 
     option_list = BaseCommand.option_list + (
-        make_option('--dry-run',
+        make_option('--check',
                     action='store_true',
-                    dest='dry_run',
+                    dest='check',
                     default=False,
-                    help="Don't actually install",
+                    help="Check for updates and download to cache",
                     ),
-        make_option('--no-socket',
+        make_option('--email-user',
                     action='store_true',
-                    dest='socket_disable',
+                    dest='email',
                     default=False,
-                    help="Don't read from the control socket - download and validate",
+                    help="Email local admin re: update available",
+                    ),
+        make_option('--install',
+                    action='store_true',
+                    dest='install',
+                    default=False,
+                    help="Install!  WHAO!  WARNING!",
                     ),
         make_option('--validate-anything-with-bits', '--no-check', '--megagape',
                     action='store_true',
@@ -36,66 +44,45 @@ class Command(BaseCommand):
         )
 
 
+    def alert_user_new_updates(self, Version=None):
+        Me = addressbook.utils.my_address()
+        PL = """
+        A newer version of LookingGlass is available!
+        
+        To install it, go to "Settings" in the navbar (next to LOCKDOWN).
+        Open the "System administration" tab.
+        Click "Update".
+        ~CROSS YOUR FINGERS~
+        ~WAIT FOR POSSIBLE REBOOT~
+        ~DO NOT REMOVE POWER~
+        ~BITE NAILS~
+        Enjoy!
+        """
+        # FIXME: add changelog / notes here
+        emailclient.utils.submit_to_smtpd(
+            # FIXME: need some way to |safe this.
+            Payload=PL,
+            Destination=Me.email,
+            Subject='New update available: %s' % Version,
+            From='Sysop <root>')
+
     def handle(self, *args, **settings):
-        Request = {'mode':'unpack'}
-        
-        if ((not settings['socket_disable']) and
-            (os.path.exists(TTS.UPSTREAM['update_socket']))):
-            fh = file(TTS.UPSTREAM['update_socket'], 'r')
-            try:
-                Request = json.loads(fh.read())
-            except ValueError:
-                print 'JSON horked in request - assuming `download`'
-                Request = {'mode':'download'}
-            fh.close()
-
-        # NOW you can begin...
-        Server = None
-        Socket = file(TTS.UPSTREAM['update_socket'], 'w')
-
-        def emit_json(S):
-            S['serial'] = '%.2f' % time.time()
-            print S
-            Socket.write( json.dumps(S) )
-            Socket.write('\n')
-            Socket.flush()
-        
-        if len(args) != 0:
-            Server = args[0]
-
         U = thirtythirty.updater.Updater()
-        emit_json({'ok':True,
-                   'status':'Downloading list of updates'})
         
         GMR = U.GetMostRecent(asString=True)
         UDA = U.MoreRecentAvailable()
         if not UDA:
-            status = 'Already up to date'
-            emit_json({'current':TTS.LOOKINGGLASS_VERSION_STRING,
-                       'scanned':GMR,
-                       'ok':False,
-                       'updatable':UDA,
-                       'status':status})
-            exit(-1)
+            logger.debug('Already up to date - on %s, found %s' % (TTS.LOOKINGGLASS_VERSION_STRING, GMR))
+            exit(0)
 
-        status = 'Newer version available - %s' % GMR
-        emit_json({'current':TTS.LOOKINGGLASS_VERSION_STRING,
-                   'scanned':GMR,
-                   'ok':True,
-                   'updatable':UDA,
-                   'status':status})
-
-        if Request['mode'] == 'download':
-            DL = U.Download()
-            emit_json({'version':DL,
-                       'ok':True,
-                       'status':'Downloaded version %02d.%02d' % (int(DL[0]), int(DL[1])),
-                       'tempdir':U.Cache})
+        logger.debug('Found a new version: %s' % GMR)
+        
+        DL = U.Download()
+        logger.debug('Downloaded version %02d.%02d.%02d' % (int(DL[0]), int(DL[1]), int(DL[2])))
 
         Fingerprint = U.ClearsignedBy()
         if not Fingerprint:
-            emit_json({'ok':False,
-                       'status':'Signature hosed'})
+            logger.error('Signature hosed or no signature.')
             exit(-1)
 
         ok = False
@@ -104,29 +91,27 @@ class Command(BaseCommand):
 
         A = U.Validate(Fingerprint)
         if not A.system_use and not settings['valid_override']:
-            emit_json(
-                {'status':"fingerprint for %s isn't marked system_use" % A.covername,
-                 'bogus':True,
-                 'ok':False})
+            logger.error("fingerprint for %s isn't marked system_use - refusing to update" % A.covername)
             exit(-1)
 
-        Status = 'fingerprint %s trusted, verified' % Fingerprint
         if not A.system_use and settings['valid_override']:
-            Status = 'fingerprint for %s is bogus -- but check was overrided!' % A.covername
+            logger.warning('fingerprint for %s is bogus -- but check was overrided!' % A.covername)
             ok = True
-        
-        emit_json({'status':Status,
-                   'fingerprint':Fingerprint,
-                   'mode':Request['mode'],
-                   'address':str(A.email),
-                   'ok':ok})
-            
-        if ((not settings['dry_run']) and
-            (ok) and
-            (Request['mode'] == 'unpack')):
-            zrrrp = U.Unpack()
-            emit_json({'file_list':zrrrp,
-                       'status':'unpacked %s files' % len(zrrrp),
-                       'ok':True})
 
+        if settings['check'] and ok:
+            # FIXME: need a rate limiter.
+            self.alert_user_new_updates('%02d.%02d.%02d' % (int(DL[0]), int(DL[1]), int(DL[2])))
+            exit(0)
+                    
+        if ((not settings['check']) and
+            (ok) and
+            (settings['install'])):
+            File_List = U.Unpack()
+            logger.debug('unpacked %s files' % len(File_List))
+            fh = file(TTS.UPSTREAM['update_log'], 'w')
+            for File in File_List:
+                fh.write(File)
+                fh.write('\n')
+            fh.close()
+            logger.debug('wrote update log to %s' % TTS.UPSTREAM['update_log'])
             U.Cleanup()

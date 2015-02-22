@@ -1,5 +1,4 @@
 
-from django.shortcuts import redirect
 from django.contrib.auth.models import User
 from django.contrib.auth.views import redirect_to_login
 
@@ -8,8 +7,8 @@ from functools import wraps
 from django.utils.decorators import available_attrs
 
 import addressbook.gpg
-import models
-from settings import USERNAME, PASSPHRASE_CACHE
+import thirtythirty.models
+from settings import USERNAME
 
 def set_up_single_user():
     """
@@ -20,9 +19,9 @@ def set_up_single_user():
     except User.DoesNotExist:
         single_user = User(username=USERNAME)
         single_user.save()
-        prefs = models.preferences(ooser=single_user)
+        prefs = thirtythirty.models.preferences(ooser=single_user)
         prefs.save()
-    Preferences, create = models.preferences.objects.get_or_create(ooser=single_user)
+    Preferences, create = thirtythirty.models.preferences.objects.get_or_create(ooser=single_user)
     return Preferences
 
 
@@ -51,7 +50,7 @@ def session_pwd_wrapper(view_func=None):
     """
     @wraps(view_func, assigned=available_attrs(view_func))
     def inner(request, *args, **kwargs):
-        prefs = models.preferences.objects.first()            # FIXME: single user mode
+        prefs = thirtythirty.models.preferences.objects.first()            # FIXME: single user mode
         if not prefs:
             return view_func(request, *args, **kwargs)
         if prefs.session_passphrase and not request.user.is_authenticated():

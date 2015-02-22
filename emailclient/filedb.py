@@ -6,15 +6,13 @@ import subprocess
 from email.utils import make_msgid, formatdate, parsedate
 
 import addressbook
-import utils
+import emailclient.utils
 
 from thirtythirty.settings import USERNAME
-import thirtythirty.utils
+MAIL_ROOT = '/home/%s/Maildir/' % USERNAME
 
 import logging
 logger = logging.getLogger(__name__)
-
-MAIL_ROOT = '/home/%s/Maildir/' % USERNAME
 
 def __count_new_mail(aMbx=None):
     count = 0
@@ -22,6 +20,11 @@ def __count_new_mail(aMbx=None):
         if 'S' not in aMbx.get(MK).get_flags():
             count += 1
     return count
+
+
+def new_mail_in_inbox():
+    Inbox = mailbox.Maildir(MAIL_ROOT, factory=False).get_folder('')
+    return __count_new_mail(Inbox)
 
 
 def list_folders(sanitize=False):
@@ -54,7 +57,7 @@ def folder_from_msg_key(aKey=None):
 
 def fast_folder_find(aKey=None):
     """
-    only the mbx portion of the above routine
+    only the mbx portion of folder_from_msg_key()
     flagging messages was taking WAAAAY too long
     """
     logger.debug('searching for %s' % aKey)
@@ -110,17 +113,18 @@ def sorted_messages_in_folder(folder=None, folderName=None, messageKey=None):
     FIXME: this fails pretty hard once the # of msgs in a folder gets >20 - need to move over to something like https://github.com/coddingtonbear/django-mailbox
     """
     if folder:
-        Sort = sorted(folder.keys(), key=lambda msg: parsedate(folder[msg]['date']))
+#        logger.debug('Traced request for folder w/ contents `%s`' % (folder.keys()))
+        Sort = sorted(folder.keys(), key=lambda msg: parsedate(folder.get(msg)['date']))
         Sort.reverse()
         return [ folder.get(X) for X in Sort ]
     elif folderName is not None:
+#        logger.debug('Traced request for folderName `%s`' % (folderName))
         # may get passed empty string for inbox - be ware
-        try:
-            Mbx = mailbox.Maildir(MAIL_ROOT, factory=False).get_folder(folderName)
-            if Mbx: return sorted_messages_in_folder(folder=Mbx)
-        except:
-            return sorted_messages_in_folder(folderName='')
+        Mbx = mailbox.Maildir(MAIL_ROOT, factory=False).get_folder(folderName)
+        if Mbx:
+            return sorted_messages_in_folder(folder=Mbx)
     elif messageKey:
+        logger.debug('Traced request for messageKey `%s`' % (messageKey))
         Folder = folder_from_msg_key(messageKey)
         if Folder:
             return sorted_messages_in_folder(folder=Folder['mbx'])
@@ -141,6 +145,8 @@ def flag(aKey=None, addFlag=None, remFlag=None):
     Msg = F.get(aKey)
     Msg.set_subdir('cur')
     if addFlag:
+        if addFlag == 'T':
+            logger.debug('%s flagged for trash' % aKey)
         Msg.add_flag(addFlag)
         F[aKey] = Msg
     if remFlag:
@@ -165,6 +171,7 @@ def delete_folder(folderName=None):
     for MK in F.keys():
         flag(MK, addFlag='T')
         move(MK, folderName='trash')
+        logger.debug('trashing message %s' % MK)
         trashed.append(MK)
     mailbox.Maildir(MAIL_ROOT, factory=False).remove_folder(folderName)
     return {'ok':True, 'folderName':folderName, 'trashed':trashed}
@@ -173,6 +180,7 @@ def delete_folder(folderName=None):
 def move(MK=None,
          folderName=None):
     if folderName is None: return False
+    logger.debug('moving message %s to %s' % (MK, folderName))
     try:
         Destination = mailbox.Maildir(MAIL_ROOT, factory=False).get_folder(folderName)
     except:
@@ -227,6 +235,10 @@ def save_local(to=None,
                passphrase=None,
                Folder='drafts',
                MK=None):
+    """
+    MK may be None when the message was Axolotl and disappeared after decrypt
+    """
+    logger.debug('Got request to save local to folder `%s`' % Folder)
 
     if not addressbook.gpg.verify_symmetric(passphrase):
         return {'ok':False,
@@ -240,7 +252,7 @@ def save_local(to=None,
 
     Payload = str(addressbook.gpg.symmetric(passphrase=passphrase, msg=body))
     Msg = None
-    if MK is None:
+    if ((MK is None) or (folder_from_msg_key(aKey=MK) is None)):
         Msg = format_email(to=to,
                            ffrom=ffrom,
                            date=date,
@@ -255,7 +267,7 @@ def save_local(to=None,
                            msgObject=Drafts.get(MK))
 
     Xtra = None
-    if not MK:
+    if ((MK is None) or (folder_from_msg_key(aKey=MK) is None)):
         Xtra = Drafts.add(Msg)
     else:
         Drafts[MK] = Msg
@@ -295,9 +307,9 @@ def send(to=None,
 
     Payload = str(To.asymmetric(msg=body, passphrase=passphrase))
     
-    utils.submit_to_smtpd(Destination=To.email,
-                          Payload=Payload,
-                          Subject=subject)
+    emailclient.utils.submit_to_smtpd(Destination=To.email,
+                                      Payload=Payload,
+                                      Subject=subject)
 
     return {'ok':True,
             'extra':'submitted to local smtpd'}

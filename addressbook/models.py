@@ -1,3 +1,3 @@
 
-import address
-import queue
+import addressbook.address
+import addressbook.queue

@@ -57,6 +57,16 @@ textarea {
 
 
 {% block js %}
+
+function cursor_to_body_end() {
+  /* MFW this code */
+  var body = $('#body');
+  body.focus();
+  var v = body.val();
+  body.val('');
+  body.val(v);
+}
+
 function take_my_draft_please() {
   var mode = $('#mode').val();
   to_send = {'csrfmiddlewaretoken':'{{ csrf_token }}',
@@ -138,7 +148,7 @@ $(document).ready(function(){
 {% elif not magic.subject %}
   $('#subject').focus();
 {% else %}
-  $('#body').focus();
+  cursor_to_body_end();
 {% endif %}
      Names.initialize();
 });

@@ -5,8 +5,8 @@ import re
 
 from os.path import exists
 
-import utils
-import exception
+import thirtythirty.utils
+import thirtythirty.exception
 import thirtythirty.settings as TTS
 
 import logging
@@ -64,9 +64,10 @@ class HDD(object):
         """
         gives results in cylinders
         """
-        Out, Err = utils.popen_wrapper(['/sbin/parted','--script', self.dev,
-                                        '--machine',
-                                        'unit', 'cyl', 'print'])
+        Out, Err = thirtythirty.utils.popen_wrapper(
+            ['/sbin/parted', '--script', self.dev,
+             '--machine',
+             'unit', 'cyl', 'print'])
         Raw = Out.split(';\n')
         Raw.pop()
         self.size = int(Raw[2].split(':')[0])
@@ -84,7 +85,7 @@ class HDD(object):
 
 
     def has_partition(self):
-        for N,V in self.partitions.iteritems():
+        for N, V in self.partitions.iteritems():
             if V.has_key('flags') and V['flags'] == 'lvm':
                 return N
         return False
@@ -94,7 +95,7 @@ class HDD(object):
         if not partition:
             partition = self.has_partition()
         if not partition: return False
-        StdOut, StdErr = utils.popen_wrapper(['/sbin/pvdisplay'])
+        StdOut, StdErr = thirtythirty.utils.popen_wrapper(['/sbin/pvdisplay'])
         if not StdOut: return False
         for Line in StdOut.split('\n'):
             Col = Line.split(':')
@@ -125,7 +126,7 @@ class HDD(object):
         if not partition:
             return False
         Device = '%s%s' % (self.dev, partition)
-        utils.popen_wrapper(['/sbin/vgcreate', self.VG, Device])
+        thirtythirty.utils.popen_wrapper(['/sbin/vgcreate', self.VG, Device])
         return self.VG
 
 
@@ -197,7 +198,7 @@ Mounted: %s
         used during create() sequence
         just looking for /dev/VG_NAME doesn't cut it if there are no active LVs
         """
-        StdOut, StdErr = utils.popen_wrapper(['/sbin/vgdisplay', '--colon'])
+        StdOut, StdErr = thirtythirty.utils.popen_wrapper(['/sbin/vgdisplay', '--colon'])
         if StdErr != '':
             logger.warning('vg_exists: %s' % StdErr)
             return False
@@ -215,11 +216,12 @@ Mounted: %s
         """
         if exists('/dev/%s/%s' % (self.VG, self.Name)):
             logger.debug('%s exists' % self.Name)
-            StdOut, StdErr = utils.popen_wrapper(['/sbin/cryptsetup',
-                                                  'luksDump',
-                                                  '/dev/%s/%s' % (self.VG,
-                                                                  self.Name)],
-                                                 debug=False)
+            StdOut, StdErr = thirtythirty.utils.popen_wrapper(
+                ['/sbin/cryptsetup',
+                 'luksDump',
+                 '/dev/%s/%s' % (self.VG,
+                                 self.Name)],
+                debug=False)
             if re.search(r'(?m)^Key Slot 1: ENABLED$', StdOut):
                 return True
             elif re.search(r'(?m)^Key Slot 0: ENABLED$', StdOut):
@@ -233,7 +235,7 @@ Mounted: %s
 
 
     def is_mounted(self):
-        SO, SE = utils.popen_wrapper(['/bin/mount'],
+        SO, SE = thirtythirty.utils.popen_wrapper(['/bin/mount'],
                                      sudo=False,
                                      debug=False) # was really noisy...
         if re.search(r'%s on %s' % (self.Name,
@@ -269,126 +271,126 @@ Mounted: %s
         """
         if key: self.__create_keyfile(key)
         if not exists(self.key_file):
-            raise(exception.No_Keyfile("OMG NO KEY FILE in lv_create()"))
+            raise(thirtythirty.exception.No_Keyfile("OMG NO KEY FILE in lv_create()"))
         if exists('/dev/%s/%s' % (self.VG, self.Name)):
-            raise(exception.LVExists("Logical volume already exists - will not lv_create()"))
-        StdOut, StdErr = utils.popen_wrapper(['/sbin/lvcreate',
+            raise(thirtythirty.exception.LVExists("Logical volume already exists - will not lv_create()"))
+        StdOut, StdErr = thirtythirty.utils.popen_wrapper(['/sbin/lvcreate',
                                               self.VG,
                                               '-L', self.Info['size'],
                                               '-n', self.Name])
         if not re.search('created', StdOut):
-            raise(exception.CannotCreateLV('create() failed: %s' % StdErr))
-        StdOut, StdErr = utils.popen_wrapper(['/sbin/cryptsetup',
+            raise(thirtythirty.exception.CannotCreateLV('create() failed: %s' % StdErr))
+        StdOut, StdErr = thirtythirty.utils.popen_wrapper(['/sbin/cryptsetup',
                                               'luksFormat',
                                               '--batch-mode',
                                               '--key-file', self.key_file,
                                               '/dev/%s/%s' % (self.VG,
                                                               self.Name)])
         if StdErr:
-            raise(exception.CannotFormat('lv_create() failed: %s' % StdErr))
-        StdOut, StdErr = utils.popen_wrapper(['/sbin/cryptdisks_start',
+            raise(thirtythirty.exception.CannotFormat('lv_create() failed: %s' % StdErr))
+        StdOut, StdErr = thirtythirty.utils.popen_wrapper(['/sbin/cryptdisks_start',
                                               self.Name])
         if not re.search('%s \(started\)...done' % self.Name, StdOut):
-            raise(exception.CannotStartLuks('lv_create(%s) failed: %s' % (self.Name,
+            raise(thirtythirty.exception.CannotStartLuks('lv_create(%s) failed: %s' % (self.Name,
                                                                           StdErr)))
-        StdOut, StdErr = utils.popen_wrapper(['/sbin/mkfs.%s' % TTS.LUKS['fs'],
+        StdOut, StdErr = thirtythirty.utils.popen_wrapper(['/sbin/mkfs.%s' % TTS.LUKS['fs'],
                                               '/dev/mapper/%s' % self.Name])
         if not re.search('done\n\n$', StdOut):
-            raise(exception.CannotMKFS('lv_create(%s) failed: %s' % (self.Name,
+            raise(thirtythirty.exception.CannotMKFS('lv_create(%s) failed: %s' % (self.Name,
                                                                      StdOut)))
-        StdOut, StdErr = utils.popen_wrapper(['/bin/mount',
+        StdOut, StdErr = thirtythirty.utils.popen_wrapper(['/bin/mount',
                                               self.Info['mountpoint']])
         if (StdOut, StdErr) != ('', ''):
-            raise(exception.CannotMount('lv_create(%s) failed: %s' % (self.Name,
+            raise(thirtythirty.exception.CannotMount('lv_create(%s) failed: %s' % (self.Name,
                                                                       StdErr)))
-        StdOut, StdErr = utils.popen_wrapper(['/bin/chown', self.Info['owner'],
+        StdOut, StdErr = thirtythirty.utils.popen_wrapper(['/bin/chown', self.Info['owner'],
                                               self.Info['mountpoint']])
         if (StdOut, StdErr) != ('', ''):
-            raise(exception.CannotOwn('lv_create(%s) failed' % self.Name))
+            raise(thirtythirty.exception.CannotOwn('lv_create(%s) failed' % self.Name))
         for Location, Octal in self.Info['permissions']:
-            StdOut, StdErr = utils.popen_wrapper(['/bin/chmod', Octal, Location])
+            StdOut, StdErr = thirtythirty.utils.popen_wrapper(['/bin/chmod', Octal, Location])
             if (StdOut, StdErr) != ('', ''):
                 logger.debug('chmod %s failed: %s' % (Location, StdErr))
         if self.Info.has_key('post-init'):
             for S in self.Info['post-init']:
-                utils.popen_wrapper(S)
+                thirtythirty.utils.popen_wrapper(S)
         if self.Info.has_key('post-up'):
             for S in self.Info['post-up']:
-                utils.popen_wrapper(S)
+                thirtythirty.utils.popen_wrapper(S)
 
 
     def unlock(self, key=None):
         if key: self.__create_keyfile(key)
         if not exists(self.key_file):
-            raise(exception.No_Keyfile("OMG NO KEY FILE"))
-        StdOut, StdErr = utils.popen_wrapper(['/sbin/cryptdisks_start',
+            raise(thirtythirty.exception.No_Keyfile("OMG NO KEY FILE"))
+        StdOut, StdErr = thirtythirty.utils.popen_wrapper(['/sbin/cryptdisks_start',
                                               self.Name])
         if re.search('failed', StdOut):
-            raise(exception.CannotStartLuks('unlock() failed: %s' % StdOut))
-        StdOut, StdErr = utils.popen_wrapper(['/bin/mount',
+            raise(thirtythirty.exception.CannotStartLuks('unlock() failed: %s' % StdOut))
+        StdOut, StdErr = thirtythirty.utils.popen_wrapper(['/bin/mount',
                                               self.Info['mountpoint']])
         if (StdOut, StdErr) != ('', ''):
-            raise(exception.CannotMount('unlock() failed'))
+            raise(thirtythirty.exception.CannotMount('unlock() failed'))
         if self.Info.has_key('post-up'):
             for S in self.Info['post-up']:
-                utils.popen_wrapper(S)
+                thirtythirty.utils.popen_wrapper(S)
 
 
     def lock(self, purge_key_file=True):
         if self.Info.has_key('pre-down'):
             for S in self.Info['pre-down']:
-                utils.popen_wrapper(S)
-        StdOut, StdErr = utils.popen_wrapper(['/bin/umount',
+                thirtythirty.utils.popen_wrapper(S)
+        StdOut, StdErr = thirtythirty.utils.popen_wrapper(['/bin/umount',
                                               self.Info['mountpoint']])
         if (StdOut, StdErr) != ('', '')  and not \
                re.search('not mounted', StdErr):
-            raise(exception.CannotUmount('lock() failed: %s' % StdErr))
-        StdOut, StdErr = utils.popen_wrapper(['/sbin/cryptdisks_stop',
+            raise(thirtythirty.exception.CannotUmount('lock() failed: %s' % StdErr))
+        StdOut, StdErr = thirtythirty.utils.popen_wrapper(['/sbin/cryptdisks_stop',
                                               self.Name])
         if not re.search('\(stopp(ed|ing)\)...done', StdOut):
-            raise(exception.CannotStopLuks('lock() failed: %s' % StdOut))
+            raise(thirtythirty.exception.CannotStopLuks('lock() failed: %s' % StdOut))
         if purge_key_file:
             try: os.remove(self.key_file)
             except OSError: pass
 
 
     def resize(self, New_Size='+1G'):
-        StdOut, StdErr = utils.popen_wrapper(['/sbin/lvresize',
+        StdOut, StdErr = thirtythirty.utils.popen_wrapper(['/sbin/lvresize',
                                               '-L', New_Size,
                                               '/dev/%s/%s' % (self.VG,
                                                               self.Name)])
         if not re.search('successfully', StdOut):
-            raise(exception.LVResizeFailed('resize() failed at logical_volume'))
-        StdOut, StdErr = utils.popen_wrapper(['/sbin/cryptsetup',
+            raise(thirtythirty.exception.LVResizeFailed('resize() failed at logical_volume'))
+        StdOut, StdErr = thirtythirty.utils.popen_wrapper(['/sbin/cryptsetup',
                                               'resize',
                                               '/dev/mapper/%s' % self.Name])
         if (StdOut, StdErr) != ('', ''):
-            raise(exception.CryptResizeFailed('resize() failed at cryptsetup'))
+            raise(thirtythirty.exception.CryptResizeFailed('resize() failed at cryptsetup'))
         # FIXME: only works if FS is ext3|4
-        StdOut, StdErr = utils.popen_wrapper(['/sbin/resize2fs',
+        StdOut, StdErr = thirtythirty.utils.popen_wrapper(['/sbin/resize2fs',
                                               '/dev/mapper/%s' % self.Name])
         if not re.search('is now.*blocks long', StdOut):
-            raise(exception.FSResizeFailed('resize() failed at the filesystem'))
+            raise(thirtythirty.exception.FSResizeFailed('resize() failed at the filesystem'))
         
 
     def remove(self):
-        StdOut, StdErr = utils.popen_wrapper(['/sbin/lvremove',
+        StdOut, StdErr = thirtythirty.utils.popen_wrapper(['/sbin/lvremove',
                                               '--force',
                                               '/dev/%s/%s' % (self.VG,
                                                               self.Name)])
         if not re.search('successfully removed', StdOut):
-            raise(exception.LVRemoveFailed('remove() failed at logical manager %s' % StdErr))
+            raise(thirtythirty.exception.LVRemoveFailed('remove() failed at logical manager %s' % StdErr))
 
 
     def change_passphrase(self, old=None, new=None, hose_old=True):
         if ((old is None) or (new is None)):
-            raise(exception.No_Keyfile('Missing key in change_passphrase()'))
+            raise(thirtythirty.exception.No_Keyfile('Missing key in change_passphrase()'))
         old_keyfile = '%s.old' % self.key_file
         if old: self.__create_keyfile(old, old_keyfile)
         if not exists(old_keyfile):
-            raise(exception.No_Keyfile("OMG NO KEY FILE"))
+            raise(thirtythirty.exception.No_Keyfile("OMG NO KEY FILE"))
         # add the new key
-        StdOut, StdErr = utils.popen_wrapper(['/sbin/cryptsetup',
+        StdOut, StdErr = thirtythirty.utils.popen_wrapper(['/sbin/cryptsetup',
                                               'luksAddKey',
                                               '--batch-mode',
                                               '--key-slot', '1',
@@ -397,12 +399,12 @@ Mounted: %s
                                                               self.Name)],
                                              new)
         if (StdOut, StdErr) != ('', ''):
-            raise(exception.NoKeychange('change_passphrase() addkey: %s/%s' % (StdOut,
+            raise(thirtythirty.exception.NoKeychange('change_passphrase() addkey: %s/%s' % (StdOut,
                                                                                StdErr)))
         os.unlink(old_keyfile)
         # delete the old
         if hose_old:
-            StdOut, StdErr = utils.popen_wrapper(['/sbin/cryptsetup',
+            StdOut, StdErr = thirtythirty.utils.popen_wrapper(['/sbin/cryptsetup',
                                                   'luksKillSlot',
                                                   '--batch-mode',
                                                   '/dev/%s/%s' % (self.VG,
@@ -410,5 +412,5 @@ Mounted: %s
                                                   '0'],
                                                  new)
             if (StdOut, StdErr) != ('', ''):
-                raise(exception.NoKeychange('change_passphrase() killslot: %s/%s' % (StdOut,
+                raise(thirtythirty.exception.NoKeychange('change_passphrase() killslot: %s/%s' % (StdOut,
                                                                                      StdErr)))

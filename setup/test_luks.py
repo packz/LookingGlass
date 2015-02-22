@@ -1,11 +1,8 @@
 
 from django.test import TestCase
-from django.db import IntegrityError
 
-from os.path import exists
 from shutil import copyfile
 import os
-import subprocess
 
 import luks
 

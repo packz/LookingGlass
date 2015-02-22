@@ -39,7 +39,7 @@
 
 	  {% if title != 'Composition' %}
 
-	  <li class='pull-right dropdown disabled only-when-selected' title='Move to folder'>
+	  <li class='pull-right dropdown disabled only-when-selected hide-axo-decrypted' title='Move to folder'>
 	    <a href='#' class='dropdown-toggle only-when-selected disabled' id='move-msg' data-toggle='dropdown'>
 	      <span class='glyphicon glyphicon-folder-open'></span>
 	    </a>
@@ -66,16 +66,20 @@
 	    <input type='text' id='new-folder-input' class='form-control mycollapse' placeholder='New Folder Name'></input>
 	  </li>
 
-	  <li class='pull-right disabled only-when-selected' title='Trash'>
+	  <li class='pull-right disabled only-when-selected hide-axo-decrypted' title='Trash'>
 	    <a href='#' id='trash-msg'><span class='glyphicon glyphicon-trash'></span></a>
 	  </li>
 
-	  <li class='pull-right disabled only-when-selected' title='Mark as unread'>
+	  <li class='pull-right disabled only-when-selected hide-axo-decrypted' title='Mark as unread'>
 	    <a href='#' id='unread-msg'><span class='glyphicon glyphicon-eye-close'></span></a>
 	  </li>
 
-	  <li class='pull-right' title='Select all'>
+	  <li class='pull-right hide-axo-decrypted hide-in-message' title='Select all'>
 	    <a href='#' id='select-all'><span class='glyphicon glyphicon-globe'></span></a>
+	  </li>
+
+	  <li class='pull-right show-in-message' title='Reply'>
+	    <a href='#' id='reply'><span class='glyphicon glyphicon-share-alt'></span></a>
 	  </li>
 	  {% endif %}
 

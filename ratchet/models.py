@@ -1,3 +1,3 @@
 
-import keypair
-import conversation
+import ratchet.keypair
+import ratchet.conversation

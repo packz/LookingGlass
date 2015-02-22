@@ -164,7 +164,11 @@ a[disabled] {
 		    </div>  
 		  {% elif control.type == 'button' %}
 		    <div class='container desmash'>
-		      <button type='button' class='btn btn-lg' id='{{ control.id }}' {% if control.disabled %} disabled{% endif %}>{{ control.desc }}</button>
+		    {% if control.href %}
+		      <a class='btn btn-lg btn-default {{ control.class }}' role='button' id='{{ control.id }}' {% if control.disabled %} disabled{% endif %} href='{{ control.href }}'>{{ control.desc }}</a>  
+		      {% else %}
+		      <button type='button' class='btn btn-lg {{ control.class }}' id='{{ control.id }}' {% if control.disabled %} disabled{% endif %}>{{ control.desc }}</button>
+		      {% endif %}
 		    </div>
 		  {% elif control.type == 'buttonbar' %}
 		    <div class='container-fluid desmash'>
@@ -173,6 +177,10 @@ a[disabled] {
 			<button type='button' class='btn btn-default {% if B.hidden %}mycollapse{% endif %}' id='{{ B.id }}' {% if B.disabled %}disabled{% endif %}>{{ B.desc }}</button>
 			{% endfor %}
 		      </div>
+		    </div>
+		  {% elif control.type == 'file' %}
+		    <div class='container-fluid desmash'>
+		      <input type='file' id='{{ control.id }}' name='{{ control.id }}'></input>
 		    </div>
 		  {% elif control.type == 'link' %}
 		    <div class='container desmash'>
@@ -324,6 +332,32 @@ $('input:radio[value=DHCP]').click(function(){
   ip_mode_change();
 });
 
+$('.kick').click(function(e){
+  $.get('{% url 'settings.kick' %}/' + this.id);
+});
+
+$('#restorefile').change(function(e) {
+  files = e.target.files;
+  $('#sysrestore').removeAttr('disabled');
+});
+
+$('#sysrestore').click(function() {
+  if (confirm('This will OVERWRITE your current settings.  Continue?')) {
+    var postData = new FormData();
+    postData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    postData.append('backupfile', files[0]);
+    $.ajax({
+     url:'{% url 'settings.restore' %}',
+     type:'POST',
+     data:postData,
+     cache:false,
+     dataType:'json',
+     processData:false,
+     contentType:false,
+    });
+  };
+});
+
 function passphrase_submitted() {
   /* for now, we assume this is in re: system wipe */
   $.post('{% url 'system-reset' %}',
@@ -341,50 +375,6 @@ $('#reset-to-defaults').click(function() {
   if (confirm('THIS WILL ERASE EVERYTHING')) {
     $('#passphrase-modal').modal('show');
   };
-});
-
-function status_updater() {
-  $.getJSON('{% url 'settings.update' %}',{
-     'mode':'listen',
-  }, function(data) {
-  $('#update-status').text(data.status);
-    if (data.ok) {
-      setTimeout(function() {
-       status_updater();
-      }, 2500);
-    };
-    if (data.unpackable) {
-     $('#update-check').collapse('hide');
-     $('#update-unpack').collapse('show');
-    }
-    if (data.bogus) {
-     $('#update-status').css('color', 'red');
-    };
-  });
-}
-
-$('#update-unpack').click(function() {
-  $('#update-unpack').attr('disabled', true);
-  $.getJSON('{% url 'settings.update' %}',{
-    'mode':'unpack',
-  }, function(data){
-    $('#update-status').text(data.status);
-  });
-  setTimeout(function() {
-  status_updater();
-  }, 2500);
-});
-
-$('#update-check').click(function() {
-  $('#update-check').attr('disabled', true);
-  $.getJSON('{% url 'settings.update' %}',{
-    'mode':'download',
-  }, function(data){
-    $('#update-status').text(data.status);
-  });
-  setTimeout(function() {
-  status_updater();
-  }, 2500);
 });
 
 $('#get-mail-log').click(function() {

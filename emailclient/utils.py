@@ -3,6 +3,7 @@ from thirtythirty.settings import LOOKINGGLASS_VERSION_STRING
 
 import email
 import subprocess
+import re
 
 import addressbook
 
@@ -19,8 +20,9 @@ def text_payload(Msg=None):
 
 
 def submit_to_smtpd(Payload=None,
+                    Attachments=None,
                     Destination=None,
-                    Headers=[],
+                    Headers=None,
                     Subject=None,
                     From=None,
                     ):
@@ -29,6 +31,8 @@ def submit_to_smtpd(Payload=None,
     mutt allows us to specify X-Headers, which we need for hashcash
     hashcash causes the wait to be pretty harsh
     """
+    if not Attachments: Attachments = []
+    if not Headers: Headers = []
     Headers.extend([
         ('X-Lookingglass-Version', LOOKINGGLASS_VERSION_STRING),
         ])
@@ -44,8 +48,17 @@ def submit_to_smtpd(Payload=None,
     Msg['Reply-To'] = From
     Msg['Date'] = email.utils.formatdate()
     Msg['Message-Id'] = email.utils.make_msgid()
-    S = subprocess.Popen(['/usr/bin/mutt',
-                          '-H', '-',
-                          Destination],
-                         stdin=subprocess.PIPE)
+    if len(Attachments) == 0:
+        S = subprocess.Popen(['/usr/bin/mutt',
+                              '-H', '-',
+                              Destination],
+                             stdin=subprocess.PIPE)
+    else:
+        Cmd = ['/usr/bin/mutt',
+               '-H', '-',
+               '-a']
+        Cmd.extend(Attachments)
+        Cmd.extend(['--', Destination])
+        S = subprocess.Popen(Cmd,
+                             stdin=subprocess.PIPE)
     S.communicate(Msg.as_string())

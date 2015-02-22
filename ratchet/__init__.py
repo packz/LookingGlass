@@ -1,10 +1,9 @@
 
-import exception
+import ratchet.exception
 
-import utils
-import handshake
-import keypair
-import message
-import conversation
+import ratchet.utils
+import ratchet.handshake
+import ratchet.keypair
+import ratchet.message
+import ratchet.conversation
 
-from thirtythirty.settings import LOOKINGGLASS_VERSION_STRING
