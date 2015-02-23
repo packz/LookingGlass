@@ -60,3 +60,18 @@ class CryptResizeFailed(LuksException): pass
 class FSResizeFailed(LuksException): pass
 
 class LVRemoveFailed(LuksException): pass
+
+
+class UpgradeException(Exception):
+    def __init__(self, value):
+        self.value = value
+        Exception.__init__(self)
+        
+    def __str__(self):
+        return repr(self.value)
+
+class PreInstException(UpgradeException): pass
+
+class UnpackException(UpgradeException): pass
+
+class PostInstException(UpgradeException): pass

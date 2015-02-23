@@ -19,6 +19,7 @@ UPSTREAM = {
     'keyserver':       'sdtrssmsbmw7eqm4.onion:58008',
     'update_log':'/tmp/update.log',
     'update_cache':'/tmp/cache',
+    'update_script_dir':'/var/cache/LookingGlass',
     'updates':[{'type':'RSYNC',
                 'uri':'rsync://sdtrssmsbmw7eqm4.onion:51239',
                 },
