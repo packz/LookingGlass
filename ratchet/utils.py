@@ -146,7 +146,6 @@ class b64Formatter(object):
         decodes fields prefaced by 'b64_' and
         strips that identifier
         """
-	if not bPayload: bPayload = {}
         if type(bPayload) is not DictType:
                 return None
         Payload = {}

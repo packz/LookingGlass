@@ -1,7 +1,7 @@
 
 import re
 import subprocess
-import os.path
+import os
 import tempfile
 
 import addressbook
@@ -134,3 +134,29 @@ def popen_wrapper(arglist=None, stdin=None,
         SO.seek(0)
         SE.seek(0)
         return (SO.read(), SE.read())
+
+
+def tar_pipeline(arglist1=None, arglist2=None,
+                 debug=True):
+    """
+    used during the update process to unwrap the outer tarball w/o creating temp files
+    supposedly you can use `shell=True` but life is short, and i <3 pipes
+    """
+    SO = tempfile.NamedTemporaryFile()
+    SE = tempfile.NamedTemporaryFile()
+    DEVNULL = file(os.devnull, 'w')
+    
+    logger.debug("unwrap %s -> %s" % (arglist1, arglist2))
+    Blowpop = subprocess.Popen(arglist1,
+                               stdout=subprocess.PIPE,
+                               stdin=None,
+                               stderr=DEVNULL)
+    Tootsieroll_Center = subprocess.Popen(arglist2,
+                                          stdin=Blowpop.stdout,
+                                          stderr=SE,
+                                          stdout=SO) # may need to be PIPE?
+    Blowpop.stdout.close() # allow SIGPIPE
+    Tootsieroll_Center.communicate()
+    SO.seek(0)
+    SE.seek(0)
+    return (SO.read(), SE.read())

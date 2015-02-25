@@ -6,7 +6,7 @@ from optparse import make_option
 import addressbook
 import emailclient
 
-import thirtythirty.updater
+import thirtythirty.updater as TTU
 import thirtythirty.settings as TTS
 
 import logging
@@ -17,23 +17,11 @@ class Command(BaseCommand):
     help = 'System upgrader'
 
     option_list = BaseCommand.option_list + (
-        make_option('--check',
-                    action='store_true',
-                    dest='check',
-                    default=False,
-                    help="Check for updates and download to cache",
-                    ),
         make_option('--force',
                     action='store_true',
                     dest='force',
                     default=False,
                     help="Override rate limiter",
-                    ),
-        make_option('--email-user',
-                    action='store_true',
-                    dest='email',
-                    default=False,
-                    help="Email local admin re: update available",
                     ),
         make_option('--install',
                     action='store_true',
@@ -41,7 +29,7 @@ class Command(BaseCommand):
                     default=False,
                     help="Install!  WHAO!  WARNING!",
                     ),
-        make_option('--validate-anything-with-bits', '--no-check', '--megagape',
+        make_option('--validate-anything-with-bits', '--megagape',
                     action='store_true',
                     dest='valid_override',
                     default=False,
@@ -50,7 +38,9 @@ class Command(BaseCommand):
         )
 
 
-    def alert_user_new_updates(self, Version=None):
+    def alert_user_new_updates(self,
+                               Version=None,
+                               ChangeLog=None):
         Me = addressbook.utils.my_address()
         PL = """
         A newer version of LookingGlass is available!
@@ -62,9 +52,12 @@ class Command(BaseCommand):
         ~WAIT FOR POSSIBLE REBOOT~
         ~DO NOT REMOVE POWER~
         ~BITE NAILS~
-        Enjoy!
-        """
-        # FIXME: add changelog / notes here
+        Enjoy!"""
+        if ChangeLog:
+            PL += """\n\n\n\n\n\nCHANGELOG:
+----------
+%s
+""" % ChangeLog
         emailclient.utils.submit_to_smtpd(
             # FIXME: need some way to |safe this.
             Payload=PL,
@@ -73,51 +66,37 @@ class Command(BaseCommand):
             From='Sysop <root>')
 
     def handle(self, *args, **settings):
-        U = thirtythirty.updater.Updater()            
-        
-        GMR = U.GetMostRecent(asString=True)
-        UDA = U.MoreRecentAvailable()
-        if not UDA:
-            logger.debug('Already up to date - on %s, found %s' % (TTS.LOOKINGGLASS_VERSION_STRING, GMR))
+        Cached = TTU.Available()
+        if Cached:
+            if not settings['force']:
+                logger.debug('Already have version %s in cache' % Cached)
+                exit(0)
+            else:
+                logger.debug('Already have version %s in cache' % Cached)
+                logger.debug('Specified new dl anyway')
+            
+        URI = TTU.Scan(TTS.UPSTREAM['updates'][0]['uri'])
+        if not URI:
+            logger.debug('Already up to date')
             exit(0)
-
-        logger.debug('Found a new version: %s' % GMR)
         
-        DL = U.Download()
-        logger.debug('Downloaded version %02d.%02d.%02d' % (int(DL[0]), int(DL[1]), int(DL[2])))
+        Cache = TTU.Cache(Data_URI=URI)
+        logger.debug('Got %s' % Cache)
+        
+        if not TTU.Validate(Cache):
+            if not settings['valid_override']:
+                logger.warning('Invalid signature on %s' % Cache)
+                exit(-1)
+            else:
+                logger.warning('Bad signature, but signature override is on...')
 
-        Fingerprint = U.ClearsignedBy()
-        if not Fingerprint:
-            logger.error('Signature hosed or no signature.')
-            exit(-1)
+        self.alert_user_new_updates(
+            Version=TTU.Version(Cache),
+            ChangeLog=TTU.ChangeLog(Cache)
+            )
 
-        ok = False
-        if Fingerprint in TTS.UPSTREAM['trusted_prints']:
-            ok = True
-
-        A = U.Validate(Fingerprint)
-        if not A.system_use and not settings['valid_override']:
-            logger.error("fingerprint for %s isn't marked system_use - refusing to update" % A.covername)
-            exit(-1)
-
-        if not A.system_use and settings['valid_override']:
-            logger.warning('fingerprint for %s is bogus -- but check was overrided!' % A.covername)
-            ok = True
-
-        if settings['check'] and ok:
-            # FIXME: need a rate limiter.
-            self.alert_user_new_updates('%02d.%02d.%02d' % (int(DL[0]), int(DL[1]), int(DL[2])))
-            exit(0)
-                    
-        if ((not settings['check']) and
-            (ok) and
-            (settings['install'])):
-            File_List = U.Unpack()
-            logger.debug('unpacked %s files' % len(File_List))
-            fh = file(TTS.UPSTREAM['update_log'], 'w')
-            for File in File_List:
-                fh.write(File)
-                fh.write('\n')
-            fh.close()
-            logger.debug('wrote update log to %s' % TTS.UPSTREAM['update_log'])
-            U.Cleanup()
+        if settings['install']:
+            for F in TTU.Unpack(Cache):
+                logger.debug(F)
+                
+            TTU.Cleanup()

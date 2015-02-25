@@ -5,7 +5,8 @@ from optparse import make_option
 import random
 
 import thirtythirty.models
-from thirtythirty.settings import PASSPHRASE_CACHE
+from thirtythirty.settings import PASSPHRASE_CACHE, LUKS
+LUKS_CACHE = LUKS['key_file']
 
 # we can't use USERNAME from thirtythirty.settings, as this is 'self-running' as root
 USERNAME = 'pi'
@@ -40,11 +41,13 @@ MAILTO=root
 
 {recron:20}{POWERUSER:8}/home/{USERNAME}/.virtualenvs/thirtythirty/bin/python /home/{USERNAME}/thirtythirty/manage.py crontab
 
-{random_minute:3} * * * * {USERNAME:8}/home/{USERNAME}/.virtualenvs/thirtythirty/bin/python /home/{USERNAME}/thirtythirty/manage.py update --check &>/dev/null
+{random_minute:3} * * * * {USERNAME:8}/home/{USERNAME}/.virtualenvs/thirtythirty/bin/python /home/{USERNAME}/thirtythirty/manage.py update &>/dev/null
 
 {daily:20}{POWERUSER:8}/usr/sbin/ntpdate -t1 pool.ntp.org &>/dev/null
 
-{recron:20}{USERNAME:8}if [[-e /tmp/address.wav ]]; then /usr/bin/aplay /tmp/address.wav; fi &>/dev/null
+{daily:20}{POWERUSER:8}/usr/bin/make --directory /etc/postfix reload &>/dev/null
+
+{recron:20}{USERNAME:8}if [[ -e /tmp/address.wav ]]; then /usr/bin/aplay /tmp/address.wav; fi &>/dev/null
 
 {daily:20}{USERNAME:8}/usr/bin/find /tmp -maxdepth 1 -type f -name '*sessionid*' -atime +3 -delete &>/dev/null
 
@@ -57,10 +60,13 @@ MAILTO=root
 
 {cachetime:20}{USERNAME:8}/home/{USERNAME}/.virtualenvs/thirtythirty/bin/python /home/{USERNAME}/thirtythirty/manage.py lockdb --lock --headless && shred -zu {cache_loc} &>/dev/null
 
+{cachetime:20}{USERNAME:8}if [[ -e {cache_luks} ]]; then shred -zu {cache_luks}; fi &>/dev/null
+
 """.format(**{
             'POWERUSER':'root',
             'USERNAME':USERNAME,
             'cache_loc':PASSPHRASE_CACHE,
+            'cache_luks':LUKS_CACHE,
             'cachetime':Cache_Time,
             'daily':'@daily',
             'hourly':'@hourly',

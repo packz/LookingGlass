@@ -21,6 +21,7 @@ import smp
 
 import thirtythirty.settings as TTS
 from thirtythirty.gpgauth import session_pwd_wrapper, set_up_single_user
+from thirtythirty.updater import Available, Unpack, Cleanup
 
 import logging
 logger = logging.getLogger(__name__)
@@ -175,6 +176,11 @@ def index(request, Next=None):
 @session_pwd_wrapper
 def settings(request, advanced=False):
     Vitals = thirtythirty.utils.Vitals(request)
+    Update_Version = '[No update available]'
+    Update_Warn = ''
+    if Available():
+        Update_Version = 'Version %s now available!' % Available()
+        Update_Warn = 'Back up your settings before update!'
     Preferences = set_up_single_user()
     if Preferences.show_advanced: advanced = True
     
@@ -345,8 +351,9 @@ def settings(request, advanced=False):
              {'desc':'Update',
               'class':'bg-info',
               'type':'button', 'id':'update',
-              'disabled':True,
-              'help':'(No updates available)',
+              'disabled':(not Available()),
+              'help':Update_Version,
+              'warn':Update_Warn,
               },
              {'desc':'Backup',
               'type':'button', 'id':'sysbackup',
@@ -584,7 +591,7 @@ def backup(request):
     Encrypt symmetrically.
     Dump.
     """
-    Passphrase = request.POST.get('passphrase')
+    Passphrase = request.session['passphrase'] 
     if not Passphrase and os.path.exists(TTS.PASSPHRASE_CACHE):
         Passphrase = file(TTS.PASSPHRASE_CACHE, 'r').read()
     if not Passphrase or not addressbook.gpg.verify_symmetric(Passphrase):
@@ -599,10 +606,16 @@ def backup(request):
                        'type':'contact',
                        })
     Backup.append({'type':'hs_prv',
-                   'key':subprocess.check_output(['/usr/bin/sudo', '-u', 'root', '/bin/cat', '/var/lib/tor/hidden_service/private_key'])})
+                   'key':subprocess.check_output(['/usr/bin/sudo', '-u', 'root',
+                                                  '/bin/cat',
+                                                  '/var/lib/tor/hidden_service/private_key'])})
     Backup.append({'type':'gpg_prv',
-                   'key':subprocess.check_output(['/usr/bin/gpg', '--armor', '--export-secret-keys'])})
-    Zip = addressbook.gpg.symmetric(msg=json.dumps(Backup), passphrase=Passphrase)
+                   'key':subprocess.check_output(['/usr/bin/gpg',
+                                                  '--armor',
+                                                  '--export-secret-keys'])})
+    Zip = addressbook.gpg.symmetric(msg=json.dumps(Backup),
+                                    passphrase=Passphrase,
+                                    armor=True)
     return HttpResponse(Zip,
                         content_type='plain/text')
 
@@ -977,63 +990,15 @@ def thirtythirty_logs(request):
 
 @session_pwd_wrapper
 def update(request):    
-    Socket = TTS.UPSTREAM['update_socket']
-    ret = {'ok':False, 'status':'IDKWTFBBQ'}
-    Mode = request.GET.get('mode')
-
-    if Mode == 'listen' and not exists(Socket):
-        ret = {'ok':False, 'status':'Not running'}
-
-    elif Mode != 'listen' and exists(Socket):
-        ret = {'ok':True, 'status':'Already running'}
-        
-    elif Mode in ['download', 'unpack'] and not exists(Socket):
-        # touch request file
-        S = file(Socket, 'w')
-        S.write(json.dumps({'mode':Mode, 'request':True}))
-        S.close()
-        ret = {'ok':True, 'status':'Scanning for updates...'}
-    
-    elif Mode == 'listen' and exists(Socket):
-        Raw = file(Socket, 'r').read().strip()
-        Entries = Raw.split('\n')
-        
+    ret = {'ok':False, 'extra':Available()}
+    if ret['extra']:
         try:
-            # request file is newline-seperated JSON hashes - process last entry
-            ret = json.loads(Entries[-1])
-            
-        except ValueError:
-            # we want to keep trying
-            ret['status'] = 'Working...'
+            Unpack()
+            Cleanup()
             ret['ok'] = True
-            return HttpResponse(json.dumps(ret),
+        except thirtythirty.exception.UpgradeException as e:
+            return HttpResponse(json.dumps({'ok':False,
+                                            'extra':e}),
                                 content_type='application/json')
-
-        # here we deal with specific states returned by the backend
-        if ret.has_key('bogus'):
-            # fingerprint is BS
-            ret['ok'] = False
-            os.unlink(Socket)
-            logger.debug('removed socket')
-
-        elif ret.has_key('fingerprint') and ret['mode'] != 'unpack':
-            # first run: waiting for user command to unpack
-            # second run: bypass, we want the file_list
-            ret['ok'] = False
-            ret['unpackable'] = True
-            os.unlink(Socket)
-            logger.debug('removed socket')
-        
-        elif ret.has_key('file_list'):
-            # all's well
-            ret['ok'] = False
-            os.unlink(Socket)
-            logger.debug('removed socket')
-
-        elif ret.has_key('mode') and ret.has_key('request'):
-            # we're waiting for the daemon to respond...
-            ret['ok'] = True
-            ret['status'] = 'Working...'
-        
     return HttpResponse(json.dumps(ret),
                         content_type='application/json')

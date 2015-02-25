@@ -207,10 +207,10 @@ a[disabled] {
 		    </div>
 		  {% endif %}
 		  {% if control.help %}
-		    <span class='help-block'>{{ control.help }}</span>
+		    <span class='help-block' id='{{ control.id }}-help'>{{ control.help }}</span>
 		  {% endif %}
 		  {% if control.warn %}
-		    <h4><span class='warn-block text-danger bg-danger'>{{ control.warn }}</span></h4>
+		    <h4><span class='warn-block text-danger bg-danger' id='{{ control.id }}-warn'>{{ control.warn }}</span></h4>
 		  {% endif %}
 		</div>
 	    {% endfor %}
@@ -338,6 +338,22 @@ $('.kick').click(function(){
   function() {
     $(this).removeClass('btn-success');
   }.bind(this));
+});
+
+$('#update').click(function(){
+  if (confirm('Do not remove power, do not panic, do cross fingers.')) {
+    $(this).addClass('btn-success');
+    $.get('{% url 'settings.update' %}', function(e){
+      if (!e.ok) {
+        alert('Something terrible happened.');
+      } else {
+        $('#update').removeClass('btn-success');
+        $('#update').attr('disabled', true);
+        $('#update-help').text('');
+        $('#update-warn').text('');
+      };
+    });
+  };
 });
 
 $('#restorefile').change(function(e) {

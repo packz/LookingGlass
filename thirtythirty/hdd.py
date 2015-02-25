@@ -350,8 +350,10 @@ Mounted: %s
         if not re.search('\(stopp(ed|ing)\)...done', StdOut):
             raise(thirtythirty.exception.CannotStopLuks('lock() failed: %s' % StdOut))
         if purge_key_file:
-            try: os.remove(self.key_file)
-            except OSError: pass
+            try:
+                os.remove(self.key_file)
+            except OSError as e:
+                logger.warning(e)
 
 
     def resize(self, New_Size='+1G'):

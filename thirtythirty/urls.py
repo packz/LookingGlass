@@ -42,5 +42,6 @@ urlpatterns = patterns('',
     url(r'^settings/ajax/symmetricopy$', views.symmetric_copy, name='settings.symmetric_copy'),
     url(r'^settings/ajax/thirtythirty$', views.thirtythirty_logs, name='settings.thirtythirty_logs'),
     url(r'^settings/ajax/update', views.update, name='settings.update'),
+                       
     url(r'^settings/kick(?P<process>/.*)?$', views.kick, name='settings.kick'),
 )

@@ -70,6 +70,14 @@ class UpgradeException(Exception):
     def __str__(self):
         return repr(self.value)
 
+class ScanException(UpgradeException): pass
+
+class DownloadException(UpgradeException): pass
+
+class ChecksumException(UpgradeException): pass
+
+class SignatureException(UpgradeException): pass
+
 class PreInstException(UpgradeException): pass
 
 class UnpackException(UpgradeException): pass

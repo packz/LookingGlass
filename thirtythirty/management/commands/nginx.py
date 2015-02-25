@@ -47,7 +47,7 @@ upstream gunicorn {{
 }}
 
 server {{
-       # serves certs
+       # serves certs maybe to tor (future use)
        listen 8080;
        autoindex on;
        root /srv/docs;
@@ -71,6 +71,7 @@ server {{
         error_page 502 /502.html;
 
 	location @gunicorn {{
+                client_max_body_size 0;
 		proxy_pass http://gunicorn;
 		proxy_redirect off;
 		proxy_read_timeout 5m;

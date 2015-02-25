@@ -334,7 +334,7 @@ class Conversation(models.Model):
         if not hasattr(self, 'staging'):
             self.staging = []
         pChainKey = ChainKeyRx
-        logging.debug('save %s skipped keys, advance ratchet' % (NumberPurported - NumberRx))
+        logger.debug('save %s skipped keys, advance ratchet' % (NumberPurported - NumberRx))
         for i in range(NumberPurported - NumberRx):
             MessageKey = sha256(pChainKey + '0').digest()
             pChainKey = sha256(pChainKey + '1').digest()
@@ -349,12 +349,12 @@ class Conversation(models.Model):
 
     def __check_skipped(self, ciphertext=None):
         for SK in Skipped_Key.objects.filter(Convo=self):
-            logging.debug('checking skipped keys')
+            logger.debug('checking skipped keys')
             Msg = ratchet.message.Message(HeaderKey=SK.HeaderKeyRx,
                                           MessageKey=SK.MessageKey,
                                           Ciphertext=ciphertext)
             if Msg.Payload:
-                logging.debug('a skipped key that works!')
+                logger.debug('a skipped key that works!')
                 SK.delete()
                 return Msg
         return ratchet.message.Message(Ciphertext=ciphertext)
@@ -388,7 +388,7 @@ class Conversation(models.Model):
             return Msg.Payload
 
         # No, okay, with current header key, then?
-        logging.debug('skipped keys all fail - how about the current one?')
+        logger.debug('skipped keys all fail - how about the current one?')
         Msg.set_keys(HeaderKey=self.HeaderKey.rx)
         if Msg.DHRatchetTx:
             Msg.HeaderKey = None # freeze the header state

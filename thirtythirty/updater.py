@@ -3,290 +3,270 @@ import os
 import re
 import subprocess
 
+from emailclient.utils import submit_to_smtpd
+
 import thirtythirty.exception as TTE
-import thirtythirty.utils
+import thirtythirty.utils as TTU
 import thirtythirty.settings as TTS
 import addressbook
 
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)        
 
-class Updater(object):
-    def __init__(self, Server=None, Cache=None):
-        sServer = self._first_server()
-        if Server:
-            sServer = Server
-        self.Cache = TTS.UPSTREAM['update_cache']
-        if Cache:
-            self.Cache = Cache
-        if not os.path.exists(self.Cache):
-            SO, SE = thirtythirty.utils.popen_wrapper(['/bin/mkdir', '--parents', self.Cache],
-                                         sudo=False)            
-        self.ReqMajor = TTS.LOOKINGGLASS_VERSION[0]
-        self.ReqMinor = TTS.LOOKINGGLASS_VERSION[1]
-        self.PatchLevel = TTS.LOOKINGGLASS_VERSION[2]
-        self.moreRecentExists = False
-        self.Available = self.Scan(sServer)
+def Scan(Server=None):
+    """
+    rsync scan the update server
+    return highest patch > current, with checksum
+    """
+    Biggest = "%02d%02d%02d" % TTS.LOOKINGGLASS_VERSION
+    Checksum = True
+    Tarball = True
+    Exact = None
+    
+    FNRE = re.compile(
+        'LookingGlass_(?P<Major>[0-9]+)\.(?P<Minor>[0-9]+)\.(?P<Patch>[0-9]+)_(?P<Target>rpi|all).(?P<Type>sum.asc|tar.bz2|deb)$')
+    if Server:
+        SO, SE = TTU.popen_wrapper(['/usr/bin/rsync',
+                                    '%s/Upgrade' % Server],
+                                   sudo=False)
+    if re.search('closed', SE):
+        raise TTE.ScanException('Cannot connect to %s' % Server)
+    
+    for Line in sorted(SO.split('\n')):
+        Z = FNRE.search(Line)
+        if not Z: continue
+        Version = "%02d%02d%02d" % (
+            int(Z.group('Major')),
+            int(Z.group('Minor')),
+            int(Z.group('Patch')),
+            )
+        if Version > Biggest:
+            Biggest = Version
+            Checksum = False
+            Tarball = False
 
+        if Version == Biggest:
+            if Z.group('Type') == 'sum.asc':
+                Checksum = True
+            elif Z.group('Type') == 'tar.bz2':
+                Tarball = True
+                Filename = re.sub('^.*LookingGlass_',
+                                  'LookingGlass_',
+                                  Line)
+                Exact = '%s/Upgrade/%s' % (Server,
+                                           Filename)
 
-    def _first_server(self, Type='RSYNC'):
-        for S in TTS.UPSTREAM['updates']:
-            if ((S['type'] == Type) and (S.has_key('uri'))):
-                return S['uri']
+    if Exact and Checksum and Tarball:
+        return Exact
+    else:
         return None
 
 
-    def __repr__(self):
-        CurrentMaj, CurrentMin, CurrentPatch = TTS.LOOKINGGLASS_VERSION
-        if ((self.ReqMajor > CurrentMaj) or # major rev
-            (self.ReqMajor == CurrentMaj) and # same major, bigger minor
-            (self.ReqMinor > CurrentMin)):
-            return """Running, %02d.%02d , Available, %02d.%02d""" % (
-                CurrentMaj, CurrentMin,
-                self.ReqMajor, self.ReqMinor)
-        return '# Up to date.'
+def Cache(Data_URI=None,
+          Checksum_URI=None,
+          Cache=None,
+          ):
+    """
+    rsync tarball and checksum to cache directory
+    return filename of data file
+    """
+    if not Cache:
+        Cache = TTS.UPSTREAM['update_cache']
+    if not Checksum_URI:
+        Checksum_URI = re.sub('\.tar\.bz2$', '.sum.asc', Data_URI)
+    if not os.path.exists(Cache):
+        TTU.popen_wrapper(['/bin/mkdir',
+                           '--parents',
+                           Cache],
+                          sudo=True)
+    for GetFile in [Data_URI, Checksum_URI]:
+        SO, SE = TTU.popen_wrapper(['/usr/bin/rsync',
+                                    '--times',
+                                    GetFile,
+                                    Cache],
+                                   sudo=False)
+        if (SO, SE) != ('', ''):
+            raise TTE.DownloadException(SE)
+    return '%s/%s' % (Cache, re.sub('^.*LookingGlass_', 'LookingGlass_', Data_URI))
 
 
-    def GetVersion(self, Major=None, Minor=None, Patch=None):
-        ret = {}
-        if not (Major or Minor or Patch):
-            return None
-        for S in self.Available:
-            if ((S.has_key('Major') and (int(S['Major']) == int(Major))) and
-                (S.has_key('Minor') and (int(S['Minor']) == int(Minor))) and
-                (S.has_key('Patch') and (int(S['Patch']) == int(Patch)))):
-                ret[S['Type']] = S
-        if ret.has_key('sum') and ret.has_key('deb'):
-            return ret
-        elif ret.has_key('sum') and ret.has_key('tar.bz2'):
-            return ret
-        else:
-            return None
+def ChangeLog(Filename=None):
+    if not Filename:
+        Filename = __data_file()
+    ChangeLog, STE = TTU.popen_wrapper(['/bin/tar',
+                                        '-xOf', Filename, # O to stdout
+                                        'ChangeLog'],
+                                       sudo=False)
+    if ((ChangeLog == '') or (STE != '')):
+        logger.info('No ChangeLog')
+        return False
+    else:
+        return ChangeLog
 
 
-    def GetMostRecent(self, asString=False):
-        Major = self.ReqMajor
-        Minor = self.ReqMinor
-        Patch = self.PatchLevel
-        GV = self.GetVersion(Major, Minor, Patch)
-        if not asString:
-            return GV
-        elif GV is None:
-            # FIXME: this is a lie
-            return TTS.LOOKINGGLASS_VERSION_STRING
-        elif GV.has_key('deb'):
-            return 'LookingGlass V%02d.%02d.%02d' % (int(GV['deb']['Major']), int(GV['deb']['Minor']), int(GV['deb']['Patch']))
-        elif GV.has_key('tar.bz2'):
-            return 'LookingGlass V%02d.%02d.%02d' % (int(GV['tar.bz2']['Major']), int(GV['tar.bz2']['Minor']), int(GV['tar.bz2']['Patch']))
+def Version(Filename=None):
+    if not Filename:
+        Filename = __data_file()
+    V = re.search('_(?P<version>[.0-9]+)_', Filename)
+    if V:
+        return V.group('version')
+    return None
 
 
-    def MoreRecentAvailable(self):
-        return self.moreRecentExists
+def __data_file():
+    for File in sorted(os.listdir(TTS.UPSTREAM['update_cache']), reverse=True):
+        if re.search('\.tar\.bz2$', File):
+            return '%s/%s' % (TTS.UPSTREAM['update_cache'], File)
+    return None
 
+
+def __checksum_file():
+    for File in sorted(os.listdir(TTS.UPSTREAM['update_cache']), reverse=True):
+        if re.search('\.sum\.asc$', File):
+            return '%s/%s' % (TTS.UPSTREAM['update_cache'], File)
+    return None
+
+
+def Available():
+    """
+    this could probably be a whole lot smarter
+    """
+    D = __data_file()
+    if D:
+        return Version(D)
+    else:
+        return None
     
-    def Scan(self, Server=None):
-        """
-        Return possible new versions via rsync
 
-        Updates self.ReqMajor, self.ReqMinor to latest versions.
-        """
-        ret = []
-        FNRE = re.compile(
-            'LookingGlass_(?P<Major>[0-9]+)\.(?P<Minor>[0-9]+)\.(?P<Patch>[0-9]+)_(?P<Target>rpi|all).(?P<Type>sum|tar.bz2|deb)$')
-        if Server:
-            SO, SE = thirtythirty.utils.popen_wrapper(['/usr/bin/rsync', '--times', '%s/Upgrade' % Server],
-                                         sudo=False)
-            if re.search('closed', SE):
-                return False
-            for Line in SO.split('\n'):
-                Z = FNRE.search(Line)
-                if Z:
-                    Q = {'Type':Z.group('Type'),
-                         'Target':Z.group('Target')}
-                    for X in ['Major', 'Minor', 'Patch']:
-                        Q[X] = int(Z.groupdict()[X])
-                    Q['Server'] = Server
-                    Filename = re.sub('^.*LookingGlass_',
-                                      'LookingGlass_',
-                                      Line)
-                    Q['Filename'] = Filename
-                    Q['Exact'] = '%s/Upgrade/%s' % (Server,
-                                                    Filename)
-                    ret.append(Q)
-                    if Q['Major'] > self.ReqMajor: self.moreRecentExists = True
-                    elif ((Q['Major'] == self.ReqMajor) and
-                        (Q['Minor'] > self.ReqMinor)): self.moreRecentExists = True
-                    elif ((Q['Major'] == self.ReqMajor) and
-                          (Q['Minor'] == self.ReqMinor) and
-                          (Q['Patch'] > self.PatchLevel)): self.moreRecentExists = True
-                    if self.moreRecentExists and Q['Type'] != 'sum':
-                        self.ReqMajor = Q['Major']
-                        self.ReqMinor = Q['Minor']
-                        self.PatchLevel = Q['Patch']
-                        logger.debug('found a more recent version: %02d.%02d.%02d' % (
-                            Q['Major'], Q['Minor'], Q['Patch']))
-            return ret
-        else:
-            return ret
-            
-        
-    def Download(self, Major=None, Minor=None, Patch=None, Cache=None):
-        if not (Major or Minor):
-            Version_Info = self.GetMostRecent()
-            Major = Version_Info['sum']['Major']
-            Minor = Version_Info['sum']['Minor']
-            Patch = Version_Info['sum']['Patch']
-        else:
-            Version_Info = self.GetVersion(Major=Major,
-                                           Minor=Minor,
-                                           Patch=Patch)
-        cCache = self.Cache
-        if Cache: cCache = Cache
-        if Version_Info and cCache:
-            for XT in ['deb', 'sum', 'tar.bz2']:
-                if not Version_Info.has_key(XT): continue
-                SO, SE = thirtythirty.utils.popen_wrapper(['/usr/bin/rsync',
-                                              '--partial',
-                                              '--times',
-                                              Version_Info[XT]['Exact'],
-                                              cCache],
-                                             sudo=False)
-                if re.search('closed', SE):
-                    logger.error(SO, SE)
-                    return False            
-                if (SO, SE) != ('', ''):
-                    logger.error(SO, SE)
-                    return False
-        return (Major, Minor, Patch)
+def Validate(Data_File=None,
+             Checksum_File=None):
+    """
+    Verify that SHA512 are the same, and that signature comes from a system_use key
+    """
+    if not Data_File:
+        Data_File = __data_file()
+    if not Checksum_File:
+        Checksum_File = __checksum_file()
+    if not Data_File or not os.path.exists(Data_File):
+        raise TTE.ChecksumException("Data file %s doesn't exist" % Data_File)
+    if not Checksum_File or not os.path.exists(Checksum_File):
+        raise TTE.ChecksumException("Checksum file %s doesn't exist" % Checksum_File)
+    
+    SO, SE = TTU.popen_wrapper(['sha512sum',
+                                Data_File],
+                               sudo=False,
+                               debug=False)
+    Local_Sum = re.search(
+        '(?m)^(?P<SHA512>[a-f0-9]{128})\W+',
+        SO)
+    if not Local_Sum:
+        raise TTE.ChecksumException("Can't parse checksum: %s/%s" % (SO, SE))
+    Local_Sum = Local_Sum.group('SHA512')
 
-            
-    def ClearsignedBy(self):
-        """
-        Load the GPG key you're trying to verify into GPG before this...
-        """
-        Version_Info = self.GetVersion(Major=self.ReqMajor,
-                                       Minor=self.ReqMinor,
-                                       Patch=self.PatchLevel)
-        Clearsign = file('%s/%s' % (self.Cache, Version_Info['sum']['Filename']), 'r').read()
-        Verf = addressbook.gpg.verify_clearsign(Clearsign)
-        if not Verf:
-            return False
-        logger.debug('GPG verified fingerprint %s' % Verf.pubkey_fingerprint)
-        Type = 'deb'
-        Sum = None
-        for T in ['deb', 'tar.bz2']:
-            if not Version_Info.has_key(T): continue
-            Sum = re.search(
-                '(?m)^(?P<SHA512>[a-f0-9]+)  %s$' % Version_Info[T]['Filename'],
-                Clearsign)
-            if Sum:
-                Type = T
-                break
-        if not Sum:
-            return False
-        SO, SE = thirtythirty.utils.popen_wrapper(['sha512sum',
-                                      '%s/%s' % (self.Cache,
-                                                 Version_Info[Type]['Filename'])],
-                                     sudo=False, debug=False)
-        if SE != '':
-            return False
-        Sum_on_disk = re.search(
-            '(?m)^(?P<SHA512>[a-f0-9]+)  %s$' % Version_Info[Type]['Filename'],
-            Clearsign)
-        if Sum.group(1) != Sum_on_disk.group(1):
-            return False
-        else:
-            return Verf.pubkey_fingerprint
+    # signed checksums shouldn't be much bigger than 1000 bytes
+    Clearsign = file(Checksum_File, 'r').read(1000)
+    Signer_FP = addressbook.gpg.verify_clearsign(Clearsign)
+    if not Signer_FP:
+        raise TTE.SignatureException('Bogus or enormous fingerprint')
+    Signer_FP = Signer_FP.pubkey_fingerprint
+    A = addressbook.address.Address.objects.filter(fingerprint=Signer_FP,
+                                                   system_use=True
+                                                   )
+    if A.count() != 1:
+        raise TTE.SignatureException("Package signed by unknown FP: %s" % Signer_FP)
+    logger.debug('Package signed by %s' % A[0].email)
+    Clearsign_Sum = re.search(
+        '(?m)^(?P<SHA512>[a-f0-9]{128})\W+',
+        Clearsign)
+    if not Clearsign_Sum:
+        raise TTE.ChecksumException("Can't parse checksum: %s" % Clearsign)
+    Clearsign_Sum = Clearsign_Sum.group('SHA512')
+
+    if Local_Sum == Clearsign_Sum:
+        return Local_Sum
+    else:
+        return False
 
 
-    def Validate(self, Fingerprint=None):
-        """
-        put the fingerprint/addressbook interaction here for arbitrary reasons - made more sense than the management script
+def Unpack(Data_File=None):
+    Preinst  = '%s/%s' % (TTS.UPSTREAM['update_script_dir'], 'preinst')
+    Postinst = '%s/%s' % (TTS.UPSTREAM['update_script_dir'], 'postinst')
 
-        FIXME: if we get some wacky addr, we need to handle that exception...
-        """
-        A = addressbook.address.Address.objects.get(fingerprint=Fingerprint)
-        if not A.system_use:
-            logger.warning("%s comes off as a not-legit signer of this package..." % A.email)
-        return A
+    if not Data_File:
+        Data_File = __data_file()
+    if not Data_File or not os.path.exists(Data_File):
+        raise TTE.UnpackException("Can't find Data_File %s" % Data_File)
 
+    # unpack the control.tar preinst
+    File_List, Errors = TTU.tar_pipeline(
+        arglist1=['/bin/tar',
+                  '-xvOf', Data_File, # O to stdout
+                  'control.tar'],
+        arglist2=['/bin/tar',
+                  '--directory', TTS.UPSTREAM['update_script_dir'],
+                  '-xvf', '-'],
+        )
+    for F in File_List.split('\n'):
+        logger.debug(F)
+    if Errors != '':
+        raise TTE.PreInstException('control.tar unpacking problem: %s' % Errors)
 
-    def Unpack(self, mode='tar'):        
-        if mode == 'tar':
-            return self.__tar_unpack()
-        # elif mode == 'dpkg':
-        #     return self.__dpkg_unpack()
-        else:
-            logger.critical('wtf mode of unpacking is `%s`?' % mode)
-            return []
-
-
-    def __tar_unpack(self):
-        Version_Info = self.GetVersion(Major=self.ReqMajor,
-                                       Minor=self.ReqMinor,
-                                       Patch=self.PatchLevel)
-        Src = '%s/%s' % (self.Cache, Version_Info['tar.bz2']['Filename'])
-
-        # make sure script dir exists
-        try: os.mkdir(TTS.UPSTREAM['update_script_dir'])
-        except: pass
-
-        # unpack the control.tar preinst, run-parts it
-        File_List, Errors = thirtythirty.utils.popen_wrapper(
-            ['/bin/tar',
-             '--directory', TTS.UPSTREAM['update_script_dir'],
-             '-xvf', 'control.tar',
-             ])
-        if Errors != '':
-            TTE.PreInstException('had trouble initially unpacking the control.tar file')
-
-        File_List, Errors = thirtythirty.utils.popen_wrapper(
-            ['/bin/tar',
-             '--directory', TTS.UPSTREAM['update_script_dir'],
-             '-xvf', '%s/control.tar' % TTS.UPSTREAM['update_script_dir'],
-             ])
-        if Errors != '':
-            TTE.PreInstException('had trouble unpacking the control.tar file')
-
-        STO, STE = thirtythirty.utils.popen_wrapper(
+    # run-parts the preinst
+    if os.path.exists(Preinst):
+        STO, STE = TTU.popen_wrapper(
             ['/bin/run-parts',
              '--exit-on-error',
              '--report',
-             '%s/%s' % (TTS.UPSTREAM['update_script_dir'], 'preinst'),
+             Preinst,
              ])
-        if STE != '':
-            TTE.PreInstException('trouble in the preinst: `%s`' % STE)
+        if (STO, STE) != ('', ''):
+            raise TTE.PreInstException('trouble in the preinst: %s' % STE)
 
-        # unpack the data.tar into root
-        File_List, Errors = thirtythirty.utils.popen_wrapper(
-            ['/bin/tar',
-             '--directory', '/',
-             '-xvf', '%s/control.tar' % TTS.UPSTREAM['update_script_dir'],
-             'data.tar'])
+    # unpack the data.tar into root
+    File_List, Errors = TTU.tar_pipeline(
+        arglist1=['/bin/tar',
+                  '--directory', '/tmp',
+                  '-xvOf', Data_File, # O to stdout
+                  'data.tar'],
+        arglist2=['/usr/bin/sudo', '-u', 'root', # well, this is like handing the user a gun...
+                  '/bin/tar',
+                  '--directory', '/',
+                  '--no-overwrite-dir', # so we don't accidentally hose up directory perms
+                  '-xvf', '-'],
+        )
+    submit_to_smtpd(
+        Destination='root@localhost',
+        Payload=File_List,
+        Subject='Installed files from update to %s' % Version(Data_File),
+        From='Sysop <root>',
+        )
+    # FIXME: email the file list to the admin?
+    if Errors and not re.search('Removing\ leading', Errors):
+        raise TTE.UnpackException('data.tar unpacking problem: %s' % Errors)
 
-        # run-parts the control.tar postinst
-        
-        File_List, Errors = thirtythirty.utils.popen_wrapper(
-            ['/bin/tar',
-             '--directory', '/',
-             '-xvf',
-             '%s/%s' % (self.Cache,
-                        Version_Info['tar.bz2']['Filename'])])
-        if Errors != '': return None
-        return File_List.strip().split('\n')
+    # run-parts the control.tar postinst
+    if os.path.exists(Postinst):
+        STO, STE = TTU.popen_wrapper(
+            ['/bin/run-parts',
+             '--exit-on-error',
+             '--report',
+             Postinst,
+             ])
+        if (STO, STE) != ('', ''):
+            raise TTE.PostInstException('trouble in the postinst: %s' % STE)
 
-    # def __dpkg_unpack(self):
-    #     Version_Info = self.GetVersion(Major=self.ReqMajor,
-    #                                    Minor=self.ReqMinor)
-    #     SO, SE = thirtythirty.utils.popen_wrapper(
-    #         ['/usr/bin/dpkg',
-    #          '--install',
-    #          '%s/%s' % (self.Cache,
-    #                     Version_Info['deb']['Filename'])])
-    #     if SE != '':
-    #         logger.warning('dpkg says:', SE)
-    #     return SO.split('\n')
+    return True
 
-    def Cleanup(self):
-        logger.debug('cache cleanup')
-        thirtythirty.utils.popen_wrapper(['/bin/rm', '-rf', self.Cache], sudo=False, debug=False)
+    
+def Cleanup():
+    logger.debug('cache cleanup')
+    TTU.popen_wrapper(['/bin/rm', '-rf',
+                       TTS.UPSTREAM['update_cache']
+                       ], sudo=False, debug=False)
+    TTU.popen_wrapper(['/bin/rm', '-rf',
+                       '%s/postinst' % TTS.UPSTREAM['update_script_dir']
+                       ], sudo=False, debug=False)
+    TTU.popen_wrapper(['/bin/rm', '-rf',
+                       '%s/preinst' % TTS.UPSTREAM['update_script_dir']
+                       ], sudo=False, debug=False)
+                       
