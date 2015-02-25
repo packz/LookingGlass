@@ -169,8 +169,10 @@ def session_unlock(request):
 def index(request, Next=None):
     if not thirtythirty.hdd.drives_exist():
         return redirect('setup.index')
-    else:
+    elif request.session.get('passphrase', None):
         return redirect('emailclient.inbox')
+    else:
+        return redirect('accounts.login')
 
 
 @session_pwd_wrapper
@@ -265,20 +267,6 @@ def settings(request, advanced=False):
              {'desc':'Accept', 'type':'button',
               'id':'static-ip-send', 'value':'Submit',
               'disabled':Preferences.ip_address_type == Preferences.DYNAMIC_IP,
-              },
-             ]},
-                
-        {'title':'Session settings',
-         'id':'cSession',
-         'controls':[
-             {'desc':'Activate session passphrase',
-              'type':'checkbox', 'id':'sessions-on',
-              'help':'If you have multiple local users that may be poking around your stuff, turn this on.',
-              'checked':Preferences.session_passphrase,
-              },
-             {'desc':'Session timeout',
-              'type':'text', 'id':'session-timeout',
-              'placeholder':Preferences.session_timeout,
               },
              ]},
 
@@ -591,10 +579,8 @@ def backup(request):
     Encrypt symmetrically.
     Dump.
     """
-    Passphrase = request.session['passphrase'] 
-    if not Passphrase and os.path.exists(TTS.PASSPHRASE_CACHE):
-        Passphrase = file(TTS.PASSPHRASE_CACHE, 'r').read()
-    if not Passphrase or not addressbook.gpg.verify_symmetric(Passphrase):
+    Passphrase = request.session.get('passphrase', None)
+    if ((not Passphrase) or (not addressbook.gpg.verify_symmetric(Passphrase))):
         return HttpResponse('I need a passphrase.  :(')
     Backup = []
     for A in addressbook.address.Address.objects.filter(system_use=False):
@@ -621,10 +607,8 @@ def backup(request):
 
 @session_pwd_wrapper
 def restore(request):
-    Passphrase = request.POST.get('passphrase')
-    if not Passphrase and os.path.exists(TTS.PASSPHRASE_CACHE):
-        Passphrase = file(TTS.PASSPHRASE_CACHE, 'r').read()
-    if not Passphrase or not addressbook.gpg.verify_symmetric(Passphrase):
+    Passphrase = request.session.get('passphrase', None)
+    if ((not Passphrase) or (not addressbook.gpg.verify_symmetric(Passphrase))):
         return HttpResponse('I need a passphrase.  :(')
     if not request.FILES.has_key('backupfile'):
         return HttpResponse('no file')
@@ -710,7 +694,6 @@ def about(request):
         
         'best':[
             "Use your browser in <i>incognito</i> or <i>private browsing</i> mode.  This keeps incriminating residual data on your computer to a minimum.",
-            "Activate the <a href='%s#cSession'>session passphrase</a> - set the timeout to be as short as comfortable." % reverse('settings'),
             "Authenticate your contacts with a <a href='%s'>shared secret</a> only the two of you would know." % reverse('addressbook'),
             "Try not to have the times that your LookingGlass server is connected to the Internet correlate too much with the times you actually use it.  This will make you a bit more difficult to identify.  LookingGlass is designed to be online all the time, and that is recommended.",
             "Do not exchange your <b>covername</b> over an insecure channel.  This undermines the traffic analysis features of LookingGlass.",
@@ -759,9 +742,9 @@ def bug_report(request):
 
 @session_pwd_wrapper
 def submit_bug(request):
-    Passphrase = request.POST.get('passphrase')
-    if not Passphrase and os.path.exists(TTS.PASSPHRASE_CACHE):
-        Passphrase = file(TTS.PASSPHRASE_CACHE, 'r').read()
+    Passphrase = request.session.get('passphrase', None)
+    if ((not Passphrase) or (not addressbook.gpg.verify_symmetric(Passphrase))):
+        return HttpResponse('I need a passphrase.  :(')
     for X in ['severity', 'summary']:
         if request.POST.get(X) == None:
             return HttpResponse(json.dumps({'ok':False}),
@@ -782,8 +765,8 @@ def submit_bug(request):
                 BRE.asymmetric(filename=E,
                                passphrase=Passphrase)
                 Attach.append('%s.asc' % E)
-    logger.debug('Sending bug report...')
-    emailclient.thirtythirty.utils.submit_to_smtpd(
+    logger.debug('Sending %s bug report' % request.POST.get('severity'))
+    emailclient.utils.submit_to_smtpd(
         Attachments=Attach,
         Destination=TTS.UPSTREAM['bug_report_email'],
         Payload=request.POST.get('summary'),
@@ -810,8 +793,6 @@ def do_lockdown(request):
     called during password bruting overfailure as well
 
     if we have access to the passphrase, use it to encrypt the DB states
-
-    FIXME: we should also try getting the pphrase out of request.session['passphrase']
     """
     if exists(TTS.PASSPHRASE_CACHE):
         PP = file(TTS.PASSPHRASE_CACHE, 'r').read()
@@ -838,8 +819,8 @@ def reset_to_defaults(request):
     """
     CAREFUL, MANHANDLER.
     """
-    passphrase = request.POST.get('passphrase')
-    if not addressbook.gpg.verify_symmetric(passphrase):
+    passphrase = request.session.get('passphrase', None)
+    if ((not Passphrase) or (not addressbook.gpg.verify_symmetric(Passphrase))):
         return HttpResponse('No.')
     subprocess.check_output(['/usr/bin/sudo', '-u', 'root', 
                              '/usr/local/bin/LookingGlass/cleanup_startup.sh'])
@@ -873,7 +854,6 @@ def db_disaster(request):
     return HttpResponse(json.dumps({'ok':'it is done.'}),
                         content_type='application/json')
 
-
 @session_pwd_wrapper
 def passphrase_cache(request):
     Preferences = set_up_single_user()
@@ -881,8 +861,10 @@ def passphrase_cache(request):
                                                          thirtythirty.models.preferences.HOURLY)
     if request.POST.get('engaged') == 'true':
         Preferences.passphrase_cache = True
+        logger.debug('PP cache enabled: %s' % Preferences.passphrase_cache_time)
     else:
         Preferences.passphrase_cache = False
+        logger.debug('PP cache disabled')
     Preferences.save()
     return HttpResponse(json.dumps({'cache_time':Preferences.passphrase_cache_time,
                                     'engaged':Preferences.passphrase_cache,
@@ -919,27 +901,6 @@ def symmetric_copy(request):
     return HttpResponse(json.dumps({'tx_engaged':Preferences.tx_symmetric_copy,
                                     'rx_engaged':Preferences.rx_symmetric_copy,
                                     }),
-                        content_type='application/json')
-
-
-@session_pwd_wrapper
-def sessions(request):
-    Preferences = set_up_single_user()
-    try:
-        # so dirty, it smells
-        timeout = int(request.POST.get('timeout'))
-        Preferences.session_timeout = timeout
-    except: pass
-    if request.POST.get('engaged') == 'true':
-        Preferences.session_passphrase = True
-    else:
-        Preferences.session_passphrase = False
-    request.session.set_expiry( Preferences.session_timeout )
-    Preferences.save()
-    ret = {'timeout':Preferences.session_timeout,
-           'engaged':Preferences.session_passphrase,
-           }
-    return HttpResponse(json.dumps(ret),
                         content_type='application/json')
 
 

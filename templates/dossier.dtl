@@ -2,7 +2,7 @@
 
 <div class='row'>
   <div class='col-md-1 text-primary'>
-    <span title='Bail back to list' id='eject-maverick' class='glyphicon glyphicon-eject'></span>
+    <a id='eject-maverick' title='Bail back to list' href='#'><span class='glyphicon glyphicon-eject'></span></a>
   </div>
 
   <div class='col-md-3 col-md-offset-1 text-right'>

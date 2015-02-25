@@ -12,9 +12,6 @@ class preferences(models.Model):
     ooser = models.OneToOneField(User)
     show_advanced = models.BooleanField(default=False)
 
-    session_passphrase = models.BooleanField(default=True)
-    session_timeout = models.IntegerField(default=600)
-
     # this is crontab(5) format
     # minute / hour / dom / month / dow
     HHOUR  = '*/30 * * * *'

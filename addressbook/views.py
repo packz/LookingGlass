@@ -240,10 +240,7 @@ def push_to_queue(request):
     Secret = request.POST.get('secret', None)
     ret = {'ok':False, 'fingerprint':Fingerprint}
 
-    if request.POST.get('passphrase', None):
-        request.session['passphrase'] = request.POST.get('passphrase')
-    if 'passphrase' in request.session:
-        PP = request.session['passphrase']
+    PP = request.session.get('passphrase', None)
     
     # sanitize and sanity check
     try:
@@ -253,12 +250,8 @@ def push_to_queue(request):
         ret['reason'] = 'Dunno.'
         return HttpResponse(json.dumps(ret),
                             content_type='application/json')
-    if not PP:
-        ret['reason'] = 'No passphrase'
-        return HttpResponse(json.dumps(ret),
-                            content_type='application/json')
-    if not addressbook.gpg.verify_symmetric(PP):
-        ret['reason'] = 'You got the wrong passphrase, dingus.'
+    if ((not PP) or (not addressbook.gpg.verify_symmetric(PP))):
+        ret['reason'] = 'Passphrase, problem.'
         return HttpResponse(json.dumps(ret),
                             content_type='application/json')
     if Who.user_state > addressbook.address.Address.VETTING:

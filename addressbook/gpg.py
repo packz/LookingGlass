@@ -137,6 +137,9 @@ def create_symmetric(passphrase=None, clobber=False):
 
 
 def verify_symmetric(passphrase=None):
+    """
+    as a side effect, blows the passphrase into the on-disk cache
+    """
     if ((not passphrase) or
         (not os.path.exists(TTS.GPG['symmetric_location']))): return False
     FH = file(TTS.GPG['symmetric_location'], 'rb').read()

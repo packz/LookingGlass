@@ -416,38 +416,6 @@ $('#get-web-log').click(function() {
 });
 
 
-function toggle_sessions() {
-  $.post('{% url 'settings.sessions' %}',
-         {'timeout':$('#session-timeout').val(),
-          'engaged':$('#sessions-on').is(':checked'),
-          'csrfmiddlewaretoken':'{{ csrf_token }}',
-         }, function(data) {
-         if (data.engaged) {
-           $('#cSession').css('background-color', '#dff0d8');
-         } else {
-           $('#cSession').css('background-color', 'rgb(242,222,222)');
-         };
-         setTimeout(function(){
-           $('#cSession').css('background-color', 'white');
-         }, 100);
-  });
-}
-
-$('#sessions-on').click(function() {
-  toggle_sessions();
-});
-
-$('#session-timeout').blur(function() {
-  toggle_sessions();
-});
-
-$('#session-timeout').keypress(function(e){
-  if (e.which == 13) {
-    toggle_sessions();
-  };
-});
-
-
 $('#database-recover').click(function() {
   if (confirm('You have been warned.  Continue?')) {
   $.post('{% url 'settings.db_disaster' %}',

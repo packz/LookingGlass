@@ -53,7 +53,7 @@ def session_pwd_wrapper(view_func=None):
         prefs = thirtythirty.models.preferences.objects.first()            # FIXME: single user mode
         if not prefs:
             return view_func(request, *args, **kwargs)
-        if prefs.session_passphrase and not request.user.is_authenticated():
+        if not request.user.is_authenticated():
             return redirect_to_login(request.get_full_path(),
                                      login_url='/accounts/login')
         else:

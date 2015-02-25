@@ -179,7 +179,8 @@ def delete_folder(folderName=None):
 
 def move(MK=None,
          folderName=None):
-    if folderName is None: return False
+    if folderName is None:
+        return False
     logger.debug('moving message %s to %s' % (MK, folderName))
     try:
         Destination = mailbox.Maildir(MAIL_ROOT, factory=False).get_folder(folderName)
@@ -188,6 +189,8 @@ def move(MK=None,
         Destination = mailbox.Maildir(MAIL_ROOT, factory=False).get_folder(folderName)
 
     FH = folder_from_msg_key(MK)
+    if not FH:
+        return False
     Source = FH['mbx']
     Msg = Source.get(MK)
 

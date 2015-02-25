@@ -142,11 +142,8 @@ def compose(request, Name=None, FP=None):
 
 @session_pwd_wrapper
 def send(request):
-    if request.POST.get('passphrase'):
-        request.session['passphrase'] = request.POST.get('passphrase')
-    if 'passphrase' in request.session:
-        PP = request.session['passphrase']
-    if not addressbook.gpg.verify_symmetric(PP):
+    PP = request.session.get('passphrase', None)
+    if ((not PP) or (not addressbook.gpg.verify_symmetric(PP))):
         return HttpResponse(json.dumps({'ok':False,
                                         'extra':'Bad passphrase'}))
 
@@ -240,11 +237,7 @@ def receive(request, Key=None):
     # mark as 'S'een
     emailclient.filedb.flag(Key, addFlag='S')
 
-    Passphrase = None
-    if request.POST.get('passphrase'):
-        request.session['passphrase'] = request.POST.get('passphrase')
-    if 'passphrase' in request.session:
-        Passphrase = request.session['passphrase']
+    Passphrase = request.session.get('passphrase', None)
 
     # some dirty-assed multipart hackery.  yeh yeh yeh
     Payload = Msg.get_payload()

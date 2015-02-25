@@ -14,6 +14,7 @@
 }
 .time-warp-again {
   padding-right: 10px;
+  vertical-align: top;
 }
 #import-key {
   resize: none;
@@ -24,6 +25,15 @@
 }
 .mycollapse {
   display: none;
+}
+#add-contact {
+  vertical-align: top;
+}
+.contact-add-menu {
+  float: right;
+  position: relative;
+  right: 10px;
+  top: 10px;
 }
 {% include 'typeahead.css' %}
 {% endblock %}
@@ -38,28 +48,34 @@
 
 <div class='container'>
   <div class='panel panel-default'>
+
+    <div class='contact-add-menu'>
+      {% if headend_ok %}
+	<div>
+	  {% if advanced %}
+	    <span class='time-warp-again'>
+              <button id='upload' type='button' class='btn btn-default'>Upload key</button>
+	    </span>
+	  {% endif %}
+	  <button id='add-contact' type='button' class='btn btn-default'><span class='glyphicon glyphicon-plus'></span></button>
+	  <input type='text' class='form-control typeahead' id='searchBox' placeholder='Add contact'></input>
+	</div>
+      {% else %}
+	<p class='text-info'>Authenticating to upstream server.  You will be able to add contacts here shortly</p>
+      {% endif %}
+    </div>
+
     <div class='panel-body'>
 
       <ul class='nav nav-tabs' role='tablist'>
-	  <li id='ALL' {% if not index %}class='active'{% endif %}><a href='{% url 'addressbook' %}'>ALL</a></li>
+	  <li id='ALL' {% if not index %}class='active'{% endif %}>
+	    <a href='{% url 'addressbook' %}'>ALL</a>
+	  </li>
 	{% for Letter in indices %}
-	  <li id='{{ Letter }}-head' {% if Letter == index %}class='active'{% endif %}><a href='{% url 'addressbook.filter' Index=Letter %}'>{{ Letter }}</a></li>
+	  <li id='{{ Letter }}-head' {% if Letter == index %}class='active'{% endif %}>
+	    <a href='{% url 'addressbook.filter' Index=Letter %}'>{{ Letter }}</a>
+	  </li>
 	{% endfor %}
-	{% if headend_ok %}
-	<li class='pull-right'>
-	  <button id='add-contact' type='button' class='btn btn-default'><span class='glyphicon glyphicon-plus'></span></button>
-	    <input type='text' class='form-control typeahead' id='searchBox' placeholder='Add contact'></input>
-	</li>
-	{% else %}
-	<li class='pull-right text-info'>
-	    <p>Authenticating to upstream server.  You will be able to add contacts here shortly</p>
-	</li>
-	{% endif %}
-	{% if advanced %}
-	<li class='pull-right time-warp-again'>
-           <button id='upload' type='button' class='btn btn-default'>Upload key</button>
-	</li>
-	{% endif %}
       </ul>
 
       {% include 'contactlist.dtl' %}
