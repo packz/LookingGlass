@@ -21,7 +21,6 @@ def Vitals(request=None):
         'ircname':'rex_dart',
         'onion':'tns7i5gucaaussz4.onion',
         'server_addr':'127.0.0.1',
-        'tor_fp':'NOT SURE',
         'gpg_fp':addressbook.utils.my_address().fingerprint,
         'btc_mpk':'NOT SURE',
         }
@@ -34,13 +33,6 @@ def Vitals(request=None):
     ret['ircname'] = re.sub(' ', '_', Me.covername)
     ret['email'] = Me.email
     ret['onion'] = re.sub('^[^@]+', '', Me.email)
-
-    try:
-        ret['tor_fp'] = re.sub('^[^\W]+ ', '',
-                               subprocess.check_output(['sudo', '-u', 'root',
-                                                        '/bin/cat',
-                                                        '/var/lib/tor/fingerprint'])).rstrip()
-    except: pass
 
     if os.path.exists(Electrum_Data):
         Config = SimpleConfig()
