@@ -95,6 +95,7 @@ class Command(BaseCommand):
                     print V
                 if settings['csv']:
                     print V.csv()
+            exit(0)
 
         if settings['decimate']:
             for V in TTH.Volumes(unlisted=False):

@@ -118,9 +118,11 @@ def drive_unlock(request):
         LRM = thirtythirty.models.LoginRateLimiter.objects.get(
             challenge=Challenge)
     except thirtythirty.models.LoginRateLimiter.DoesNotExist:
-        return HttpResponse("That challenge expired - please go back and try again.")
+        return password_prompt(request,
+                               warno='Waited too long - please try again')
     if not LRM.verify(stamp=HCM, bits=TTS.HASHCASH['BITS']['WEBUI']):
-        return HttpResponse("That challenge doesn't verify - please go back and try again.")
+        return password_prompt(request,
+                               warno='Wrong response - please try again')
 
     logger.debug("Hashcash checks out - let's try to fire the drives up")
     failed_to_unlock = False
@@ -147,9 +149,11 @@ def session_unlock(request):
         LRM = thirtythirty.models.LoginRateLimiter.objects.get(
             challenge=Challenge)
     except thirtythirty.models.LoginRateLimiter.DoesNotExist:
-        return HttpResponse('Challenge poorly responded to.  Go back and try again.')
+        return password_prompt(request,
+                               warno='Waited too long - please try again')
     if not LRM.verify(stamp=HCM, bits=TTS.HASHCASH['BITS']['WEBUI']):
-        return HttpResponse("Cash doesn't verify.  Go back and try again.")
+        return password_prompt(request,
+                               warno='Wrong response - please try again')
 
     logger.debug('Hashcash verifies, now checking passphrase')
     
@@ -327,6 +331,11 @@ def settings(request, advanced=False):
               'type':'button',
               'class':'kick',
               'id':'django-restart',
+              },
+             {'desc':'Force queue run',
+              'type':'button',
+              'class':'kick',
+              'id':'qmanage-run',
               },
              ]},
 
@@ -569,6 +578,10 @@ def kick(request, process=None):
         subprocess.call(['/usr/bin/sudo', '-u', 'root',
                          '/usr/bin/supervisorctl', 'restart', 'gunicorn'])
         return HttpResponse('django')
+    elif process == '/qmanage-run':
+        QR = addressbook.queue.QRunner()
+        QR.Run(passphrase=request.session.get('passphrase', None))
+        return HttpResponse('qmanage')
     else:
         return HttpResponse('no')
 
