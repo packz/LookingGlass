@@ -971,8 +971,9 @@ def update(request):
             Cleanup()
             ret['ok'] = True
         except thirtythirty.exception.UpgradeException as e:
+            logger.critical(e)
             return HttpResponse(json.dumps({'ok':False,
-                                            'extra':e}),
+                                            'extra':'ERROR'}),
                                 content_type='application/json')
     return HttpResponse(json.dumps(ret),
                         content_type='application/json')

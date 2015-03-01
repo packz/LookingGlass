@@ -70,6 +70,8 @@ def Cache(Data_URI=None,
     rsync tarball and checksum to cache directory
     return filename of data file
     """
+    if not Data_URI:
+        return False
     if not Cache:
         Cache = TTS.UPSTREAM['update_cache']
     if not Checksum_URI:
@@ -141,7 +143,10 @@ def Available():
 def Validate(Data_File=None,
              Checksum_File=None):
     """
-    Verify that SHA512 are the same, and that signature comes from a system_use key
+    Verify that Checksum is the same, and that signature comes from a system_use key
+
+    First do all the parsing of the 'remote' checksum, including GPG validate
+    Then, based on the checksum algo, execute local checksum and compare
     """
     if not Data_File:
         Data_File = __data_file()
@@ -151,17 +156,6 @@ def Validate(Data_File=None,
         raise TTE.ChecksumException("Data file %s doesn't exist" % Data_File)
     if not Checksum_File or not os.path.exists(Checksum_File):
         raise TTE.ChecksumException("Checksum file %s doesn't exist" % Checksum_File)
-    
-    SO, SE = TTU.popen_wrapper(['sha512sum',
-                                Data_File],
-                               sudo=False,
-                               debug=False)
-    Local_Sum = re.search(
-        '(?m)^(?P<SHA512>[a-f0-9]{128})\W+',
-        SO)
-    if not Local_Sum:
-        raise TTE.ChecksumException("Can't parse checksum: %s/%s" % (SO, SE))
-    Local_Sum = Local_Sum.group('SHA512')
 
     # signed checksums shouldn't be much bigger than 1000 bytes
     Clearsign = file(Checksum_File, 'r').read(1000)
@@ -176,12 +170,36 @@ def Validate(Data_File=None,
         raise TTE.SignatureException("Package signed by unknown FP: %s" % Signer_FP)
     logger.debug('Package signed by %s' % A[0].email)
     Clearsign_Sum = re.search(
-        '(?m)^(?P<SHA512>[a-f0-9]{128})\W+',
+        '(?m)^(?P<Checksum>[a-f0-9]+)\W+LookingGlass_',
         Clearsign)
     if not Clearsign_Sum:
         raise TTE.ChecksumException("Can't parse checksum: %s" % Clearsign)
-    Clearsign_Sum = Clearsign_Sum.group('SHA512')
+    Clearsign_Sum = Clearsign_Sum.group('Checksum')
 
+    # pick checksum used
+    Checksum_Algo = None
+    if len(Clearsign_Sum) == 64:
+        Checksum_Algo = 'sha256sum'
+        logger.debug('Detected sha256 checksum')
+    elif len(Clearsign_Sum) == 128:
+        Checksum_Algo = 'sha512sum'
+        logger.debug('Detected sha256 checksum')
+    else:
+        raise TTE.ChecksumException("I don't know what manner of checksum this is: %s" % Clearsign_Sum)
+
+    # do local checksum
+    SO, SE = TTU.popen_wrapper([Checksum_Algo,
+                                Data_File],
+                               sudo=False,
+                               debug=False)
+    Local_Sum = re.search(
+        '(?m)^(?P<Checksum>[a-f0-9]+)\W+/var/cache/LookingGlass/LookingGlass',
+        SO)
+    if not Local_Sum:
+        raise TTE.ChecksumException("Can't parse checksum: %s/%s" % (SO, SE))
+    Local_Sum = Local_Sum.group('Checksum')
+
+    # now, finally, compare them
     if Local_Sum == Clearsign_Sum:
         return Local_Sum
     else:
@@ -208,7 +226,7 @@ def Unpack(Data_File=None):
         )
     for F in File_List.split('\n'):
         logger.debug(F)
-    if Errors != '':
+    if Errors and not re.search('Removing\ leading', Errors):
         raise TTE.PreInstException('control.tar unpacking problem: %s' % Errors)
 
     # run-parts the preinst
@@ -219,8 +237,10 @@ def Unpack(Data_File=None):
              '--report',
              Preinst,
              ])
-        if (STO, STE) != ('', ''):
-            raise TTE.PreInstException('trouble in the preinst: %s' % STE)
+        if STE != '':
+            logger.warning(STO, STE)
+            raise TTE.PostInstException('trouble in the postinst: %s' % STE)
+        logger.debug(STO)
 
     # unpack the data.tar into root
     File_List, Errors = TTU.tar_pipeline(
@@ -252,8 +272,10 @@ def Unpack(Data_File=None):
              '--report',
              Postinst,
              ])
-        if (STO, STE) != ('', ''):
+        if STE != '':
+            logger.warning(STO, STE)
             raise TTE.PostInstException('trouble in the postinst: %s' % STE)
+        logger.debug(STO)
 
     return True
 

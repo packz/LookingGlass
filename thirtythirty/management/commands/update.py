@@ -76,7 +76,7 @@ class Command(BaseCommand):
                 logger.debug('Specified new dl anyway')
             
         URI = TTU.Scan(TTS.UPSTREAM['updates'][0]['uri'])
-        if not URI:
+        if not URI and not settings['force']:
             logger.debug('Already up to date')
             exit(0)
         
