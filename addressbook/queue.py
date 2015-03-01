@@ -277,11 +277,13 @@ We'll try again in a bit and see if it magically starts working.
                     Queue.objects.create(address=A,
                                          direction=Queue.RX,
                                          message_type=Queue.AXOLOTL,
+                                         messageid=str(uuid4()),
                                          body=Axo_Body)
                 else:
                     logger.debug("I'll just go right ahead and shake this dude")
                     Queue.objects.create(address=A,
                                          direction=Queue.TX,
+                                         messageid=str(uuid4()),
                                          message_type=Queue.AXOLOTL)
             
             if Differently_Named:
@@ -453,6 +455,7 @@ We'll try again in a bit and see if it magically starts working.
                     body = str(addressbook.gpg.symmetric(passphrase=passphrase,
                                                          msg=Got)),
                     direction = Queue.RX,
+                    messageid=str(uuid4()),
                     message_type = Queue.QCOMMIE,
                     )
                 Message.delete()
@@ -472,6 +475,7 @@ We'll try again in a bit and see if it magically starts working.
                     address = Message.address,
                     body = Convo.encrypt(plaintext=Send),
                     direction = Queue.TX,
+                    messageid=str(uuid4()),
                     message_type = Queue.SOCIALISM,
                     )
                 logger.debug('SMTP queued step: %s/5' % MySMP.step)
@@ -528,6 +532,7 @@ We'll try again in a bit and see if it magically starts working.
             body = Convo.encrypt(plaintext=Send),
             direction = Queue.TX,
             message_type = Queue.SOCIALISM,
+            messageid = str(uuid4()),
             )
         logger.debug("Dequeued SMP for %s - step %s/5" % (Address, Send_as_Step.Step))
 
@@ -535,7 +540,7 @@ We'll try again in a bit and see if it magically starts working.
 class Queue(models.Model):
     body = models.TextField(null=False)
     address = models.ForeignKey('Address')
-    messageid = models.TextField(unique=True, default=uuid4())
+    messageid = models.TextField(unique=True, default=str(uuid4()))
     
     creation = models.DateTimeField(auto_now_add=True)
     modified = models.DateTimeField(auto_now=True)

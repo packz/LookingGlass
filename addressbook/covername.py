@@ -51,7 +51,7 @@ def search(cleartext=None,
         Raw = Line.split(',')
         if len(Raw) < Fields[method]: continue
         Name = Raw[Fields['Raw']].strip()
-        Search = Raw[Fields[method]].strip()
+        Search = Raw[Fields[method]].strip() # FIXME: never used?
         
         Score = 0
         if Query == Name: Score += 10

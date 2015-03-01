@@ -6,6 +6,7 @@ from django.db.models import Q
 import os.path
 import getpass
 from optparse import make_option
+from uuid import uuid4
 
 import addressbook
 import ratchet
@@ -176,6 +177,7 @@ class Command(BaseCommand):
                         body = Convo.encrypt(plaintext=Body),
                         direction = addressbook.queue.Queue.TX,
                         message_type = addressbook.queue.Queue.SOCIALISM,
+                        messageid=str(uuid4()),
                         )
                     print 'Queued SMP step to %s' % Who.email
                     QR = addressbook.queue.QRunner()

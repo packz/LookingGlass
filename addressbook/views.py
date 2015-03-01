@@ -8,6 +8,7 @@ from django.template import RequestContext, loader
 import re
 import json
 import datetime
+from uuid import uuid4
 
 import addressbook
 import emailclient
@@ -44,7 +45,7 @@ def home(request, Index=None, advanced=False):
         
     Indices = set([ X.magic()[0] for X in addressbook.address.Address.objects.filter(system_use=False) ]) # set() uniques the results
     state_hash = {}
-    for K,V in addressbook.address.Address.user_state_choices:
+    for K, V in addressbook.address.Address.user_state_choices:
         state_hash[K] = V
 
     # see if we've had our covername accepted by the headend server...
@@ -122,14 +123,14 @@ def dossier(request, Fingerprint=None, advanced=False):
         MySMP = smp.models.SMP.objects.filter(
             UniqueKey=Fingerprint
             ).first()
-        Q = None
+        Query = None
         try:
-            Q = addressbook.queue.Queue.objects.filter(
+            Query = addressbook.queue.Queue.objects.filter(
             address__fingerprint=Fingerprint
             ).latest()
-        except: pass
-        if Q:
-            req['previous_smp_step'] = Q.body
+        except addressbook.queue.Queue.DoesNotExist: pass
+        if Query:
+            req['previous_smp_step'] = Query.body
         if MySMP:
             SMP_Step = MySMP.step
             req['Question'] = MySMP.Question
@@ -152,7 +153,7 @@ def dossier(request, Fingerprint=None, advanced=False):
 
 
 @session_pwd_wrapper
-def search(request, Q=None):
+def search(request, Q=None): # FIXME: redefining Q, like a douche
     return HttpResponse(json.dumps(addressbook.covername.search(
         cleartext=request.POST.get('clear'),
         encoded=request.POST.get('primary'),
@@ -214,6 +215,7 @@ def key_import(request):
                 address = A,
                 direction = addressbook.queue.Queue.TX,
                 message_type = addressbook.queue.Queue.AXOLOTL,
+                messageid=str(uuid4()),
                 )
             ret['PK'].append(K)
             ret['ok'] = True
@@ -274,6 +276,7 @@ def push_to_queue(request):
             address = Who,
             direction = addressbook.queue.Queue.TX,
             message_type = addressbook.queue.Queue.AXOLOTL,
+            messageid=str(uuid4()),
             )
         
     elif Who.user_state == addressbook.address.Address.NOT_VETTED:
@@ -323,6 +326,7 @@ def push_to_queue(request):
                     body = Convo.encrypt(plaintext=Body),
                     direction = addressbook.queue.Queue.TX,
                     message_type = addressbook.queue.Queue.SOCIALISM,
+                    messageid=str(uuid4()),
                     )
                 logger.debug('Queued SMP step to %s' % Who.email)
             else:
@@ -343,11 +347,12 @@ def push_to_queue(request):
         else:
             logger.critical('I have no saved state for %s and so suck and fail' % Who.email)
             Who.smp_failures = models.F('smp_failures') + 1
+            Who.user_state = addressbook.address.Address.NOT_VETTED
             Who.save()
             addressbook.queue.Queue.objects.filter(address=Who,
                                                    direction=addressbook.queue.Queue.SMP_Replay,
                                                    ).delete()
-            S.delete()
+            smp.models.SMP.objects.filter(UniqueKey=Who.fingerprint).delete()
 
     # initiate the beginnening
     ret['ok'] = True

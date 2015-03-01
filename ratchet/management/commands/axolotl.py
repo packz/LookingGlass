@@ -6,6 +6,7 @@ import getpass
 from optparse import make_option
 import os
 from sys import stdin
+from uuid import uuid4
 
 import addressbook
 import emailclient.utils
@@ -218,6 +219,7 @@ class Command(BaseCommand):
                                 address = Addr,
                                 direction = addressbook.queue.Queue.TX,
                                 message_type = addressbook.queue.Queue.AXOLOTL,
+                                messageid=str(uuid4()),
                                 )
                         else:
                             try:

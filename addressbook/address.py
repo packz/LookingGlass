@@ -3,7 +3,7 @@ from django.db import models
 
 import datetime
 import re
-import uuid
+from uuid import uuid4
 
 import addressbook
 import ratchet
@@ -111,8 +111,8 @@ class AddressMgr(models.Manager):
                 A.system_use = False
                 A.save()
         except Address.DoesNotExist:
-            A = Address.objects.create(fingerprint=str(uuid.uuid4()),
-                                       email=str(uuid.uuid4()),
+            A = Address.objects.create(fingerprint=str(uuid4()),
+                                       email=str(uuid4()),
                                        covername=Covername)
             A.save()
             H = addressbook.queue.Queue.objects.create(
@@ -120,7 +120,7 @@ class AddressMgr(models.Manager):
                 direction=addressbook.queue.Queue.TX,
                 message_type=addressbook.queue.Queue.GPG_PK_PULL,
                 body=Covername,
-                messageid=uuid.uuid4(), # Don't remove this, even though `default` should handle it...  it wasn't.
+                messageid=str(uuid4()), # Don't remove this, even though `default` should handle it...  it wasn't.
                 )
             logger.debug('Added request for %s' % Covername)
         return A
@@ -139,10 +139,10 @@ class AddressMgr(models.Manager):
             A = Address.objects.get(fingerprint=fprint)
         except Address.DoesNotExist:
             A = Address.objects.create(fingerprint=fprint,
-                                       email=str(uuid.uuid4()))
+                                       email=str(uuid4()))
             H = addressbook.queue.Queue.objects.create(
                 address=A,
-                messageid=str(uuid.uuid4()), # Don't remove this, even though `default` should handle it...  it wasn't.
+                messageid=str(uuid4()), # Don't remove this, even though `default` should handle it...  it wasn't.
                 direction=addressbook.queue.Queue.TX,
                 message_type=addressbook.queue.Queue.GPG_PK_PULL,
                 body=fprint)
@@ -226,7 +226,7 @@ class Address(models.Model):
     fingerprint = models.CharField(
         primary_key=True,
         max_length=40,
-        default=str(uuid.uuid4())) # borken?
+        default=str(uuid4())) # borken?
 
     covername    = models.CharField(max_length=85, unique=True)
     comment      = models.CharField(max_length=100, null=True)

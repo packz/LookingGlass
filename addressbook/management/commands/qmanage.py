@@ -8,6 +8,7 @@ import sys
 import getpass
 from optparse import make_option
 from os.path import exists
+from uuid import uuid4
 
 import addressbook
 import emailclient.utils
@@ -202,6 +203,7 @@ class Command(BaseCommand):
                 exit(-1)
             addressbook.queue.Queue.objects.create(address=addressbook.utils.my_address(),
                                                    direction=addressbook.queue.Queue.TX,
+                                                   messageid=str(uuid4()),
                                                    message_type=addressbook.queue.Queue.GPG_PK_PUSH,
                                                    body=MyCN)
             QR = addressbook.queue.QRunner()

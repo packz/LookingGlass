@@ -12,6 +12,7 @@ import os
 from stat import S_IRUSR, S_IWUSR
 import os.path
 import shutil
+from uuid import uuid4
 
 import addressbook
 import setup
@@ -205,6 +206,7 @@ def create_user(request):
         addressbook.queue.Queue.objects.create(address=Me,
                                                direction=addressbook.queue.Queue.TX,
                                                body='%s|%s' % (Me.covername, Me.email),
+					       messageid=str(uuid4()),
                                                message_type=addressbook.queue.Queue.GPG_PK_PUSH)
         logger.debug('Queued PK push for %s' % Me.covername)
 
