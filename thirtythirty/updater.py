@@ -206,19 +206,13 @@ def Validate(Data_File=None,
         return False
 
 
-def Unpack(Data_File=None):
-    Preinst  = '%s/%s' % (TTS.UPSTREAM['update_script_dir'], 'preinst')
-    Postinst = '%s/%s' % (TTS.UPSTREAM['update_script_dir'], 'postinst')
-
-    if not Data_File:
-        Data_File = __data_file()
-    if not Data_File or not os.path.exists(Data_File):
-        raise TTE.UnpackException("Can't find Data_File %s" % Data_File)
-
-    # unpack the control.tar preinst
+def __open_control(DF=None):
+    """
+    unpack control.tar files into update_script_dir
+    """
     File_List, Errors = TTU.tar_pipeline(
         arglist1=['/bin/tar',
-                  '-xvOf', Data_File, # O to stdout
+                  '-xvOf', DF, # O to stdout
                   'control.tar'],
         arglist2=['/bin/tar',
                   '--directory', TTS.UPSTREAM['update_script_dir'],
@@ -229,18 +223,44 @@ def Unpack(Data_File=None):
     if Errors and not re.search('Removing\ leading', Errors):
         raise TTE.PreInstException('control.tar unpacking problem: %s' % Errors)
 
-    # run-parts the preinst
-    if os.path.exists(Preinst):
+
+def __run_control(path=None):
+    """
+    run the control files in path directory
+    """
+    if os.path.exists(path):
         STO, STE = TTU.popen_wrapper(
             ['/bin/run-parts',
              '--exit-on-error',
              '--report',
-             Preinst,
+             path,
              ])
         if STE != '':
             logger.warning(STO, STE)
-            raise TTE.PostInstException('trouble in the postinst: %s' % STE)
-        logger.debug(STO)
+            raise TTE.PostInstException('trouble in %s: %s' % (path, STE))
+        if STO != '':
+            logger.debug(STO)
+
+
+def Unpack(Data_File=None):
+    Preinst  = '%s/%s' % (TTS.UPSTREAM['update_script_dir'], 'preinst')
+    Postinst = '%s/%s' % (TTS.UPSTREAM['update_script_dir'], 'postinst')
+
+    if not Data_File:
+        Data_File = __data_file()
+    if not Data_File or not os.path.exists(Data_File):
+        raise TTE.UnpackException("Can't find Data_File %s" % Data_File)
+
+    # check for control.tar section
+    Control_Files = False
+    File_List, Errors = TTU.popen_wrapper(['/bin/tar', '-tf', Data_File],
+                                          sudo=False)
+    if re.search('(?m)^control.tar', File_List):
+        Control_Files = True
+
+    if Control_Files:
+        __open_control(Data_File)
+        __run_control(Preinst)
 
     # unpack the data.tar into root
     File_List, Errors = TTU.tar_pipeline(
@@ -264,18 +284,8 @@ def Unpack(Data_File=None):
     if Errors and not re.search('Removing\ leading', Errors):
         raise TTE.UnpackException('data.tar unpacking problem: %s' % Errors)
 
-    # run-parts the control.tar postinst
-    if os.path.exists(Postinst):
-        STO, STE = TTU.popen_wrapper(
-            ['/bin/run-parts',
-             '--exit-on-error',
-             '--report',
-             Postinst,
-             ])
-        if STE != '':
-            logger.warning(STO, STE)
-            raise TTE.PostInstException('trouble in the postinst: %s' % STE)
-        logger.debug(STO)
+    if Control_Files:
+        __run_control(Postinst)
 
     return True
 
