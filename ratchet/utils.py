@@ -2,7 +2,7 @@
 from os import urandom
 from random import randrange
 from re import compile as REC, search
-from types import DictType
+from types import DictType, UnicodeType
 
 import binascii
 import json
@@ -31,6 +31,11 @@ def human_readable(crazy_binary_data=None,
                         cooked += raw[i:i+4] + ':'
         return cooked[:-1]
 
+
+def hulk_smash_unicode(string_of_death=None):
+	if type(string_of_death) is not UnicodeType:
+		return string_of_death
+	return string_of_death.encode('ascii', errors='xmlcharrefreplace')
 
 
 class b64Formatter(object):
@@ -131,13 +136,15 @@ class b64Formatter(object):
 	if not Payload: Payload = {}
         bPayload = {}
         for Key, Value in Payload.items():
-            if Key[:4] == 'b64_':
-                bPayload[Key] = binascii.b2a_base64(Value).strip()
+	    if Key[:4] == 'b64_':
+	        bPayload[Key] = binascii.b2a_base64(
+			hulk_smash_unicode(Value)
+			).strip()
             elif Key == 'nonce':
                 bPayload[Key] = binascii.b2a_base64(
                     urandom(randrange(Value))).strip()
             else:
-                bPayload[Key] = Value
+                bPayload[Key] = hulk_smash_unicode(Value)
         return bPayload
 
 

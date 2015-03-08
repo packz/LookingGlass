@@ -158,3 +158,17 @@ class RatchetTest(TestCase):
 
         self.assertEqual(Bob.decrypt(M1a), A2B)
         self.assertEqual(ratchet.conversation.Skipped_Key.objects.filter(Convo=Bob).count(), 0)
+
+
+    def test_unicode_send(self):
+        Alice, Bob = self.cut_to_the_jibber_jabber()
+
+        A2B = unichr(40960) + u'Watson, come here, I need you'
+        A2Bxml = '&#40960;Watson, come here, I need you'
+        B2A = unicode('Gospel of Luke 2:14')
+        
+        M1a = Alice.encrypt(plaintext=A2B)
+        M1b = Bob.encrypt(plaintext=B2A)
+
+        self.assertEqual(Bob.decrypt(M1a), A2Bxml)
+        self.assertEqual(Alice.decrypt(M1b), B2A)
