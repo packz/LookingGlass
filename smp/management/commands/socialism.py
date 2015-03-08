@@ -87,12 +87,7 @@ class Command(BaseCommand):
                 fh = file(TTS.PASSPHRASE_CACHE, 'r')
                 settings['passphrase'] = fh.read()
             else:
-                P = getpass.getpass()
-                C = getpass.getpass('Confirm:')
-                if P != C:
-                    print "Don't match - wah wah."
-                    exit(-1)
-                settings['passphrase'] = P
+                settings['passphrase'] = getpass.getpass()
 
         try: SMP_Objects.decrypt_database(settings['passphrase'])
         except thirtythirty.exception.Target_Exists: pass

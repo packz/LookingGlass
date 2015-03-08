@@ -79,8 +79,9 @@ class Command(BaseCommand):
         if not URI and not settings['force']:
             logger.debug('Already up to date')
             exit(0)
-        
-        Cache = TTU.Cache(Data_URI=URI)
+
+        Cache = TTU.Cache(Data_URI=URI,
+                          Checksum_URI='%s.sum.asc' % URI)
         logger.debug('Got %s' % Cache)
         
         if not TTU.Validate(Cache):

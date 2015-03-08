@@ -7,8 +7,10 @@ import os
 import sqlite3
 import datetime
 
-import thirtythirty.exception
-import thirtythirty.db_locker
+import addressbook
+import thirtythirty
+
+SYMMETRIC_TEST_LOCATION = '/tmp/symmetric-temp.gpg'
 
 class DatabaseTest(TestCase):
     @classmethod
@@ -53,7 +55,7 @@ class DatabaseTest(TestCase):
     def test_bad_passwd(self):
         D = thirtythirty.db_locker.LockManager()
         D.init_for()
-        self.assertRaises(thirtythirty.exception.Bad_Passphrase, D.encrypt, '1235')
+        self.assertRaises(thirtythirty.exception.Bad_Passphrase, D.encrypt_database, '1235')
 
 
     def check_decrypt_within_time_limit(self, D):
@@ -69,7 +71,8 @@ class DatabaseTest(TestCase):
 
 
     def check_creates_backup(self, D):
-        D.decrypt('1234')
+        addressbook.gpg.create_symmetric(passphrase='1234', location=SYMMETRIC_TEST_LOCATION)
+        D.decrypt_database(passphrase='1234', location=SYMMETRIC_TEST_LOCATION)
         self.assertEqual(exists(D.Test['BACKUP']), True)
         self.assertEqual(exists(D.Test['LOCKED']), False)
         self.assertEqual(exists(D.Test['NAME']), True)
@@ -81,7 +84,8 @@ class DatabaseTest(TestCase):
         D.init_for()
         self.assertEqual(exists(D.Test['LOCKED']), False)
         self.assertEqual(exists(D.Test['NAME']), True)
-        D.encrypt('1234')
+        addressbook.gpg.create_symmetric(passphrase='1234', location=SYMMETRIC_TEST_LOCATION)
+        D.encrypt_database(passphrase='1234', location=SYMMETRIC_TEST_LOCATION)
         self.assertEqual(exists(D.Test['LOCKED']), True)
         self.assertEqual(exists(D.Test['NAME']), False)
         self.check_creates_backup(D)

@@ -9,11 +9,13 @@ import ratchet
 class RatchetTest(TestCase):
     def geterset(self, k1name='.ALICE', k2name='.BOB'):
         try:
-            Alice = ratchet.conversation.Conversation.objects.initiate_handshake_for(k2name)
-            Bob   = ratchet.conversation.Conversation.objects.initiate_handshake_for(k1name)
+            Alice = ratchet.conversation.Conversation.objects.initiate_handshake_for(unique_key=k2name, passphrase='1234')
+            Bob   = ratchet.conversation.Conversation.objects.initiate_handshake_for(unique_key=k1name, passphrase='1234')
         except IntegrityError:
             Alice = ratchet.conversation.Conversation.objects.get(UniqueKey=k2name)
             Bob = ratchet.conversation.Conversation.objects.get(UniqueKey=k1name)
+        self.assertNotEqual(Alice, None)
+        self.assertNotEqual(Bob, None)
         return Alice, Bob
 
 
@@ -95,7 +97,7 @@ class RatchetTest(TestCase):
         A2B = 'Watson, come here, I need you'
         B2A = 'Gospel of Luke 2:14'
 
-        self.assertRaises(exception.Undecipherable, Alice.decrypt, B2A)
+        self.assertRaises(ratchet.exception.Undecipherable, Alice.decrypt, B2A)
 
 
     def test_msg_number_increase(self):
@@ -132,7 +134,27 @@ class RatchetTest(TestCase):
         self.assertNotEqual(M1a, M2a)
         self.assertNotEqual(M1b, M2b)
 
-        self.assertRaises(exception.Vanished_MessageKey, Alice.decrypt, M1b)
-        self.assertRaises(exception.Vanished_MessageKey, Bob.decrypt, M1a)
+        self.assertRaises(ratchet.exception.Vanished_MessageKey, Alice.decrypt, M1b)
+        self.assertRaises(ratchet.exception.Vanished_MessageKey, Bob.decrypt, M1a)
 
-# FIXME: generate convos with multiple contacts, make sure their states don't cross
+
+    def test_skipped_key(self):
+        Alice, Bob = self.cut_to_the_jibber_jabber()
+
+        A2B  = 'Watson, come here, I need you'
+        A2B2 = 'Richard Branson'
+        B2A  = 'Gospel of Luke 2:14'
+        B2A2 = 'Clive Barker'
+        
+        M1a = Alice.encrypt(plaintext=A2B)
+        M1b = Alice.encrypt(plaintext=A2B2)
+        M2a = Bob.encrypt(plaintext=B2A)
+        M2b = Bob.encrypt(plaintext=B2A2)
+
+        self.assertEqual(Bob.decrypt(M1b), A2B2)
+
+        self.assertEqual(ratchet.conversation.Skipped_Key.objects.filter(Convo=Alice).count(), 0)
+        self.assertEqual(ratchet.conversation.Skipped_Key.objects.filter(Convo=Bob).count(), 1)
+
+        self.assertEqual(Bob.decrypt(M1a), A2B)
+        self.assertEqual(ratchet.conversation.Skipped_Key.objects.filter(Convo=Bob).count(), 0)

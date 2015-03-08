@@ -126,23 +126,32 @@ def symmetric(msg=None, passphrase=None,
                                             symmetric=TTS.GPG['symmetric_algo'])
 
 
-def create_symmetric(passphrase=None, clobber=False):
+def create_symmetric(passphrase=None, clobber=False, location=None):
+    """
+    location is used for test framework
+    """
+    if not location:
+        location = TTS.GPG['symmetric_location']
     if ((not passphrase) or
-        (os.path.exists(TTS.GPG['symmetric_location']) and
+        (os.path.exists(location) and
          not clobber)):
         return False
-    FH = file(TTS.GPG['symmetric_location'], 'w')
+    FH = file(location, 'w')
     FH.write(str(symmetric(TTS.GPG['magic_cookie'], passphrase)))
-    return True
+    return location
 
 
-def verify_symmetric(passphrase=None):
+def verify_symmetric(passphrase=None, location=None):
     """
     as a side effect, blows the passphrase into the on-disk cache
+    
+    location is used for test framework
     """
+    if not location:
+        location = TTS.GPG['symmetric_location']
     if ((not passphrase) or
-        (not os.path.exists(TTS.GPG['symmetric_location']))): return False
-    FH = file(TTS.GPG['symmetric_location'], 'rb').read()
+        (not os.path.exists(location))): return False
+    FH = file(location, 'rb').read()
     DC = decrypt(FH, passphrase)
     if ((DC.ok) and (str(DC.data) == TTS.GPG['magic_cookie'])):
         prefs = set_up_single_user()

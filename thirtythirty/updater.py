@@ -69,6 +69,8 @@ def Cache(Data_URI=None,
     """
     rsync tarball and checksum to cache directory
     return filename of data file
+
+    FIXME: this should be made file agnostic, and just process a list - bug #90652295
     """
     if not Data_URI:
         return False

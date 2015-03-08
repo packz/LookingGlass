@@ -166,7 +166,7 @@ class Conversation(models.Model):
     def __purge_skipped_keys(self):
         WeekAgo = timezone.now() - timedelta(days=7)
         OSK = Skipped_Key.objects.filter(Creation__lt=WeekAgo)
-        logger.debug('found %s keys older than a week' % len(OSK))
+        logger.debug('Found %s keys older than a week' % len(OSK))
         if len(OSK) > 0:
             OSK.delete()
                 
@@ -180,9 +180,6 @@ class Conversation(models.Model):
                   'DHRatchet']:
             if hasattr(self, Z):
                 getattr(self, Z).save()
-        if hasattr(self, 'staging'):
-            for SK in self.staging:
-                SK.save()
         self.__purge_skipped_keys()
         super(Conversation, self).save(*args, **kwargs)
 
@@ -222,7 +219,6 @@ class Conversation(models.Model):
 
         # ephemeral - delete after we've verify_fingerprint(True)'d
         ratchet.keypair.Handshake(Convo=self).save()
-        self.staging = []
 
         # init DHs and the handshake
         for Z in [self.DHIdentity,
@@ -335,17 +331,16 @@ class Conversation(models.Model):
         """
         everything here is 'purported'
         """
-        if not hasattr(self, 'staging'):
-            self.staging = []
+        Counter = 0
         pChainKey = ChainKeyRx
         for i in range(NumberPurported - NumberRx):
             MessageKey = sha256(pChainKey + '0').digest()
             pChainKey = sha256(pChainKey + '1').digest()
-            self.staging.append(
-                Skipped_Key(Convo=self,
-                            HeaderKeyRx=HeaderKeyRx,
-                            MessageKey=MessageKey))
-        logger.debug('saved %s skipped keys' % (len(self.staging)))
+            Skipped_Key(Convo=self,
+                        HeaderKeyRx=HeaderKeyRx,
+                        MessageKey=MessageKey).save()
+            Counter += 1
+        logger.debug('saved %s skipped keys' % (Counter))
         MessageKey = sha256(pChainKey + '0').digest()
         pChainKey = sha256(pChainKey + '1').digest()
         return pChainKey, MessageKey

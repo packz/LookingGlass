@@ -14,11 +14,13 @@ import ratchet.handshake
 class SocialistTest(TestCase):
     def geterset(self, k1name='.ALICE', k2name='.BOB'):
         try:
-            Alice = ratchet.conversation.Conversation.objects.initiate_handshake_for(k2name)
-            Bob   = ratchet.conversation.Conversation.objects.initiate_handshake_for(k1name)
+            Alice = ratchet.conversation.Conversation.objects.initiate_handshake_for(unique_key=k2name, passphrase='1234')
+            Bob   = ratchet.conversation.Conversation.objects.initiate_handshake_for(unique_key=k1name, passphrase='1234')
         except IntegrityError:
             Alice = ratchet.conversation.Conversation.objects.get(UniqueKey=k2name)
             Bob = ratchet.conversation.Conversation.objects.get(UniqueKey=k1name)
+        self.assertNotEqual(Alice, None)
+        self.assertNotEqual(Bob, None)
         return Alice, Bob
 
 

@@ -170,12 +170,7 @@ class Command(BaseCommand):
             if exists(PASSPHRASE_CACHE):
                 settings['passphrase'] = file(PASSPHRASE_CACHE).read()
             else:
-                P = getpass.getpass()
-                C = getpass.getpass('Confirm:')
-                if P != C:
-                    print "Don't match - wah wah."
-                    exit(-1)
-                settings['passphrase'] = P
+                settings['passphrase'] = getpass.getpass()
         if not settings['passphrase']:
             print 'idk wtf - passphrase failure all round'
             exit(-1)

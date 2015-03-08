@@ -94,12 +94,7 @@ class Command(BaseCommand):
                 fh = file(TTS.PASSPHRASE_CACHE, 'r')
                 settings['passphrase'] = fh.read()
             else:
-                P = getpass.getpass()
-                C = getpass.getpass('Confirm:')
-                if P != C:
-                    logger.error("Don't match - wah wah.")
-                    exit(-1)
-                settings['passphrase'] = P
+                settings['passphrase'] = getpass.getpass()
 
         # decrypt the ratchet database
         ratchet.conversation.Conversation.objects.init_for('ratchet')

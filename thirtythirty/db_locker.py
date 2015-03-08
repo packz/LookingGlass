@@ -71,10 +71,13 @@ class LockManager(object):
                  self.__encrypt)
 
 
-    def encrypt_database(self, passphrase=None):
+    def encrypt_database(self, passphrase=None, location=None):
+        """
+        location is only used for test framework - do not use
+        """
         if exists(self.__encrypt):
             raise(thirtythirty.exception.Target_Exists('Already locked?'))
-        if not addressbook.gpg.verify_symmetric(passphrase):
+        if not addressbook.gpg.verify_symmetric(passphrase=passphrase, location=location):
             raise(thirtythirty.exception.Bad_Passphrase('I refuse to use some crazy password'))
         if not exists(self.__decrypt):
             raise(thirtythirty.exception.Missing_Database('Holy crap, no database either?  HOZED.'))
@@ -98,10 +101,13 @@ class LockManager(object):
             raise(thirtythirty.exception.Locking_Problem('Encryption failed'))
 
 
-    def decrypt_database(self, passphrase=None, loop_protector=False):
+    def decrypt_database(self, passphrase=None, loop_protector=False, location=None):
+        """
+        location only used for testing, to pass thru to verify_symmetric
+        """
         if exists(self.__decrypt):
             raise(thirtythirty.exception.Target_Exists('Already unlocked?'))
-        if not addressbook.gpg.verify_symmetric(passphrase):
+        if not addressbook.gpg.verify_symmetric(passphrase=passphrase, location=location):
             raise(thirtythirty.exception.Bad_Passphrase('I refuse to use some crazy password'))
         if not exists(self.__encrypt):
             if not loop_protector:

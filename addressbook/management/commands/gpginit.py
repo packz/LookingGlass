@@ -57,12 +57,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **settings):
         if not settings['passphrase']:
-            P = getpass.getpass()
-            C = getpass.getpass('Confirm:')
-            if P != C:
-                print "Don't match - wah wah."
-                exit(-1)
-            settings['passphrase'] = P
+            settings['passphrase'] = getpass.getpass()
             
         if settings['cookie']:
             if exists(TTS.GPG['symmetric_location']) and not settings['force']:

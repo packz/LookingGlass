@@ -1,14 +1,12 @@
 
 from django.test import TestCase
 
-import addressbook.address
-import addressbook.gpg
-import addressbook.utils
+import addressbook
 
 class GPGTest(TestCase):
     def test_only_one_me(self):
         addressbook.address.Address.objects.rebuild_addressbook()
-        self.assertEqual(address.Address, type(addressbook.utils.my_address()))
+        self.assertEqual(addressbook.address.Address, type(addressbook.utils.my_address()))
 
 
     def test_decrypt_symmetric(self):
