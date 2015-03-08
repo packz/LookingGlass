@@ -1,11 +1,5 @@
 {% extends "base.dtl" %}
 
-{% block local_style %}
-.mycollapse {
-  display: none;
-}
-{% endblock local_style %}
-
 {% block navbar %}{% endblock %}
 
 {% block content %}

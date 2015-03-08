@@ -165,10 +165,14 @@ class Conversation(models.Model):
 
     def __purge_skipped_keys(self):
         WeekAgo = timezone.now() - timedelta(days=7)
-        Skipped_Key.objects.filter(Creation__lt=WeekAgo).delete()
+        OSK = Skipped_Key.objects.filter(Creation__lt=WeekAgo)
+        logger.debug('found %s keys older than a week' % len(OSK))
+        if len(OSK) > 0:
+            OSK.delete()
                 
 
     def save(self, *args, **kwargs):
+        logger.debug('saving conversation state')
         for Z in ['HeaderKey',
                   'NextHeader',
                   'ChainKey',
@@ -334,7 +338,6 @@ class Conversation(models.Model):
         if not hasattr(self, 'staging'):
             self.staging = []
         pChainKey = ChainKeyRx
-        logger.debug('save %s skipped keys, advance ratchet' % (NumberPurported - NumberRx))
         for i in range(NumberPurported - NumberRx):
             MessageKey = sha256(pChainKey + '0').digest()
             pChainKey = sha256(pChainKey + '1').digest()
@@ -342,14 +345,16 @@ class Conversation(models.Model):
                 Skipped_Key(Convo=self,
                             HeaderKeyRx=HeaderKeyRx,
                             MessageKey=MessageKey))
+        logger.debug('saved %s skipped keys' % (len(self.staging)))
         MessageKey = sha256(pChainKey + '0').digest()
         pChainKey = sha256(pChainKey + '1').digest()
         return pChainKey, MessageKey
 
 
     def __check_skipped(self, ciphertext=None):
-        for SK in Skipped_Key.objects.filter(Convo=self):
-            logger.debug('checking skipped keys')
+        Skipped = Skipped_Key.objects.filter(Convo=self)
+        logger.debug('checking %s skipped keys' % (len(Skipped)))
+        for SK in Skipped:
             Msg = ratchet.message.Message(HeaderKey=SK.HeaderKeyRx,
                                           MessageKey=SK.MessageKey,
                                           Ciphertext=ciphertext)
@@ -388,7 +393,7 @@ class Conversation(models.Model):
             return Msg.Payload
 
         # No, okay, with current header key, then?
-        logger.debug('skipped keys all fail - how about the current one?')
+        logger.debug('Try current ratchet state')
         Msg.set_keys(HeaderKey=self.HeaderKey.rx)
         if Msg.DHRatchetTx:
             Msg.HeaderKey = None # freeze the header state
@@ -400,6 +405,8 @@ class Conversation(models.Model):
                 )
             Msg.set_keys(MessageKey=MessageKey)
             if not Msg.Payload:
+                logger.error('I have no message keys that match this message, but can see the header OK')
+                self.save()
                 raise(ratchet.exception.Vanished_MessageKey(
                     'I have no message keys that match this message, but can see the header OK'))
             if self.BobsFirst:
@@ -426,10 +433,15 @@ class Conversation(models.Model):
                 self.BobsFirst = False
                 
         else:  # One.  Last.  Shot.
+            logger.warning("Mode: final prayer")
             Msg.set_keys(HeaderKey=self.NextHeader.rx)
             if not Msg.DHRatchetTx:
+                # FIXME: this perhaps should trigger reneg of the handshake?
+                logger.error('I have no header keys that match this message')
+                self.save()
                 raise(ratchet.exception.Undecipherable(
                     'I have no header keys that match this message'))
+            logger.debug('Wow, that was close')
             Msg.HeaderKey = None # freeze the header state
             self.__stage_skipped(
                 HeaderKeyRx = self.HeaderKey.rx,
@@ -455,6 +467,8 @@ class Conversation(models.Model):
                 ChainKeyRx = ChainKey)
             Msg.set_keys(MessageKey=MessageKey)
             if not Msg.Payload:
+                logger.error('I can derive the header keys, but cannot reach the payload')
+                self.save()
                 raise(ratchet.exception.Vanished_MessageKey(
                     'I can derive the header keys, but cannot reach the payload'))
             self.RootKey = RootKey
@@ -481,5 +495,6 @@ class Conversation(models.Model):
             self.DHRatchet.tx = None
         self.NumberRx = Msg.NumberTx + 1
         self.ChainKey.rx = ChainKey
+        logger.debug('ratchet advanced')
         self.save()
         return Msg.Payload

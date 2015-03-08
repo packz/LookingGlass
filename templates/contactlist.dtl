@@ -3,7 +3,7 @@
 
 <div class='container-fluid hey-fathead' id='contactlist'>
   <div class='row'>
-    <div class='col-md-8 col-md-offset-2 col-sm-12 col-xs-12'>
+    <div class='col-md-11 col-md-offset-1 col-sm-12 col-xs-12'>
     {% for K in friends|dictsort:'magic' %}
       <div class='container-fluid'> 
 	<div class='row flip-flap {% cycle '' 'bg-info' %}'>
@@ -15,13 +15,13 @@
 	    </a>
 	    {% endif %}
 	  </div>
-	  <div class='col-md-5'>
+	  <div class='col-md-4'>
 	    <p>{% if K.nickname %}{{ K.nickname }}{% else %}{{ K.covername }}{% endif %}{% if K.is_me %}<span class='text-primary'> [THIS IS YOU]</span>{% endif %}</p>
 	    {% if advanced %}
 	    <p class='text-muted small maybe-long'>{{ K.fingerprint }}</p>
 	    {% endif %}
 	  </div>
-	  <div class='col-md-5' title='{{ state_names|get_item:K.user_state }}'>
+	  <div class='col-md-4' title='{{ state_names|get_item:K.user_state }}'>
 	      <div class='text-muted text-center small maybe-long'>
 		{% if K.user_state == 100 or K.user_state == 0 %}<strong>{% endif %}
 		  {{ state_names|get_item:K.user_state }}
@@ -52,7 +52,8 @@
 	    <button type='button' 
 		    data-ref='{{ K.fingerprint }}'
 		    class='btn btn-info contact-props'>
-	      <span class='glyphicon glyphicon-cog'></span>
+	      <span id='{{ K.fingerprint }}-attn' title='I need attention!' class='on-fire glyphicon glyphicon-alert mycollapse'></span>
+	      <span id='{{ K.fingerprint }}-cog' title='Properties' class='glyphicon glyphicon-cog'></span>
 	    </button>
 	  </div>
 	</div>

@@ -7,6 +7,8 @@ from types import DictType
 import binascii
 import json
 
+from ratchet.exception import Broken_Format
+
 import thirtythirty.settings as TTS
 
 def human_readable(crazy_binary_data=None,
@@ -91,7 +93,7 @@ class b64Formatter(object):
         try: return binascii.a2b_base64(
             ParseMe)
         except:
-            raise(ratchet.exception.Broken_Format(
+            raise(Broken_Format(
                     'For the life of me, I cannot parse this %s' % type(self).__name__))
 
 

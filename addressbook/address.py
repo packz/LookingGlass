@@ -86,7 +86,7 @@ class AddressMgr(models.Manager):
                 addressbook.address.Address.objects.get(
                     fingerprint=fingerprint
                     ).delete()
-            logger.warning('You can however, drop the extended attributes.')
+            logger.warning('Flushing ratchet and SMP state')
             ratchet.conversation.Conversation.objects.filter(
                 UniqueKey=fingerprint
                 ).delete()
@@ -125,11 +125,13 @@ class AddressMgr(models.Manager):
             logger.debug('Added request for %s' % Covername)
         return A
 
+
     def add_by_email(self, email=None):
         """
         # FIXME: write this
         """
         pass
+
 
     def add_by_fingerprint(self, fingerprint=None):
         fprint = re.sub('[^A-F0-9]+', '', fingerprint.upper())

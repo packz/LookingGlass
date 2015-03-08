@@ -11,7 +11,6 @@ import datetime
 from uuid import uuid4
 
 import addressbook
-import emailclient
 import ratchet
 import smp
 import thirtythirty
@@ -21,7 +20,7 @@ from thirtythirty.gpgauth import session_pwd_wrapper, set_up_single_user
 import logging
 logger = logging.getLogger(__name__)
 
-KEY_EXPIRATION_WARNING = datetime.date.today() - datetime.timedelta(days=7)
+KEY_EXPIRATION_WARNING = datetime.date.today() - datetime.timedelta(days=14)
 
 Ratchet_Objects = ratchet.conversation.Conversation.objects
 Ratchet_Objects.init_for('ratchet')
@@ -58,7 +57,6 @@ def home(request, Index=None, advanced=False):
         request,
         {'title':'Contacts',
          'nav':'Contacts',
-         'new_mail_count':emailclient.filedb.new_mail_in_inbox(),
          'bg_image':'the-stacks.jpg',
          'vitals':thirtythirty.utils.Vitals(request),
          'indices':sorted(Indices),

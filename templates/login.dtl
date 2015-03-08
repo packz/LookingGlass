@@ -45,9 +45,6 @@ body {
   border-top-right-radius: 0;
   visibility: hidden;
 }
-.mycollapse {
-  display: none;
-}
 </style>
 </head>
 <body>
@@ -126,7 +123,7 @@ function wait_for_unlock() {
       $('#mount-bar').css('width', data.percent + '%');
       setTimeout(function() {
 	wait_for_unlock();
-      }, 5000);
+      }, 1000);
     };
   });
 }
@@ -145,7 +142,7 @@ $('#unlocker').submit(function(e){
     'HCM':$('#HCM').val(),
     'password':$('#password').val(),
   });
-  setTimeout(function(){wait_for_unlock()}, 5000);
+  setTimeout(function(){wait_for_unlock()}, 300);
   {% endif %}
 });
 

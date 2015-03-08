@@ -23,9 +23,6 @@ a[disabled] {
   color: grey;
   text-decoration: line-through;
 }
-.mycollapse {
-  display: none;
-}
 {% endblock local_style %}
 
 

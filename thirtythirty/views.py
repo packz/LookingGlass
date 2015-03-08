@@ -14,7 +14,7 @@ import subprocess
 import os
 
 import addressbook
-import emailclient.filedb
+import emailclient
 import thirtythirty
 import ratchet
 import smp
@@ -544,7 +544,6 @@ def settings(request, advanced=False):
     context = RequestContext(request, {
         'title':'Settings',
         'nav':'Settings',
-        'new_mail_count':emailclient.filedb.new_mail_in_inbox(),
         'bg_image':'dash.jpg',
         'vital_summary':Info_Panel,
         'vitals':Vitals,
@@ -656,7 +655,6 @@ def about(request):
     CTD = {
         'title':"What it's about.",
         'nav':'About',
-        'new_mail_count':emailclient.filedb.new_mail_in_inbox(),
         'bg_image':choice([
             'aldrin.jpg',
             'arcadia_ego.jpg',

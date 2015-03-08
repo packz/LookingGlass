@@ -1,11 +1,5 @@
 {% extends "base.dtl" %}
 
-{% block local_style %}
-.mycollapse {
-  display: none;
-}
-{% endblock local_style %}
-
 {% block navbar %}
 <div class='mycollapse the-big-reveal'>
 {% include 'navbar.dtl' %}

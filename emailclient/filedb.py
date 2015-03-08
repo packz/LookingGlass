@@ -24,7 +24,9 @@ def __count_new_mail(aMbx=None):
 
 def new_mail_in_inbox():
     Inbox = mailbox.Maildir(MAIL_ROOT, factory=False).get_folder('')
-    return __count_new_mail(Inbox)
+    CNM = __count_new_mail(Inbox)
+    if CNM == 0: return ''
+    else: return CNM
 
 
 def list_folders(sanitize=False):
@@ -158,7 +160,7 @@ def flag(aKey=None, addFlag=None, remFlag=None):
 def create_folder(folderName=None):
     if not folderName: return {'ok':False, 'folderName':'not provided'}
     from re import sub
-    sanitized = sub('[^_a-zA-Z0-9]+', '_', folderName)
+    sanitized = sub('[^-_a-zA-Z0-9]+', '_', folderName)
     mailbox.Maildir(MAIL_ROOT, factory=False).add_folder(sanitized)
     return {'ok':True, 'folderName':sanitized}
 
@@ -196,6 +198,10 @@ def move(MK=None,
 
     New_Key = Destination.add(Msg)
     discard(MK)
+
+    if folderName != 'trash':
+        flag(New_Key, remFlag='T')
+    
     return New_Key
 
 

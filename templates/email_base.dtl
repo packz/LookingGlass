@@ -4,9 +4,6 @@
 .headspace {
   padding-top: 3px;
 }
-.mycollapse {
-  display: none;
-}
 {% endblock local_style %}
 
 {% block content %}
@@ -24,7 +21,7 @@
               {% for F in folder_list %}
 		<li>
 		  <a href='{% url 'emailclient.folder' F.real_name %}'>
-		    {{ F.pretty_name }}{% if F.new_mail > 0 %}<span class='badge pull-right'>{{ F.new_mail }}</span>{% endif %}
+		    {{ F.pretty_name }}<span class='badge pull-right {% if F.real_name == '' %}inbox{% else %}{{ F.real_name }}{% endif %}-newmail'></span>
 		  </a>
 		</li>
               {% endfor %}

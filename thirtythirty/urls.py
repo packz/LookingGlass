@@ -27,6 +27,7 @@ urlpatterns = patterns('',
     url(r'^contacts/', include('addressbook.urls')),
     url(r'^email/', include('emailclient.urls')),
     url(r'^setup/', include('setup.urls')),
+    url(r'^smp/', include('smp.urls')),
 
     url(r'^settings/ajax/backup$', views.backup, name='settings.backup'),
     url(r'^settings/ajax/db_disaster$', views.db_disaster, name='settings.db_disaster'),

@@ -12,9 +12,6 @@
    white-space: -moz-pre-wrap;
    word-wrap: break-word;
 }
-.mycollapse {
-  display: none;
-}
 {% endblock local_style %}
 
 

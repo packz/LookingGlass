@@ -82,6 +82,9 @@ class QRunner(models.Manager):
         except httplib.BadStatusLine:
             logger.error('PK server appears to be on its face.')
             return {'ok':'TEMPFAIL', 'reason':'Cannot send to PK server.  try again later.'}
+        except socket.timeout:
+            logger.error('Read timeout - sluggish %s' % TTS.UPSTREAM['keyserver'])
+            return {'ok':'TEMPFAIL', 'reason':'PK server slow to respond.  try again later.'}
         try:
             return json.loads(X)
         except ValueError:

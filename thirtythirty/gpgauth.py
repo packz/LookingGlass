@@ -6,6 +6,12 @@ from django.contrib.auth.views import redirect_to_login
 from functools import wraps
 from django.utils.decorators import available_attrs
 
+# these for passphrase cache
+import os.path
+from os import chmod
+from stat import S_IRUSR, S_IWUSR
+import thirtythirty.settings as TTS
+
 import addressbook.gpg
 import thirtythirty.models
 from settings import USERNAME
@@ -50,12 +56,20 @@ def session_pwd_wrapper(view_func=None):
     """
     @wraps(view_func, assigned=available_attrs(view_func))
     def inner(request, *args, **kwargs):
-        prefs = thirtythirty.models.preferences.objects.first()            # FIXME: single user mode
+        prefs = thirtythirty.models.preferences.objects.first()
         if not prefs:
-            return view_func(request, *args, **kwargs)
+            set_up_single_user()
+            return redirect_to_login(request.get_full_path(),
+                                     login_url='/accounts/login')
         if not request.user.is_authenticated():
             return redirect_to_login(request.get_full_path(),
                                      login_url='/accounts/login')
         else:
+            if ((prefs.passphrase_cache) and
+                (not os.path.exists(TTS.PASSPHRASE_CACHE))):
+                fh = file(TTS.PASSPHRASE_CACHE, 'w')
+                chmod(TTS.PASSPHRASE_CACHE, S_IRUSR | S_IWUSR)
+                fh.write(request.session.get('passphrase', ''))
+                fh.close()
             return view_func(request, *args, **kwargs)
     return inner

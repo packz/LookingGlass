@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang='en'>
 <head>
-<title>{{ title }}{% if new_mail_count and new_mail_count > 0 %} - {{ new_mail_count }}{% endif %}</title>
+<title id='page-title'>{{ title }}</title>
 {% block slow_refresh %}{% endblock slow_refresh %}
 <meta name='viewport' content='width=device-width, initial-scale=1'>
 <link href="/css/bootstrap.css" rel="stylesheet">
@@ -32,8 +32,33 @@ body {
 <script src="/js/bootstrap.min.js"></script>
 {% block js_includes %}{% endblock js_includes %}
 <script>
+function async_badge_update() {
+  $.getJSON('{% url 'emailclient.new_mail' %}', function(d) {
+    if (d['inbox'] != '') {
+      $('#page-title').text("{{ title }} - " + d['inbox']);
+    };
+    $.each(d, function(key, val) {
+      $('.' + key + '-newmail').text(val);
+    });
+  });
+  $.getJSON('{% url 'smp.pending' %}', function(d) {
+    if (d.length > 0) {
+      $('#attn-contact').show();
+      $.each(d, function(key, val) {
+	$('#' + val + '-attn').show();
+	$('#' + val + '-cog').hide();
+      });
+    };
+  });
+  setTimeout(function() {
+    async_badge_update();
+  }, 60000);
+}
 {% block js %}
 {% endblock js %}
+$(document).ready(function(){ 
+  async_badge_update();
+ });
 </script>
 </body>
 </html>

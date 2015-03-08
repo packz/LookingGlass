@@ -17,11 +17,11 @@
       <ul class='nav navbar-nav'>
 
         <li class='{% if nav == 'Email' %}active{% endif %}'>
-          <a href='{% url 'emailclient.inbox' %}'><span class='glyphicon glyphicon-envelope left-hand-icons'></span> Email{% if new_mail_count > 0 %}&nbsp;<span class='badge pull-right'>{{ new_mail_count }}</span>{% endif %}</a>
+          <a href='{% url 'emailclient.inbox' %}'><span class='glyphicon glyphicon-envelope left-hand-icons'></span> Email&nbsp;<span class='badge pull-right inbox-newmail'></span></a>
         </li>
 
         <li class='{% if nav == 'Contacts' %}active{% endif %}'>
-          <a href='{% url 'addressbook' %}'><span class='glyphicon glyphicon-book left-hand-icons'></span> Contacts</a>
+          <a href='{% url 'addressbook' %}'><span class='glyphicon glyphicon-book left-hand-icons'></span> Contacts&nbsp;<span id='attn-contact' title='A contact needs your attention' class='glyphicon glyphicon-alert mycollapse'></span></a>
         </li>
 
         {% if vitals %}

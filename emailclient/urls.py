@@ -12,6 +12,8 @@ urlpatterns = patterns('',
 
     url(r'^view/(?P<Key>[^\/]+)((?P<advanced>/advanced))?$', views.view, name='emailclient.view'),
 
+    url(r'^ajax/mailbox/new$', views.new_mail, name='emailclient.new_mail'),
+
     url(r'^ajax/msg/receive/(?P<Key>.*)$', views.receive, name='emailclient.receive'),
     url(r'^ajax/msg/send$', views.send, name='emailclient.send'),
 

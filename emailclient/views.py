@@ -40,7 +40,6 @@ def folder(request, name=''):
     context = RequestContext(request, {
         'title':pretty_name,
         'nav':'Email',
-        'new_mail_count':emailclient.filedb.new_mail_in_inbox(),
         'bg_image':'inbox.jpg',
         'vitals':thirtythirty.utils.Vitals(request),
         'sorted':emailclient.filedb.sorted_messages_in_folder(folderName=magic_inbox.lstrip()),
@@ -89,7 +88,6 @@ def view(request, Key=None, advanced=False):
     context = RequestContext(request, {
         'title':FolderHash['pretty_name'],
         'nav':'Email',
-        'new_mail_count':emailclient.filedb.new_mail_in_inbox(),
         'bg_image':'inbox.jpg',
         'vitals':thirtythirty.utils.Vitals(request),
         'folder_list':emailclient.filedb.list_folders(sanitize=True),
@@ -129,7 +127,6 @@ def compose(request, Name=None, FP=None):
     context = RequestContext(request, {
         'title':'Composition',
         'nav':'Email',
-        'new_mail_count':emailclient.filedb.new_mail_in_inbox(),
         'bg_image':'compose.jpg',
         'vitals':thirtythirty.utils.Vitals(request),
         'folder_list':emailclient.filedb.list_folders(sanitize=True),
@@ -188,6 +185,8 @@ def send(request):
             Destination=Addr.email,
             Subject=request.POST.get('subject'))
         logger.debug('GPG Encrypted, queued message to %s' % Addr.email)
+
+        # FIXME: maybe some failure counter to renegotiate Axolotl
         
         return HttpResponse(json.dumps({
             'ok':True,
@@ -359,6 +358,13 @@ def receive(request, Key=None):
                                         'msg_type':MsgType,
                                         'status':"I don't even know what went wrong.  :/"}),
                             content_type='application/json')
+
+
+@session_pwd_wrapper
+def new_mail(request):
+    return HttpResponse(
+        json.dumps({'inbox':emailclient.filedb.new_mail_in_inbox()}),
+        content_type='application/json')
     
 
 @session_pwd_wrapper
