@@ -168,10 +168,14 @@ All below gets commented out if this is the user's own address.  Go deep.
       {% endif %}
     {% endif %}
   </div>
-  <div class='col-md-3'>
+  <div class='col-md-3 smp-zone'>
     {% if K.user_state == 60 %}
-    <input type='text' class='form-control smp' id='smp_question' placeholder='Secret question' {% if Question %}value='{{ Question }}' title='Contact has already set the secret question' disabled{% endif %}>
-    <input type='text' class='form-control smp' id='smp_secret' placeholder='Shared secret'>
+    <div id='smp-q-wrap' title='Secret question' 
+	 data-toggle='popover' data-content='{{ Question }}'
+	 data-placement='top'>
+      <input type='text' class='form-control smp' id='smp_question' maxlength='100' placeholder='Secret question' {% if Question %}value='{{ Question }}' disabled{% endif %}>
+    </div>
+    <input type='text' class='form-control smp' maxlength='56' id='smp_secret' placeholder='Shared secret'>
     {% endif %}
   </div>
   <div class='col-md-3'>
@@ -254,7 +258,21 @@ $('#handshaker').click(function(){handshakery()});
 function passphrase_submitted(){handshakery()};
 
 {% if K.user_state == 60 %}
+ {% if Question %}
+ $('#smp-q-wrap').popover();
+ $('.smp-zone').hover( function(){ 
+   $('#smp-q-wrap').popover('show');
+ }, function() {
+   $('#smp-q-wrap').popover('hide');
+ });
+ $('#smp_secret').click(function(){
+   $('#smp-q-wrap').popover('show');
+ });
+ {% endif %}
 $('.smp').keyup(function() {
+  var disallowed = /[^ _\,\.\+\-\=\/\\\'\"\?\!\@\#\$\%\^\&\*\(\)a-z0-9]/gi;
+  $('#smp_answer').val($('#smp_answer').val().replace(disallowed, ''));
+  $('#smp_question').val($('#smp_question').val().replace(disallowed, ''));
   if (($('#smp_question').val() != '') && ($('#smp_secret').val() != '')) {
     $('#handshaker').fadeIn();
   } else {

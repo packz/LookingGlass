@@ -1,6 +1,8 @@
 
 from django.core.exceptions import MultipleObjectsReturned
 
+import fuzzy
+
 import re
 from types import StringType
 
@@ -65,3 +67,11 @@ def my_address():
         return addressbook.address.Address.objects.get(is_me=True)
     except MultipleObjectsReturned:
         raise(addressbook.exception.Multiple_Private_Keys('You appear to have multiple private keys.  I am too hastily coded to handle that properly.'))
+
+
+def double_metaphone(name=None):
+    DM = fuzzy.DMetaphone()
+    DMetaphone = DM(name)
+    while not DMetaphone[-1]:
+        DMetaphone.pop()
+    return DMetaphone

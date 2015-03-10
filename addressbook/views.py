@@ -242,7 +242,7 @@ def push_to_queue(request):
 
     PP = request.session.get('passphrase', None)
     
-    # sanitize and sanity check
+    # sanity check address state and passphrase
     try:
         Who = addressbook.address.Address\
               .objects.get(fingerprint=Fingerprint)
@@ -258,6 +258,16 @@ def push_to_queue(request):
         ret['reason'] = 'I already know them.'
         return HttpResponse(json.dumps(ret),
                             content_type='application/json')
+    
+    # sanitize Q&A - this RE is in the .js as well
+    if Question:
+        Question = re.sub('(?i)[^ _\,\.\+\-\=\/\\\'\"\?\!\@\#\$\%\^\&\*\(\)a-z0-9]',
+                          '',
+                          Question)
+    if Secret:
+        Secret = re.sub('(?i)[^ _\,\.\+\-\=\/\\\'\"\?\!\@\#\$\%\^\&\*\(\)a-z0-9]',
+                        '',
+                        Secret)
 
     try: SMP_Objects.decrypt_database(PP)
     except thirtythirty.exception.Target_Exists: pass

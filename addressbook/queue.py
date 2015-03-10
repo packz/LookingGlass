@@ -211,9 +211,15 @@ We'll try registration again and see if it magically starts working.
             'version':TTS.LOOKINGGLASS_VERSION_STRING,
             'request-id':str(uuid4()),
             }
-        Type = 'covername'
         if re.search('^[0-9A-Fa-f]{5,40}$', Message.body):
             Type = 'fingerprint'
+        else:
+            Type = 'covername'
+            try:
+                First, Last = Message.body.split(' ')
+                Request['dm_first'] = addressbook.utils.double_metaphone(First)
+                Request['dm_last'] = addressbook.utils.double_metaphone(Last)
+            except ValueError: pass
         Request[Type] = Message.body
         Detached_Binary = addressbook.GPG.sign(Request[Type],
                                                detach=True,
@@ -520,7 +526,7 @@ We'll try again in a bit and see if it magically starts working.
         try:
             Send = MySMP.advance_step(Got)
         except smp.exception.Unset_Secret:
-            logger.error("You'll need to set the secret for this instance, to continue.")
+            logger.warning("You'll need to set the secret for this instance, to continue.")
             return
         except smp.exception.Socialist_Misstep as e:
             logger.critical('Got some steps out of order: %s' % e)
