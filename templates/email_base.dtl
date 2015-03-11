@@ -32,12 +32,12 @@
 
 	  {% if title != 'Composition' %}
 
-	  <li class='hide-in-message'>
-	    <a href='{% url 'emailclient.compose' %}'><span class='glyphicon glyphicon-pencil'></span> Compose</a>
-	  </li>
-
-	  <li class='show-in-message'>
-	    <a id='edit-link' href='#'><span class='glyphicon glyphicon-scissors'></span> Edit</a>
+	  <li>
+	    {% if title == 'drafts' %}
+	      <a class='show-in-message' id='edit-link' href='#'><span class='glyphicon glyphicon-scissors'></span> Edit</a>
+	    {% else %}
+	      <a href='{% url 'emailclient.compose' %}'><span class='glyphicon glyphicon-pencil'></span> Compose</a>
+	    {% endif %}
 	  </li>
 
 	  <li class='pull-right dropdown disabled only-when-selected hide-axo-decrypted' title='Move to folder'>
