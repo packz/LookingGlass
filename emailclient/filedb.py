@@ -62,14 +62,14 @@ def fast_folder_find(aKey=None):
     only the mbx portion of folder_from_msg_key()
     flagging messages was taking WAAAAY too long
     """
-    logger.debug('searching for %s' % aKey)
+#    logger.debug('searching for %s' % aKey)
     Folder = subprocess.check_output(['/usr/bin/find',
                                       MAIL_ROOT,
                                       '-type', 'f',
                                       # flags go @ the ass-end of msg names on-disk
                                       '-name', '%s*' % aKey]).strip()
     if '/' not in Folder: return None
-    logger.debug('located in %s' % Folder)
+#    logger.debug('located in %s' % Folder)
     Folder_Name = Folder.split('/')[4]
     if Folder_Name == 'cur': Folder_Name = ''
     # remove the leading period...
@@ -126,7 +126,7 @@ def sorted_messages_in_folder(folder=None, folderName=None, messageKey=None):
         if Mbx:
             return sorted_messages_in_folder(folder=Mbx)
     elif messageKey:
-        logger.debug('Traced request for messageKey `%s`' % (messageKey))
+#        logger.debug('Traced request for messageKey `%s`' % (messageKey))
         Folder = folder_from_msg_key(messageKey)
         if Folder:
             return sorted_messages_in_folder(folder=Folder['mbx'])
@@ -147,8 +147,8 @@ def flag(aKey=None, addFlag=None, remFlag=None):
     Msg = F.get(aKey)
     Msg.set_subdir('cur')
     if addFlag:
-        if addFlag == 'T':
-            logger.debug('%s flagged for trash' % aKey)
+#        if addFlag == 'T':
+#            logger.debug('%s flagged for trash' % aKey)
         Msg.add_flag(addFlag)
         F[aKey] = Msg
     if remFlag:
@@ -247,7 +247,7 @@ def save_local(to=None,
     """
     MK may be None when the message was Axolotl and disappeared after decrypt
     """
-    logger.debug('Got request to save local to folder `%s`' % Folder)
+#    logger.debug('Got request to save local to folder `%s`' % Folder)
 
     if not addressbook.gpg.verify_symmetric(passphrase):
         return {'ok':False,

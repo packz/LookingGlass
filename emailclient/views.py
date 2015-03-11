@@ -144,6 +144,9 @@ def edit(request, Key=None, advanced=False):
         return HttpResponse(json.dumps({'ok':False,
                                         'extra':'Bad passphrase'}))
     Folder = emailclient.filedb.fast_folder_find(Key)
+    if not Folder:
+        return HttpResponse(json.dumps({'ok':False,
+                                        'extra':'Hosed'}))
     Msg = Folder.get(Key)
     Body = addressbook.gpg.decrypt(str(Msg.get_payload()),
                                    passphrase=PP)
@@ -188,9 +191,13 @@ def save(request):
                                            passphrase=PP))
         if ((Body == request.POST.get('body', None)) or
             (Body == abuse_unicode)):
-            logger.debug('draft already saved!')
             return HttpResponse(json.dumps({'ok':True,
-                                            'extra':'Already saved tho'}))
+                                            'extra':Key,
+                                            'info':'Already saved tho'}))
+
+    if ((request.POST.get('body', None) == '') or (abuse_unicode == '')):
+        return HttpResponse(json.dumps({'ok':False,
+                                        'info':'Blanken'}))
     
     return HttpResponse(json.dumps(
         emailclient.filedb.save_local(to=request.POST.get('to'),
@@ -215,7 +222,6 @@ def send(request):
         Q(covername__iexact=To) |\
         Q(nickname__iexact=To)
         )
-    logger.debug(Addr)
     if len(Addr) != 1:
         return HttpResponse(json.dumps({'ok':False,
                                         'extra':'Address clown show'}))

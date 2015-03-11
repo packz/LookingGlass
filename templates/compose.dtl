@@ -7,6 +7,18 @@
 textarea {
   resize: vertical;
 }
+.bootstrap-weird-offset {
+  margin-bottom: -5px !important;
+}
+.input-group {
+  margin-bottom: 5px;
+}
+.funbuttons {
+  margin-top: 5px;
+}
+#save-state {
+  margin-top: 6px;
+}
 {% include 'typeahead.css' %}
 {% endblock local_style %}
 
@@ -21,28 +33,37 @@ textarea {
 
     <div class='input-group'>
       <span class='input-group-addon'>To:</span>
-      <input type='text' class='form-control typeahead' id='to' name='to' value='{{ magic.to }}' {% if magic.fp %}disabled{% endif %}>
+      <input type='text' class='form-control typeahead bootstrap-weird-offset' 
+	     id='to' name='to' value='{{ magic.to }}' {% if magic.fp %}disabled{% endif %}>
     </div>
 
     <div class='input-group'>
       <span class='input-group-addon'>Subject:</span>
-      <input type='text' class='form-control' id='subject' name='subject' value='{{ magic.subject }}'>
-      <span class='input-group-addon'><span class='glyphicon glyphicon-warning-sign'></span> SUBJECT WILL NOT BE ENCRYPTED</span>
+      <input type='text' class='form-control' 
+	     id='subject' name='subject' value='{{ magic.subject }}'>
+      <span class='input-group-addon'><span class='glyphicon glyphicon-warning-sign'></span> SUBJECT NOT ENCRYPTED</span>
     </div>
 
     <div class='input-group enwiden'>
       <textarea class='form-control' rows='10' id='body' name='body'>{{ magic.body }}</textarea>
     </div>
-    
-    <div class='input-group enwiden'>
-    <div class='btn-group btn-group-justified'>
-      <div class='btn-group'>
-	<button type='button' id='save' class='btn btn-default'><span class='glyphicon glyphicon-floppy-disk'></span> Save draft</button>
+
+    <div class='container-fluid'>
+      <div class='row funbuttons'>
+	<div class='col-md-1'>
+	  <button type='button' 
+		  id='trash' title='Discard draft' 
+		  class='btn btn-info'><span class='glyphicon glyphicon-trash'></span></button>
+	</div>
+	<div class='col-md-2 pull-right'>
+	  <button type='button' 
+		  id='send' title='Send' 
+		  class='btn btn-primary'><span class='glyphicon glyphicon-send'></span> Encrypt & Send</button>
+	</div>
+	<div class='col-md-1 pull-right'>
+	  <p id='save-state' class='text-muted text-right'></p>
+	</div>
       </div>
-      <div class='btn-group'>
-	<button type='button' id='send' class='btn btn-default'><span class='glyphicon glyphicon-send'></span> Encrypt & Send</button>
-      </div>
-    </div>
     </div>
 
   </div>
@@ -56,6 +77,10 @@ textarea {
 
 
 {% block js %}
+
+var TYPING = false;
+var SAVED = true;
+var COUNT = 0;
 
 function cursor_to_body_end() {
   /* MFW this code */
@@ -102,7 +127,9 @@ function take_my_draft_please() {
 }
 
 
-$('#save').click(function() {
+function save_draft() {
+  $('#save-state').text('Saving...');
+  $('#save-state').show();
   to_send = {'csrfmiddlewaretoken':'{{ csrf_token }}',
       'body':$('#body').val(),
       'to':$('#to').val(),
@@ -115,15 +142,39 @@ $('#save').click(function() {
   };
   $.post('{% url 'emailclient.save' %}', to_send, function(data){
   if (data.ok) {
-    $('#MK').val(data.extra);
-    $('#save').toggleClass('btn-success');
-    setTimeout(function() {
-       $('#save').toggleClass('btn-success');
-    }, 500);
+   if (location.pathname.search('compose') != -1) {
+     $(location).attr('href', '/email/edit/' + data.extra);
+   };
+   $('#MK').val(data.extra);
+   $('#save-state').text('Saved');
+  } else {
+   $('#save-state').text('Uh oh');
   };
-  }, 'json');
+  }, 'json');  
+};
+
+$('#trash').click(function() {
+    $.post('{% url 'emailclient.discard' %}',
+  {
+  'MK':$('#MK').val(),
+  'csrfmiddlewaretoken':'{{ csrf_token }}',
+  },
+  function(data) {
+    if (data.length == 1) {
+      location.assign('{% url 'emailclient.folder' 'inbox' %}');
+    } else {
+      $('#trash').removeClass('btn-info');
+      $('#trash').addClass('btn-danger');
+    };
+  },
+  'json');
 });
 
+$('#body').bind('input', function() {
+  TYPING = true;
+  SAVED = false;
+  COUNT += 1;
+});
 
 $('#send').click(function() {
   take_my_draft_please();
@@ -158,6 +209,17 @@ $(document).ready(function(){
   cursor_to_body_end();
 {% endif %}
      Names.initialize();
+
+  setInterval(function(){
+  if ((! TYPING) && (! SAVED)) {
+    save_draft();
+    SAVED = true;
+  } else if (COUNT > 50) {
+    save_draft();
+    SAVED = true;
+  };
+  TYPING = false;
+  }, 3000);
 });
 
 var oakLeaves = $('.typeahead').typeahead({ 
