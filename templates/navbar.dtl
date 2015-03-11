@@ -31,7 +31,7 @@
         {% endif %}
 
         <li class='disabled'>
-          <a><span class='glyphicon glyphicon-credit-card left-hand-icons'></span> Wallet</a>
+          <a><span class='glyphicon glyphicon-bitcoin left-hand-icons'></span> Wallet</a>
         </li>
 
         <li class='disabled'>

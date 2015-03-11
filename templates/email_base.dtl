@@ -30,11 +30,15 @@
             </ul>
           </li>
 
-	  <li>
+	  {% if title != 'Composition' %}
+
+	  <li class='hide-in-message'>
 	    <a href='{% url 'emailclient.compose' %}'><span class='glyphicon glyphicon-pencil'></span> Compose</a>
 	  </li>
 
-	  {% if title != 'Composition' %}
+	  <li class='show-in-message'>
+	    <a id='edit-link' href='#'><span class='glyphicon glyphicon-scissors'></span> Edit</a>
+	  </li>
 
 	  <li class='pull-right dropdown disabled only-when-selected hide-axo-decrypted' title='Move to folder'>
 	    <a href='#' class='dropdown-toggle only-when-selected disabled' id='move-msg' data-toggle='dropdown'>
@@ -75,9 +79,12 @@
 	    <a href='#' id='select-all'><span class='glyphicon glyphicon-globe'></span></a>
 	  </li>
 
+	  {% if title != 'drafts' %}
 	  <li class='pull-right show-in-message' title='Reply'>
 	    <a href='#' id='reply'><span class='glyphicon glyphicon-share-alt'></span></a>
 	  </li>
+	  {% endif %}
+
 	  {% endif %}
 
         </ul>

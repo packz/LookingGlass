@@ -117,7 +117,7 @@ def compose(request, Name=None, FP=None):
             magic['to'] = A.nickname
             if not magic['to']: magic['to'] = A.covername
             magic['fp'] = FP
-        except:
+        except addressbook.address.Address.DoesNotExist:
             # we have run into an email generated locally, perhaps.
             # let this pass to the compose window, so we can save draft, if there has been a mistake
             pass
@@ -135,6 +135,70 @@ def compose(request, Name=None, FP=None):
         })
     template = loader.get_template('compose.dtl')
     return HttpResponse(template.render(context))
+
+
+@session_pwd_wrapper
+def edit(request, Key=None, advanced=False):
+    PP = request.session.get('passphrase', None)
+    if ((not PP) or (not addressbook.gpg.verify_symmetric(PP))):
+        return HttpResponse(json.dumps({'ok':False,
+                                        'extra':'Bad passphrase'}))
+    Folder = emailclient.filedb.fast_folder_find(Key)
+    Msg = Folder.get(Key)
+    Body = addressbook.gpg.decrypt(str(Msg.get_payload()),
+                                   passphrase=PP)
+    context = RequestContext(request, {
+        'title':'Composition',
+        'nav':'Email',
+        'bg_image':'compose.jpg',
+        'vitals':thirtythirty.utils.Vitals(request),
+        'folder_list':emailclient.filedb.list_folders(sanitize=True),
+        'friends':addressbook.address.Address.objects.filter(is_me=False, system_use=False),
+        'magic':{
+            'MK':Key,
+            'body':Body,
+            'to':Msg['To'],
+            'subject':Msg['Subject'],
+            },
+        })
+    template = loader.get_template('compose.dtl')
+    return HttpResponse(template.render(context))
+    
+
+@session_pwd_wrapper
+def save(request):
+    """
+    save draft
+    """
+    PP = request.session.get('passphrase', None)
+    if ((not PP) or (not addressbook.gpg.verify_symmetric(PP))):
+        return HttpResponse(json.dumps({'ok':False,
+                                        'extra':'Bad passphrase'}))
+
+    abuse_unicode = ratchet.utils.hulk_smash_unicode(
+        request.POST.get('body', None)
+        )
+
+    Key = request.POST.get('MK', None)
+    if Key:
+        Folder = emailclient.filedb.fast_folder_find(Key)
+        Msg = Folder.get(Key)
+        # cast to str() is in no way insane
+        Body = str(addressbook.gpg.decrypt(str(Msg.get_payload()),
+                                           passphrase=PP))
+        if ((Body == request.POST.get('body', None)) or
+            (Body == abuse_unicode)):
+            logger.debug('draft already saved!')
+            return HttpResponse(json.dumps({'ok':True,
+                                            'extra':'Already saved tho'}))
+    
+    return HttpResponse(json.dumps(
+        emailclient.filedb.save_local(to=request.POST.get('to'),
+                                      subject=request.POST.get('subject'),
+                                      body=abuse_unicode,
+                                      passphrase=PP,
+                                      MK=request.POST.get('MK', None),
+                                      )), content_type='application/json')
 
 
 @session_pwd_wrapper
@@ -158,16 +222,7 @@ def send(request):
     else:
         Addr = Addr[0]
         
-    if (request.POST.get('mode') == 'save'):
-        return HttpResponse(json.dumps(
-            emailclient.filedb.save_local(to=Addr.email,
-                              subject=request.POST.get('subject'),
-                              body=request.POST.get('body'),
-                              passphrase=PP,
-                              MK=request.POST.get('MK', None),
-                              )), content_type='application/json')
-
-    elif Addr.user_state == addressbook.address.Address.KNOWN:
+    if Addr.user_state == addressbook.address.Address.KNOWN:
         # GPG
         Preferences = set_up_single_user()
         if Preferences.tx_symmetric_copy:

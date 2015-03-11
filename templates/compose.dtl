@@ -15,7 +15,6 @@ textarea {
 
   <form method='POST' id='ffsletsdoit' action='{% url 'emailclient.send' %}'>
     <input type='hidden' id='MK' name='MK' value='{{ magic.MK }}'>
-    <input type='hidden' id='mode' name='mode' value='save'>
       <input type='hidden' id='fingerprint' name='fingerprint' value='{{ magic.fp }}'>
     {% csrf_token %}
   <div class='form-group'>
@@ -68,9 +67,7 @@ function cursor_to_body_end() {
 }
 
 function take_my_draft_please() {
-  var mode = $('#mode').val();
   to_send = {'csrfmiddlewaretoken':'{{ csrf_token }}',
-      'mode':mode,
       'body':$('#body').val(),
       'to':$('#to').val(),
       'fingerprint':$('#fingerprint').val(),
@@ -84,41 +81,51 @@ function take_my_draft_please() {
      to_send, 
   function(data) {
     if (data.ok) {
-      if (mode == 'save') {
-            $('#MK').val(data.extra);
-            $('#save').toggleClass('btn-success');
-            setTimeout(function() {
-              $('#save').toggleClass('btn-success');
-            }, 500);
-      } else {
         /* send */
-        /*
-        we might pass submission errors to the user here
-        alert(data.extra);
-        */
-        location.assign('{% url 'emailclient.folder' 'sent' %}');
-      };
-    } else if (data.extra.match(/clown show/g)) {
-       /* FIXME: this should be automatic */
-       alert("I don't know that user.  Please add them to the addressbook first.");
-    } else if (data.extra.match(/don't have any keys/g)) {
-       /* FIXME: this should be automatic */
-       alert("I don't know that user.  Please add them to the addressbook first.");
-    } else {
-       /* oops, do it again */
-       $('#passphrase-modal').modal('show');
-    };
+  /*
+  we might pass submission errors to the user here
+  alert(data.extra);
+  */
+  location.assign('{% url 'emailclient.folder' 'sent' %}');
+  } else if (data.extra.match(/clown show/g)) {
+  /* FIXME: this should be automatic */
+  alert("I don't know that user.  Please add them to the addressbook first.");
+  } else if (data.extra.match(/don't have any keys/g)) {
+  /* FIXME: this should be automatic */
+  alert("I don't know that user.  Please add them to the addressbook first.");
+  } else {
+  /* oops, do it again */
+  $('#passphrase-modal').modal('show');
+  };
   },
   'json');
 }
 
+
 $('#save').click(function() {
-  $('#mode').val('save');
-  take_my_draft_please();
+  to_send = {'csrfmiddlewaretoken':'{{ csrf_token }}',
+      'body':$('#body').val(),
+      'to':$('#to').val(),
+      'fingerprint':$('#fingerprint').val(),
+      'subject':$('#subject').val(),
+      'passphrase':$('#passphrase').val(),
+      }
+  if ($('#MK').val() != '') {
+    to_send['MK'] = $('#MK').val();
+  };
+  $.post('{% url 'emailclient.save' %}', to_send, function(data){
+  if (data.ok) {
+    $('#MK').val(data.extra);
+    $('#save').toggleClass('btn-success');
+    setTimeout(function() {
+       $('#save').toggleClass('btn-success');
+    }, 500);
+  };
+  }, 'json');
 });
 
+
 $('#send').click(function() {
-  $('#mode').val('send');
   take_my_draft_please();
 });
 
