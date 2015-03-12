@@ -21,7 +21,7 @@ class Command(BaseCommand):
                     action='store_true',
                     dest='force',
                     default=False,
-                    help="Override rate limiter",
+                    help="DO IT NO STAHP",
                     ),
         make_option('--install',
                     action='store_true',
@@ -69,10 +69,10 @@ class Command(BaseCommand):
         Cached = TTU.Available()
         if Cached:
             if not settings['force']:
-                logger.debug('Already have version %s in cache' % Cached)
+                logger.debug('Already have version %s in cache' % Cached['version'])
                 exit(0)
             else:
-                logger.debug('Already have version %s in cache' % Cached)
+                logger.debug('Already have version %s in cache' % Cached['version'])
                 logger.debug('Specified new dl anyway')
             
         URI = TTU.Scan(TTS.UPSTREAM['updates'][0]['uri'])
@@ -80,24 +80,31 @@ class Command(BaseCommand):
             logger.debug('Already up to date')
             exit(0)
 
-        Cache = TTU.Cache(Data_URI=URI,
-                          Checksum_URI='%s.sum.asc' % URI)
-        logger.debug('Got %s' % Cache)
+        Cache = TTU.Update_Cache(Data_URI=URI,
+                                 Checksum_URI='%s.sum.asc' % URI)
+        if Cache:
+            logger.debug('Got %s' % Cache)
+
+        Cache = TTU.Available()
+        if not Cache:
+            logger.warning('Nothing new in cache - bailing')
+            exit()
+        logger.debug('Reloading from cache: %s' % Cache['version'])
         
-        if not TTU.Validate(Cache):
+        if not TTU.Validate(Cache['filename']):
             if not settings['valid_override']:
-                logger.warning('Invalid signature on %s' % Cache)
+                logger.warning('Invalid signature on %s' % Cache['filename'])
                 exit(-1)
             else:
                 logger.warning('Bad signature, but signature override is on...')
 
         self.alert_user_new_updates(
-            Version=TTU.Version(Cache),
-            ChangeLog=TTU.ChangeLog(Cache)
+            Version=TTU.Version(Cache['filename']),
+            ChangeLog=TTU.ChangeLog(Cache['filename'])
             )
 
         if settings['install']:
-            for F in TTU.Unpack(Cache):
+            for F in TTU.Unpack(Cache['filename']):
                 logger.debug(F)
                 
             TTU.Cleanup()

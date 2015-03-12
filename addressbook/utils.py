@@ -1,10 +1,10 @@
 
 from django.core.exceptions import MultipleObjectsReturned
 
-import fuzzy
-
 import re
 from types import StringType
+
+import fuzzy
 
 import addressbook.address
 import addressbook.exception

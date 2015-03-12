@@ -21,7 +21,7 @@ import smp
 
 import thirtythirty.settings as TTS
 from thirtythirty.gpgauth import session_pwd_wrapper, set_up_single_user
-from thirtythirty.updater import Available, Unpack, Cleanup
+from thirtythirty.updater import Available, Validate, Unpack, Cleanup
 
 import logging
 logger = logging.getLogger(__name__)
@@ -184,8 +184,9 @@ def settings(request, advanced=False):
     Vitals = thirtythirty.utils.Vitals(request)
     Update_Version = '[No update available]'
     Update_Warn = ''
-    if Available():
-        Update_Version = 'Version %s now available!' % Available()
+    Availed = Available()
+    if Availed and Validate(Availed['filename']):
+        Update_Version = 'Version %s now available!' % Availed['version']
         Update_Warn = 'Back up your settings before update!'
     Preferences = set_up_single_user()
     if Preferences.show_advanced: advanced = True
@@ -765,17 +766,20 @@ def submit_bug(request):
     if request.POST.get('severity') in ['MAJOR', 'EPIC']:
         if not Passphrase:
             Attach = ['/tmp/thirtythirty.err',
-                      '/tmp/thirtythirty.log',]
+                      '/tmp/thirtythirty.log',
+                      '/tmp/pip.log',]
         else:
             Encrypt = ['/tmp/thirtythirty.err',
-                       '/tmp/thirtythirty.log',]
+                       '/tmp/thirtythirty.log',
+                       '/tmp/pip.log',]
             # encrypt the logs
             BRE = addressbook.address.Address.objects.filter(
                 email=TTS.UPSTREAM['bug_report_email'].upper()).first()
             for E in Encrypt:
-                BRE.asymmetric(filename=E,
-                               passphrase=Passphrase)
-                Attach.append('%s.asc' % E)
+                if os.path.exists(E):
+                    BRE.asymmetric(filename=E,
+                                   passphrase=Passphrase)
+                    Attach.append('%s.asc' % E)
     logger.debug('Sending %s bug report' % request.POST.get('severity'))
     emailclient.utils.submit_to_smtpd(
         Attachments=Attach,
@@ -962,8 +966,11 @@ def thirtythirty_logs(request):
 
 @session_pwd_wrapper
 def update(request):    
-    ret = {'ok':False, 'extra':Available()}
-    if ret['extra']:
+    ret = {'ok':False,
+           'extra':Available(),
+           }
+    ret['valid'] = Validate(ret['extra']['filename'])
+    if ret['extra'] and ret['valid']:
         try:
             Unpack()
             Cleanup()

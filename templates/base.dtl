@@ -36,6 +36,16 @@ function async_badge_update() {
   $.getJSON('{% url 'emailclient.new_mail' %}', function(d) {
     if (d['inbox'] != '') {
       $('#page-title').text("{{ title }} - " + d['inbox']);
+      {% if title == 'inbox' %}
+      if (location.hash != '#new_mail') {
+	location.hash = 'new_mail';
+	location.reload();
+      } else {
+	location.hash = '';
+      };
+      {% endif %}
+    } else {
+      $('#page-title').text("{{ title }}");
     };
     $.each(d, function(key, val) {
       $('.' + key + '-newmail').text(val);

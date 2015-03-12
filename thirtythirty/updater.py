@@ -19,6 +19,7 @@ def Scan(Server=None):
     return highest patch > current, with checksum
     """
     Biggest = "%02d%02d%02d" % TTS.LOOKINGGLASS_VERSION
+    Current = "%02d%02d%02d" % TTS.LOOKINGGLASS_VERSION
     Checksum = True
     Tarball = True
     Exact = None
@@ -45,7 +46,7 @@ def Scan(Server=None):
             Checksum = False
             Tarball = False
 
-        if Version == Biggest:
+        if ((Version == Biggest) and (Biggest != Current)):
             if Z.group('Type') == 'sum.asc':
                 Checksum = True
             elif Z.group('Type') == 'tar.bz2':
@@ -62,10 +63,10 @@ def Scan(Server=None):
         return None
 
 
-def Cache(Data_URI=None,
-          Checksum_URI=None,
-          Cache=None,
-          ):
+def Update_Cache(Data_URI=None,
+                 Checksum_URI=None,
+                 Cache=None,
+                 ):
     """
     rsync tarball and checksum to cache directory
     return filename of data file
@@ -85,7 +86,6 @@ def Cache(Data_URI=None,
                           sudo=True)
     for GetFile in [Data_URI, Checksum_URI]:
         SO, SE = TTU.popen_wrapper(['/usr/bin/rsync',
-                                    '--times',
                                     GetFile,
                                     Cache],
                                    sudo=False)
@@ -136,8 +136,11 @@ def Available():
     this could probably be a whole lot smarter
     """
     D = __data_file()
-    if D:
-        return Version(D)
+    if ((D) and (Version(D) > "%02d.%02d.%02d" % TTS.LOOKINGGLASS_VERSION)):
+        return {
+            'version':Version(D),
+            'filename':D,
+            }
     else:
         return None
     
@@ -155,9 +158,11 @@ def Validate(Data_File=None,
     if not Checksum_File:
         Checksum_File = __checksum_file()
     if not Data_File or not os.path.exists(Data_File):
-        raise TTE.ChecksumException("Data file %s doesn't exist" % Data_File)
+        logger.warning("Data file %s doesn't exist" % Data_File)
+        return False
     if not Checksum_File or not os.path.exists(Checksum_File):
-        raise TTE.ChecksumException("Checksum file %s doesn't exist" % Checksum_File)
+        logger.warning("Checksum file %s doesn't exist" % Checksum_File)
+        return False
 
     # signed checksums shouldn't be much bigger than 1000 bytes
     Clearsign = file(Checksum_File, 'r').read(1000)
@@ -182,12 +187,11 @@ def Validate(Data_File=None,
     Checksum_Algo = None
     if len(Clearsign_Sum) == 64:
         Checksum_Algo = 'sha256sum'
-        logger.debug('Detected sha256 checksum')
     elif len(Clearsign_Sum) == 128:
         Checksum_Algo = 'sha512sum'
-        logger.debug('Detected sha256 checksum')
     else:
         raise TTE.ChecksumException("I don't know what manner of checksum this is: %s" % Clearsign_Sum)
+    logger.debug('Detected %s checksum' % Checksum_Algo)
 
     # do local checksum
     SO, SE = TTU.popen_wrapper([Checksum_Algo,
