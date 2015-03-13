@@ -36,12 +36,6 @@
 	      <a href='{% url 'emailclient.compose' %}'><span class='glyphicon glyphicon-pencil'></span> Compose</a>
 	    </li>
 
-	    {% if title == 'drafts' %}
-	      <li>
-		<a class='show-in-message' id='edit-link' href='#'><span class='glyphicon glyphicon-scissors'></span> Edit</a>
-	      </li>
-	    {% endif %}
-
 	  <li class='pull-right dropdown disabled only-when-selected hide-axo-decrypted' title='Move to folder'>
 	    <a href='#' class='dropdown-toggle only-when-selected disabled' id='move-msg' data-toggle='dropdown'>
 	      <span class='glyphicon glyphicon-folder-open'></span>

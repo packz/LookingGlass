@@ -37,7 +37,11 @@
 	<input type='checkbox' class='mail-selector' name='MK' value='{{ MK }}'>
       </div>
       <div class='col-md-3 col-xs-3 maybe-long'>
+      {% if title == 'drafts' %}
+	<a href='{% url 'emailclient.edit' Key=MK %}'>
+      {% else %}
 	<a href='{% url 'emailclient.view' Key=MK %}'>
+      {% endif %}
 	  {% if title == 'drafts' or title == 'sent' %}
 	    {{ Msg.To|nickname }}
 	  {% else %}
@@ -45,13 +49,22 @@
 	  {% endif %}
 	</a>
       </div>
-      <div class='col-md-5 col-xs-4'>
-	<a href='{% url 'emailclient.view' Key=MK %}'>{{ Msg.subject|truncatewords:10 }}</a>
-      </div>
-      <div class='col-md-2 col-xs-3 maybe-long'>
-	<a href='{% url 'emailclient.view' Key=MK %}'>{{ Msg|format_date }}</a>
-      </div>
-	  </div>
+      {% if title == 'drafts' %}
+	<div class='col-md-5 col-xs-4'>
+	  <a href='{% url 'emailclient.edit' Key=MK %}'>{{ Msg.subject|truncatewords:10 }}</a>
+	</div>
+	<div class='col-md-2 col-xs-3 maybe-long'>
+	  <a href='{% url 'emailclient.edit' Key=MK %}'>{{ Msg|format_date }}</a>
+	</div>
+      {% else %}
+	<div class='col-md-5 col-xs-4'>
+	  <a href='{% url 'emailclient.view' Key=MK %}'>{{ Msg.subject|truncatewords:10 }}</a>
+	</div>
+	<div class='col-md-2 col-xs-3 maybe-long'>
+	  <a href='{% url 'emailclient.view' Key=MK %}'>{{ Msg|format_date }}</a>
+	</div>
+      {% endif %}
+	</div>
     {% endwith %}
     {% endfor %}
     </form>

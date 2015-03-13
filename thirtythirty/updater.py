@@ -146,7 +146,8 @@ def Available():
     
 
 def Validate(Data_File=None,
-             Checksum_File=None):
+             Checksum_File=None,
+             Debug=True):
     """
     Verify that Checksum is the same, and that signature comes from a system_use key
 
@@ -175,7 +176,8 @@ def Validate(Data_File=None,
                                                    )
     if A.count() != 1:
         raise TTE.SignatureException("Package signed by unknown FP: %s" % Signer_FP)
-    logger.debug('Package signed by %s' % A[0].email)
+    if Debug:
+        logger.debug('Package signed by %s' % A[0].email)
     Clearsign_Sum = re.search(
         '(?m)^(?P<Checksum>[a-f0-9]+)\W+LookingGlass_',
         Clearsign)
@@ -191,7 +193,8 @@ def Validate(Data_File=None,
         Checksum_Algo = 'sha512sum'
     else:
         raise TTE.ChecksumException("I don't know what manner of checksum this is: %s" % Clearsign_Sum)
-    logger.debug('Detected %s checksum' % Checksum_Algo)
+    if Debug:
+        logger.debug('Detected %s checksum' % Checksum_Algo)
 
     # do local checksum
     SO, SE = TTU.popen_wrapper([Checksum_Algo,

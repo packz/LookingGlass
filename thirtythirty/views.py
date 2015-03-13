@@ -185,7 +185,7 @@ def settings(request, advanced=False):
     Update_Version = '[No update available]'
     Update_Warn = ''
     Availed = Available()
-    if Availed and Validate(Availed['filename']):
+    if Availed and Validate(Availed['filename'], Debug=False):
         Update_Version = 'Version %s now available!' % Availed['version']
         Update_Warn = 'Back up your settings before update!'
     Preferences = set_up_single_user()
@@ -221,27 +221,33 @@ def settings(request, advanced=False):
     
     Settings = [
         {'title':'Passphrase reset',
-         'id':'cPassphrase',
+         'id':'cPassphraseR',
          'advanced':True,
          'desc':"You can change one, or both.",
          'controls':[
              {'desc':'Old drive passphrase',
               'type':'password', 'id':'prev-dpassphrase',
+              'width':8,
               },
              {'desc':'New drive passphrase',
               'type':'password', 'id':'new-dpassphrase-1',
+              'width':8,
               },
              {'desc':'Confirm drive passphrase',
               'type':'password', 'id':'new-dpassphrase-2',
+              'width':8,
               },
              {'desc':'Old email passphrase',
               'type':'password', 'id':'prev-epassphrase',
+              'width':8,
               },
              {'desc':'New email passphrase',
               'type':'password', 'id':'new-epassphrase-1',
+              'width':8,
               },
              {'desc':'Confirm email passphrase',
               'type':'password', 'id':'new-epassphrase-2',
+              'width':8,
               },
              ]},
 
@@ -275,19 +281,8 @@ def settings(request, advanced=False):
               },
              ]},
 
-        {'title':'Disaster recovery',
-         'id':'cRecovery',
-         'advanced':True,
-         'controls':[
-             {'desc':'Recover encrypted databases',
-              'type':'button', 'id':'database-recover',
-              'help':'If a power outage or some other badness occurred, you may need this',
-              'warn':"You may lose messages and need to resynchronize with your contacts - don't click this idly",
-              },
-             ]},
-
         {'title':'Dead man switch',
-         'id':'cDeadMan',
+         'id':'cDead-man',
          'advanced':True,
          'controls':[
              {'desc':'Dead man switch',
@@ -340,12 +335,9 @@ def settings(request, advanced=False):
               },
              ]},
 
-        {'title':'System administration',
-         'id':'cSysadmin',
+        {'title':'Updates',
+         'id':'cUpdates',
          'controls':[
-             {'desc':'Report bug',
-              'type':'button', 'href':reverse('bug_report'),
-             },
              {'desc':'Update',
               'class':'bg-info',
               'type':'button', 'id':'update',
@@ -353,6 +345,18 @@ def settings(request, advanced=False):
               'help':Update_Version,
               'warn':Update_Warn,
               },
+             {'desc':'Manual upgrade',
+              'type':'button', 'id':'manual-update',
+              'disabled':True,
+              },
+             {'desc':'Upgrade file',
+              'type':'file', 'id':'upgradefile',
+              },
+             ]},
+
+        {'title':'Backup / Restore',
+         'id':'cBackups',
+         'controls':[
              {'desc':'Backup',
               'type':'button', 'id':'sysbackup',
               'href':reverse('settings.backup'),
@@ -364,10 +368,23 @@ def settings(request, advanced=False):
              {'desc':'Restore from file',
               'type':'file', 'id':'restorefile',
               },
+             {'desc':'Recover database',
+              'type':'button', 'id':'database-recover',
+              'help':'If a power outage or some other badness occurred, you may need this',
+              'warn':"You may lose messages and need to resynchronize with your contacts - don't click this idly",
+              },
+             ]},
+
+        {'title':'System administration',
+         'id':'cSysadmin',
+         'controls':[
+             {'desc':'Report bug',
+              'type':'button', 'href':reverse('bug_report'),
+             },
              {'desc':'Respond to status queries',
               'type':'checkbox', 'id':'allow-status',
               'help':'Respond to keyserver poll for system status',
-              'checked':True, 'disabled':True,
+              'checked':False, 'disabled':True,
              },
              {'desc':'Local wizard login',
               'type':'button', 'href':'https://%s:4200' % Vitals['server_addr'],
@@ -385,7 +402,7 @@ def settings(request, advanced=False):
              ]},
 
         {'title':'Passphrase convenience',
-         'id':'cPWcache',
+         'id':'cPassphraseC',
          'advanced':True,
          'controls':[
              {'desc':'USB key token',
@@ -407,7 +424,7 @@ def settings(request, advanced=False):
              ]},
         
         {'title':'Blatantly insecure niceties',
-         'id':'cGape',
+         'id':'xBlatantly',
          'advanced':True,
          'controls':[
              {'desc':'Keep a copy of sent messages',
@@ -474,7 +491,7 @@ def settings(request, advanced=False):
              ]},
 
         {'title':'Mail filters',
-         'id':'cFilter',
+         'id':'cMailFilter',
          'viewport':'mail-filter',
          'view_ro':False,
          'advanced':True,
@@ -496,7 +513,7 @@ def settings(request, advanced=False):
 
         # https://en.wikipedia.org/wiki/Cypherpunk_anonymous_remailer
         {'title':'Anonymous remailing',
-         'id':'cCypherpunkAR',
+         'id':'cAnonymousRemail',
          'advanced':True,
          'controls':[
              {'desc':'Provide remailing services to other users',
@@ -514,7 +531,7 @@ def settings(request, advanced=False):
              ]},
 
         {'title':'WooOOOooOOo folders',
-         'id':'cFolders',
+         'id':'xAdminFolders',
          'advanced':True,
          'controls':[
              {'desc':'Administrator inbox',
@@ -528,7 +545,7 @@ def settings(request, advanced=False):
              ]},
 
         {'title':'Double dog advanced',
-         'id':'cAdvanced',
+         'id':'zAdvanced',
          'controls':[
              {'desc':'Barf forth apocalyptica',
               'type':'link', 'href':reverse('advanced_settings'),
@@ -632,19 +649,50 @@ def restore(request):
     except:
         return HttpResponse('bad JSON',
                             content_type='plain/text')
+    logger.debug('Decrypt OK, JSON OK, here we go...')
+    logger.debug('Flush queue')
+    addressbook.queue.Queue.all().delete()
     for Entry in Backup:
         if not Entry.has_key('type'):
             logger.warning('Dropped: %s' % Entry)
             continue
         if Entry['type'] == 'contact':
-            addressbook.address.Address.objects.add_by_fingerprint(Entry['fingerprint'])
-        # FIXME: bug bd3c4898
-        # elif Entry['type'] == 'hs_prv':
-        #     pass
-        # elif Entry['type'] == 'gpg_prv':
-        #     if len(addressbook.gpg.Import(Entry['key']).fingerprints) == 1:
-        #         addressbook.address.Address.objects.rebuild_addressbook()
-        #         logger.debug('Imported private key')            
+            if not Entry['is_me']:
+                A = addressbook.address.Address.objects.add_by_fingerprint(Entry['fingerprint'])
+                for X in ['covername', 'nickname']:
+                    if Entry[X]:
+                        setattr(A, X, Entry[X])
+                A.save()
+        elif Entry['type'] == 'hs_prv':
+            logger.debug('Restoring tor private key')
+            PRVK = '/var/cache/LookingGlass/private_key'
+            pkfh = file(PRVK, 'w')
+            pkfh.write(Entry['key'])
+            pkfh.close()
+            subprocess.call(['/usr/bin/sudo', '-u', 'root',
+                             '/bin/cp',
+                             PRVK,
+                             '/var/lib/tor/hidden_service/private_key'])
+            os.unlink(PRVK)
+            subprocess.call(['/usr/bin/sudo', '-u', 'root',
+                             '/etc/init.d/tor',
+                             'reload'])
+        elif Entry['type'] == 'gpg_prv':
+            logger.debug('Delete present GPG private key')
+            Old_Boy = addressbook.utils.my_address()
+            addressbook.GPG.delete_keys(Old_Boy.fingerprint, True) # secret
+            addressbook.GPG.delete_keys(Old_Boy.fingerprint) # public
+            Old_Boy.delete()
+            logger.debug('Restore GPG private key')
+            PRVK = '/var/cache/LookingGlass/secret.gpg'
+            pkfh = file(PRVK, 'w')
+            pkfh.write(Entry['key'])
+            pkfh.close()
+            logger.debug(subprocess.check_output(['/usr/bin/gpg',
+                                                  '--import',
+                                                  PRVK]))
+            os.unlink(PRVK)
+            addressbook.address.Address.objects.rebuild_addressbook(True)
     return HttpResponse('yes',
                         content_type='plain/text')
 

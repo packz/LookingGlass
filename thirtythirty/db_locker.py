@@ -33,6 +33,9 @@ def alert_user_auto_recovery():
 
 def alert_user_serious_badness():
     Me = addressbook.utils.my_address()
+    for A in addressbook.address.Address.objects.filter(is_me=False, system_use=False):
+        A.user_state = addressbook.address.Address.KNOWN
+        A.save()
     emailclient.utils.submit_to_smtpd(
         Payload="""
         I lost my databases!

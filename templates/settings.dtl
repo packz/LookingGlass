@@ -125,7 +125,7 @@ a[disabled] {
   <div class='panel-group container' id='settingAccordion' role='tablist' aria-multiselectable='true'>
     <div class='panel panel-default'>
 
-      {% for setting in setting_list %}
+      {% for setting in setting_list|dictsort:'id' %}
       <div class='panel-heading {{ setting.id }}-class {% if setting.advanced == True %}collapse advanced{% endif %}' role='tab'>
 	<h4 class='panel-title'>
 	  <a data-toggle='collapse' data-parent='#settingAccordion' href='#{{ setting.id }}' aria-expanded='true' aria-controls='{{ setting.id }}'>{{ setting.title }}</a>
@@ -142,6 +142,8 @@ a[disabled] {
 	  {% endif %}
 	  <div class='form-group'>
 	    {% for control in setting.controls %}
+	      <div class='row'>
+		<div class='col-md-{% if control.width %}{{ control.width }}{% else %}3{% endif %}'>
 		<div class='input-group'>
 		  {% if control.type == 'password' %}
 		    <span class='input-group-addon'>{{ control.desc }}</span>
@@ -164,7 +166,7 @@ a[disabled] {
 		    {% if control.href %}
 		      <a class='btn btn-lg btn-default {{ control.class }}' role='button' id='{{ control.id }}' {% if control.disabled %} disabled{% endif %} href='{{ control.href }}'>{{ control.desc }}</a>  
 		      {% else %}
-		      <button type='button' class='btn btn-lg {{ control.class }}' id='{{ control.id }}' {% if control.disabled %} disabled{% endif %}>{{ control.desc }}</button>
+		      <button type='button' class='btn btn-default btn-lg {{ control.class }}' id='{{ control.id }}' {% if control.disabled %} disabled{% endif %}>{{ control.desc }}</button>
 		      {% endif %}
 		    </div>
 		  {% elif control.type == 'buttonbar' %}
@@ -203,13 +205,17 @@ a[disabled] {
 		      </div>
 		    </div>
 		  {% endif %}
+		</div>
+		</div>
+		<div class='col-md-3'>
 		  {% if control.help %}
-		    <span class='help-block' id='{{ control.id }}-help'>{{ control.help }}</span>
+		    <p><span class='help-block' id='{{ control.id }}-help'>{{ control.help }}</span></p>
 		  {% endif %}
 		  {% if control.warn %}
-		    <h4><span class='warn-block text-danger bg-danger' id='{{ control.id }}-warn'>{{ control.warn }}</span></h4>
+		    <p><h4><span class='warn-block text-danger bg-danger' id='{{ control.id }}-warn'>{{ control.warn }}</span></h4></p>
 		  {% endif %}
-		</div>
+		  </div>
+	      </div>
 	    {% endfor %}
 	  </div>
 	  {% if 'entropy_meter' in setting %}
@@ -344,10 +350,7 @@ $('#update').click(function(){
       if (!e.ok) {
         alert('Something terrible happened.');
       } else {
-        $('#update').removeClass('btn-success');
-        $('#update').attr('disabled', true);
-        $('#update-help').text('');
-        $('#update-warn').text('');
+        location.reload();
       };
     });
   };
@@ -356,6 +359,8 @@ $('#update').click(function(){
 $('#restorefile').change(function(e) {
   files = e.target.files;
   $('#sysrestore').removeAttr('disabled');
+  $('#sysrestore').removeClass('disabled');
+  $('#sysrestore').addClass('btn-success');
 });
 
 $('#sysrestore').click(function() {

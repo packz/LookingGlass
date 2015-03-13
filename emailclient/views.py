@@ -184,16 +184,18 @@ def save(request):
 
     Key = request.POST.get('MK', None)
     if Key:
+        # doesn't prove anything - message might be Axolotl...
         Folder = emailclient.filedb.fast_folder_find(Key)
-        Msg = Folder.get(Key)
-        # cast to str() is in no way insane
-        Body = str(addressbook.gpg.decrypt(str(Msg.get_payload()),
-                                           passphrase=PP))
-        if ((Body == request.POST.get('body', None)) or
-            (Body == abuse_unicode)):
-            return HttpResponse(json.dumps({'ok':True,
-                                            'extra':Key,
-                                            'info':'Already saved tho'}))
+        if Folder:
+            Msg = Folder.get(Key)
+            # cast to str() is in no way insane
+            Body = str(addressbook.gpg.decrypt(str(Msg.get_payload()),
+                                               passphrase=PP))
+            if ((Body == request.POST.get('body', None)) or
+                (Body == abuse_unicode)):
+                return HttpResponse(json.dumps({'ok':True,
+                                                'extra':Key,
+                                                'info':'Already saved tho'}))
 
     if ((request.POST.get('body', None) == '') or (abuse_unicode == '')):
         return HttpResponse(json.dumps({'ok':False,

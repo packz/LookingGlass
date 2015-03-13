@@ -165,9 +165,9 @@ class AddressMgr(models.Manager):
         return ret
     
     
-    def rebuild_addressbook(self):
+    def rebuild_addressbook(self, Private=False):
         ret = []
-        for Key in addressbook.GPG.list_keys():
+        for Key in addressbook.GPG.list_keys(Private):
             A, created = Address.objects.get_or_create(
                 fingerprint = Key['fingerprint'].upper()
                 )
@@ -175,7 +175,7 @@ class AddressMgr(models.Manager):
                 logger.debug('I already know %s' % A.email)
                 continue
             ret.append(A)
-            if Key['trust'] == 'u':
+            if Private:
                 A.is_me = True
                 A.user_state = Address.AUTHED
             else:

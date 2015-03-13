@@ -200,7 +200,7 @@ class SMP(models.Model):
             R.save()
         A.save()
         addressbook.queue.Queue.objects.filter(
-            address__email=A.email,
+            address=A,
             direction=addressbook.queue.Queue.SMP_Replay,
             ).delete()
         self.delete()
