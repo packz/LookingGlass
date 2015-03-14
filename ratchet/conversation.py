@@ -9,6 +9,7 @@ from passlib.utils.pbkdf2 import pbkdf2
 from struct import unpack_from
 from types import BufferType
 
+import addressbook
 import thirtythirty.db_locker
 import ratchet
 
@@ -56,6 +57,11 @@ class ConversationMgr(thirtythirty.db_locker.LockManager,
         Convo.begin_at_the_beginening()
         Convo.save()
         return Convo
+
+    def Address(self):
+        return addressbook.address.Address.objects.filter(
+            fingerprint=self.UniqueKey
+            )
 
     def with_pending_handshakes(self):
         ret = []

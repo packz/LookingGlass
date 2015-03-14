@@ -334,9 +334,19 @@ We'll try again in a bit and see if it magically starts working.
                         )
                     logger.debug('Axo SYN SMTP queued to: %s' % Message.address.email)
                 except ratchet.exception.Missing_Handshake:
-                    logger.error('Axo already shook - may need to delete/rebuild this contact')
+                    logger.warning('Other side has signalled for a restart')
+                    Message.address.user_state = addressbook.address.Address.KNOWN
+                    Message.address.save()
+                    ratchet.conversation.Conversation.objects.filter(
+                        UniqueKey=Message.address.fingerprint
+                        ).delete()
+                    smp.models.SMP.objects.filter(
+                        UniqueKey=Message.address.fingerprint
+                        ).delete()
+                    Message.direction = Queue.RX  # whip that shit right round
+                    Message.save()
+                    return                     # FIXME: debug this reset code
             else:
-                # FIXME: anonymous handshake button on dossier advanced
                 logger.warning("This doesn't look like a hidden service domain.  I don't talk to those people.  Time for the advanced menu.")
             Message.delete()
         elif Message.direction == Queue.RX:
@@ -435,12 +445,10 @@ We'll try again in a bit and see if it magically starts working.
             try:
                 Got = Convo.decrypt(Message.body)
             except:
-                logger.error("Well THAT was unintelligible.")
-                if Message.address.user_state == addressbook.address.Address.VETTING:
-                    logger.debug("Let's let the other side know something went sideways...")
-                    self.__queue_local(
-                        destination=Message.address.email,
-                        payload=Convo.encrypt('Axolotl decrypt error'))
+                logger.warning("Let's let the other side know something went sideways...")
+                self.__queue_local(
+                    destination=Message.address.email,
+                    payload=Convo.encrypt('Axolotl decrypt error'))
                 MySMP.remove(fail=True)
                 logger.debug('Returned %s to %s' % (Message.address.email,
                                                     Message.address.get_user_state_display()))
@@ -477,7 +485,7 @@ We'll try again in a bit and see if it magically starts working.
                 logger.error('I got the wrong step number: %s' % e)
                 # FIXME: need more proof that this is or isn't necessary
                 # MySMP.remove(fail=True)
-                return
+                # return
             if type(Send) is StringType:
                 # we could have matching secrets, be Alice, and still need to notify Bob all is well
                 Queue.objects.create(

@@ -271,7 +271,7 @@ function passphrase_submitted(){handshakery()};
  {% endif %}
 $('.smp').keyup(function() {
   var disallowed = /[^ _\,\.\+\-\=\/\\\'\"\?\!\@\#\$\%\^\&\*\(\)a-z0-9]/gi;
-  $('#smp_answer').val($('#smp_answer').val().replace(disallowed, ''));
+  $('#smp_secret').val($('#smp_secret').val().replace(disallowed, ''));
   $('#smp_question').val($('#smp_question').val().replace(disallowed, ''));
   if (($('#smp_question').val() != '') && ($('#smp_secret').val() != '')) {
     $('#handshaker').fadeIn();

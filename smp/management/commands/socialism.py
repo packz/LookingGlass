@@ -183,7 +183,7 @@ class Command(BaseCommand):
                 print 'Already initialized - awaiting response'
             elif len(S) == 1 and settings['secret']:
                 S = S[0]
-                print 'The secret question you have recieved: `%s`' % S.Question
+                print 'The secret question you have received: `%s`' % S.Question
                 print 'Enter secret, plz?',
                 Secret = raw_input()
                 S.create_secret(secret=Secret)

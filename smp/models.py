@@ -193,6 +193,7 @@ class SMP(models.Model):
             A.smp_failures = models.F('smp_failures') + 1
         else:
             A.user_state = addressbook.address.Address.AUTHED
+            A.smp_failures = 0
             R = ratchet.conversation.Conversation.objects.get(
                 UniqueKey = A.fingerprint
                 )

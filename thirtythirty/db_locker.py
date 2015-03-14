@@ -1,5 +1,5 @@
 
-from os import rename, chmod
+from os import rename, chmod, stat, unlink
 from os.path import exists
 from stat import S_IRUSR, S_IWUSR
 from shutil import copyfile
@@ -82,7 +82,7 @@ class LockManager(object):
             raise(thirtythirty.exception.Target_Exists('Already locked?'))
         if not addressbook.gpg.verify_symmetric(passphrase=passphrase, location=location):
             raise(thirtythirty.exception.Bad_Passphrase('I refuse to use some crazy password'))
-        if not exists(self.__decrypt):
+        if ((not exists(self.__decrypt)) or (stat(self.__decrypt).st_size == 0)):
             raise(thirtythirty.exception.Missing_Database('Holy crap, no database either?  HOZED.'))
         conn = sqlite3.connect(self.__decrypt)
         dump = cStringIO.StringIO()
@@ -109,10 +109,15 @@ class LockManager(object):
         location only used for testing, to pass thru to verify_symmetric
         """
         if exists(self.__decrypt):
-            raise(thirtythirty.exception.Target_Exists('Already unlocked?'))
+            Size = stat(self.__decrypt).st_size
+            if Size > 0:
+                raise(thirtythirty.exception.Target_Exists('Already unlocked?'))
+            elif Size == 0:
+                unlink(self.__decrypt)
+                logger.warning('I just cleaned up a zero size database')
         if not addressbook.gpg.verify_symmetric(passphrase=passphrase, location=location):
             raise(thirtythirty.exception.Bad_Passphrase('I refuse to use some crazy password'))
-        if not exists(self.__encrypt):
+        if ((not exists(self.__encrypt)) or (stat(self.__encrypt).st_size == 0)):
             if not loop_protector:
                 # engage autorecovery
                 logger.critical('Whoops!  Database got deleted out from under us.')
