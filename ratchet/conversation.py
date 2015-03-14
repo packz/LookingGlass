@@ -93,9 +93,9 @@ class Conversation(models.Model):
 
     def Address(self):
         return addressbook.address.Address.objects.filter(
-            fingerprint=self.UniqueKey
+            fingerprint = self.UniqueKey
             )
-
+    
     def __unicode__(self):
         ret = u'[%s]' % (
         ratchet.utils.human_readable(self.UniqueKey)

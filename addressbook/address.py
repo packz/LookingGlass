@@ -43,6 +43,18 @@ class AddressMgr(models.Manager):
         return ret
 
 
+    def Import(self, newSelf={}):
+        if not newSelf.has_key('fingerprint'):
+            logger.debug('no fingerprint')
+            return None
+        A = self.add_by_fingerprint(newSelf['fingerprint'])
+        for X in ['covername', 'nickname']:
+            if Entry[X]:
+                setattr(A, X, Entry[X])
+        A.save()
+        return A
+
+
     def import_key(self, keydata=None):
         if not keydata: return None
         FP = addressbook.GPG.import_keys(keydata)
@@ -313,6 +325,22 @@ class Address(models.Model):
         if self.is_me: ret += u' (this is you)'
         return ret
 
+
+    def Conversation(self):
+        return ratchet.conversation.Conversation.objects.filter(
+            UniqueKey = self.fingerprint
+            )
+
+
+    def Export(self):
+        return {'covername':self.covername,
+                'email':self.email,
+                'fingerprint':self.fingerprint,
+                'nickname':self.nickname,
+                'is_me':self.is_me,
+                'type':'Address',
+#                'conversation':self.Conversation().Export(),
+                }
 
     def magic(self, name='magic'):
         FL = self.covername.upper().split(' ')
