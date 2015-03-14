@@ -217,6 +217,10 @@ def send(request):
         return HttpResponse(json.dumps({'ok':False,
                                         'extra':'Bad passphrase'}))
 
+    if request.POST.get('MK', None):
+        # delete draft, if it exists
+        emailclient.filedb.discard(request.POST.get('MK'))
+
     To = request.POST.get('to', None)
     Addr = addressbook.address.Address.objects.filter(
         Q(fingerprint__iexact=request.POST.get('fingerprint')) |\
@@ -234,13 +238,14 @@ def send(request):
         # GPG
         Preferences = set_up_single_user()
         if Preferences.tx_symmetric_copy:
-            emailclient.filedb.save_local(to=Addr.email,
-                              subject=request.POST.get('subject'),
-                              body=request.POST.get('body'),
-                              passphrase=PP,
-                              Folder='sent',
-                              )
-
+            emailclient.filedb.save_local(
+                to=Addr.email,
+                subject=request.POST.get('subject'),
+                body=request.POST.get('body'),
+                passphrase=PP,
+                Folder='sent',
+                )
+            
         emailclient.utils.submit_to_smtpd(
             Payload=Addr.asymmetric(
                 msg=request.POST.get('body'),
@@ -260,12 +265,13 @@ def send(request):
         # Axolotl
         Preferences = set_up_single_user()
         if Preferences.tx_symmetric_copy:
-            emailclient.filedb.save_local(to=Addr.email,
-                              subject=request.POST.get('subject'),
-                              body=request.POST.get('body'),
-                              passphrase=PP,
-                              Folder='sent',
-                              )
+            emailclient.filedb.save_local(
+                to=Addr.email,
+                subject=request.POST.get('subject'),
+                body=request.POST.get('body'),
+                passphrase=PP,
+                Folder='sent',
+                )
 
         ratchet.conversation.Conversation.objects.init_for('ratchet')
         try:

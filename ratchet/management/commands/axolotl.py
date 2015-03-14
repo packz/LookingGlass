@@ -71,11 +71,6 @@ class Command(BaseCommand):
                     dest='decrypt',
                     default=False,
                     help='Decrypt message - CAUTION: advances ratchet (only works once)'),
-        make_option('-t', '--optimistic',
-                    action='store_true',
-                    dest='optimism',
-                    default=False,
-                    help='Optimistic decrypt - TRY ALL THE THINGS'),
         make_option('-p', '--passphrase',
                     action='store',
                     default=False,
@@ -158,12 +153,6 @@ class Command(BaseCommand):
                         except ratchet.conversation.Conversation.DoesNotExist: pass
             exit()
 
-        if ((settings['optimism']) and (len(args) == 0) and (settings['decrypt'])):
-            args = [ x.fingerprint for x in addressbook.address.Address.objects.filter(
-                is_me = False,
-                system_use = False).all() ]
-            logger.debug('ALL the conversations: %s' % args)
-
         if settings['import']:
             logger.debug('Attempting to import handshake')
             try:
@@ -191,7 +180,7 @@ class Command(BaseCommand):
                 Addr.user_state = addressbook.address.Address.NOT_VETTED
                 Addr.save()
         
-        if (settings['encrypt'] or settings['decrypt'] or
+        if (settings['encrypt'] or
             settings['export'] or
             settings['verify']):
             Found_One = False
@@ -241,24 +230,20 @@ class Command(BaseCommand):
                                                           Subject=settings['subject'])
                         logger.debug('Encrypted - queued to %s' % Addr.email)
                         print 'Enqueued and sending.'
-                    elif settings['decrypt']:
-                        try:
-                            Convo = ratchet.conversation.Conversation.objects.get(UniqueKey=Addr.fingerprint)
-                        except:
-                            continue
-                        logger.debug('Conversation loaded')
-                        Payload = stdin.read()
-                        try:
-                            print Convo.decrypt(Payload)
-                        except ratchet.exception.Vanished_MessageKey:
-                            logger.critical('Message already decrypted: keys are gone.')
-                        except ratchet.exception.Undecipherable:
-                            logger.critical("Message undecipherable: didn't make a lick of sense")
-                    else:
-                        Found_One = False
+                        
+        if settings['decrypt']:
+            Payload = stdin.read()
+            for C in ratchet.conversation.Conversation.objects.all():
+                A = C.Address()
+                logger.debug('Trying %s' % A)
+                try:
+                    print C.decrypt(Payload)
+                    break
+                except ratchet.exception.Vanished_MessageKey:
+                    logger.critical('Message already decrypted: keys are gone.')
+                except ratchet.exception.Undecipherable:
+                    logger.critical("Message undecipherable: didn't make a lick of sense")
 
-            if not Found_One:
-                logger.error("Couldn't find a user.  :(")
-            else:
-                QR = addressbook.queue.QRunner()
-                QR.Run(passphrase=settings['passphrase'])
+        else:
+            QR = addressbook.queue.QRunner()
+            QR.Run(passphrase=settings['passphrase'])

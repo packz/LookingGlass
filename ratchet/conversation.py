@@ -58,11 +58,6 @@ class ConversationMgr(thirtythirty.db_locker.LockManager,
         Convo.save()
         return Convo
 
-    def Address(self):
-        return addressbook.address.Address.objects.filter(
-            fingerprint=self.UniqueKey
-            )
-
     def with_pending_handshakes(self):
         ret = []
         for X in Conversation.objects.all():
@@ -95,6 +90,11 @@ class Conversation(models.Model):
     IAmAlice = models.BooleanField(default=True)
 
     objects = ConversationMgr()
+
+    def Address(self):
+        return addressbook.address.Address.objects.filter(
+            fingerprint=self.UniqueKey
+            )
 
     def __unicode__(self):
         ret = u'[%s]' % (
