@@ -43,7 +43,7 @@ class AddressMgr(models.Manager):
         return ret
 
 
-    def Import(self, newSelf={}):
+    def Restore(self, newSelf={}):
         if not newSelf.has_key('fingerprint'):
             logger.debug('no fingerprint')
             return None
@@ -332,7 +332,7 @@ class Address(models.Model):
             )
 
 
-    def Export(self):
+    def Backup(self):
         return {'covername':self.covername,
                 'email':self.email,
                 'fingerprint':self.fingerprint,

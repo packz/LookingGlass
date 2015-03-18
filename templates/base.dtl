@@ -36,7 +36,7 @@ function async_badge_update() {
   $.getJSON('{% url 'emailclient.new_mail' %}', function(d) {
     if (d['inbox'] != '') {
       $('#page-title').text("{{ title }} - " + d['inbox']);
-      {% if title == 'inbox' %}
+      {% if title == 'inbox' and not Msg %}
       if (location.hash != '#new_mail') {
 	location.hash = 'new_mail';
 	location.reload();
