@@ -52,12 +52,16 @@
     <input type='hidden' name='axo-failsafe' id='axo-failsafe' value='false'>
     {% if title == 'drafts' or title == 'sent' %}
       <input type='hidden' name='to' value='{{ Msg.to }}'>
-      <input type='hidden' name='subject' value='{{ Msg.subject }}'>
       <h5><a id='composeSubmit'>{{ Msg.to }}</a></h5>
+      <input type='hidden' name='subject' value='{{ Msg.subject }}'>
     {% else %}
       <input type='hidden' name='to' value='{{ Msg.from }}'>
-      <input type='hidden' name='subject' value='Re: {{ Msg.subject }}'>
       <h5><a id='composeSubmit'>{{ Msg.from|nickname }}</a></h5>
+      {% if 'Re:' not in Msg.subject %}
+	<input type='hidden' name='subject' value='Re: {{ Msg.subject }}'>
+      {% else %}
+	<input type='hidden' name='subject' value='{{ Msg.subject }}'>
+      {% endif %}
     {% endif %}
   </form>
 </div>

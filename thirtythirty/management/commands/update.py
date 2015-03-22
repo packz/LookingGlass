@@ -78,7 +78,7 @@ class Command(BaseCommand):
             logger.debug('Already up to date')
             exit(0)
 
-        if not settings['force']:
+        if not settings['force'] and os.path.exists(TTS.UPSTREAM['update_lock']):
             # we probably have something genuinely email-worthy to talk about
             os.unlink(TTS.UPSTREAM['update_lock'])
 
