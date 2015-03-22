@@ -7,8 +7,8 @@ urlpatterns = patterns('',
     url(r'^\.(?P<name>.*)$', views.folder, name='emailclient.folder'),
                        
     url(r'^compose$', views.compose, name='emailclient.compose'),
-    url(r'^compose.(?P<FP>[-A-Fa-f0-9]+)$', views.compose, name='emailclient.compose'),
-    url(r'^compose.(?P<Name>[A-Za-z]+\ [A-Za-z]+)$', views.compose, name='emailclient.compose'),
+    url(r'^compose/(?P<FP>[-A-Fa-f0-9]+)$', views.compose, name='emailclient.compose'),
+    url(r'^compose/(?P<Name>[A-Za-z]+\ [A-Za-z]+)$', views.compose, name='emailclient.compose'),
 
     url(r'^edit/(?P<Key>[^\/]+)((?P<advanced>/advanced))?$', views.edit, name='emailclient.edit'),
 

@@ -2,8 +2,6 @@
 {% load cycle from future %}
 
 <div class='container-fluid hey-fathead' id='contactlist'>
-  <div class='row'>
-    <div class='col-md-11 col-md-offset-1 col-sm-12 col-xs-12'>
     {% for K in friends|dictsort:'magic' %}
       <div class='container-fluid'> 
 	<div class='row flip-flap {% cycle '' 'bg-info' %}'>
@@ -21,7 +19,8 @@
 	    <p class='text-muted small maybe-long'>{{ K.fingerprint }}</p>
 	    {% endif %}
 	  </div>
-	  <div class='col-md-4' title='{{ state_names|get_item:K.user_state }}'>
+
+	  <div class='col-md-4 col-xs-3 col-sm-3' title='{{ state_names|get_item:K.user_state }}'>
 	      <div class='text-muted text-center small maybe-long'>
 		{% if K.user_state == 100 or K.user_state == 0 %}<strong>{% endif %}
 		  {{ state_names|get_item:K.user_state }}
@@ -48,7 +47,8 @@
 		</div>
 	      </div>
 	  </div>
-	  <div class='col-md-1'>
+
+	  <div class='col-md-1 pull-right'>
 	    <button type='button' 
 		    data-ref='{{ K.fingerprint }}'
 		    class='btn btn-info contact-props'>
@@ -56,9 +56,10 @@
 	      <span id='{{ K.fingerprint }}-cog' title='Properties' class='glyphicon glyphicon-cog'></span>
 	    </button>
 	  </div>
+
 	</div>
       </div> 
+  <hr>
     {% endfor %}
-    </div>
   </div>
 </div>

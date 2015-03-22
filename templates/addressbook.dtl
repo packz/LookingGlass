@@ -28,6 +28,9 @@
   right: 10px;
   top: 10px;
 }
+.bottom-row {
+  margin-bottom: 15px;
+}
 {% include 'typeahead.css' %}
 {% endblock %}
 
@@ -46,6 +49,9 @@
       {% if headend_ok %}
 	<div>
 	  {% if advanced %}
+	    <span class='time-warp-again'>
+	      <button id='import-msg' type='button' class='btn btn-default btn-info'>Import message</button>
+	    </span>
 	    <span class='time-warp-again'>
               <button id='upload' type='button' class='btn btn-default'>Upload key</button>
 	    </span>
@@ -200,8 +206,13 @@ $(document).ready(function(){
 });
 
 {% if advanced %}
+$('#import-msg').click(function(){
+  $('#pastebox-title').text('Paste message here');
+  $('#pastebox-modal').modal('show');
+});
 $('#upload').click(function(){
-   $('#pastebox-modal').modal('show');
+  $('#pastebox-title').text('Paste public key here');
+  $('#pastebox-modal').modal('show');
 });
 $('#submit-import').click(function(){
   $('#pastebox-modal').modal('hide');

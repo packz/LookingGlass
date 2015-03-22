@@ -24,6 +24,7 @@ textarea {
 
 {% block panel_body %}
 {% include 'passphrase_modal.dtl' %}
+{% include 'export_modal.dtl' %}
 
   <form method='POST' id='ffsletsdoit' action='{% url 'emailclient.send' %}'>
     <input type='hidden' id='MK' name='MK' value='{{ magic.MK }}'>
@@ -55,6 +56,13 @@ textarea {
 		  id='trash' title='Discard draft' 
 		  class='btn btn-info'><span class='glyphicon glyphicon-trash'></span></button>
 	</div>
+	{% if advanced %}
+	<div class='col-md-1'>
+	  <button type='button' 
+		  id='export' title='Export'
+		  class='btn btn-info'><span class='glyphicon glyphicon-open-file'></span> Export</button>
+	</div>
+	{% endif %}
 	<div class='col-md-2 pull-right'>
 	  <button type='button' 
 		  id='send' title='Send' 
@@ -147,6 +155,8 @@ function save_draft() {
    };
    $('#MK').val(data.extra);
    $('#save-state').text('Saved');
+   SAVED = true;
+   COUNT = 0;
   } else {
    $('#save-state').text('Uh oh');
   };
@@ -169,6 +179,13 @@ $('#trash').click(function() {
   },
   'json');
 });
+
+{% if advanced %}
+$('#export').click(function(){
+  $('#export-msg').text('ENCRYPTED MESSAGE HERE');
+  $('#export-modal').modal('show');
+});
+{% endif %}
 
 $('#body').bind('input', function() {
   TYPING = true;

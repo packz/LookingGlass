@@ -154,6 +154,7 @@ def edit(request, Key=None, advanced=False):
         'title':'Composition',
         'nav':'Email',
         'bg_image':'compose.jpg',
+        'advanced':advanced,
         'vitals':thirtythirty.utils.Vitals(request),
         'folder_list':emailclient.filedb.list_folders(sanitize=True),
         'friends':addressbook.address.Address.objects.filter(is_me=False, system_use=False),
@@ -395,14 +396,15 @@ def receive(request, Key=None):
             emailclient.filedb.discard(Key)
 
             if Preferences.rx_symmetric_copy:
-                M = emailclient.filedb.save_local(to=Msg['to'],
-                                      ffrom=Msg['from'],
-                                      date=Msg['date'],
-                                      subject='[SYMMETRIC] %s' % Msg['subject'],
-                                      body=Payload,
-                                      passphrase=Passphrase,
-                                      Folder='', # inbox
-                                      )
+                M = emailclient.filedb.save_local(
+                    to=Msg['to'],
+                    ffrom=Msg['from'],
+                    date=Msg['date'],
+                    subject='[SYMMETRIC] %s' % Msg['subject'],
+                    body=Payload,
+                    passphrase=Passphrase,
+                    Folder='', # inbox
+                    )
                 logger.debug('Made a symmetric copy: %s' % (M['extra']))
                                   
         

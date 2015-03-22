@@ -18,12 +18,19 @@
 	      <span class='glyphicon glyphicon-folder-close'></span> Folder: {{ title }} <span class='caret'></span>
 	    </a>
             <ul class='dropdown-menu' role='menu'>
-              {% for F in folder_list %}
-		<li>
-		  <a href='{% url 'emailclient.folder' F.real_name %}'>
-		    {{ F.pretty_name }}<span class='badge pull-right {% if F.real_name == '' %}inbox{% else %}{{ F.real_name }}{% endif %}-newmail'></span>
-		  </a>
+	      <li>
+		<a href='{% url 'emailclient.folder' '.' %}'>
+		  Inbox<span class='badge pull-right inbox-newmail'></span>
+		</a>
 		</li>
+              {% for F in folder_list|dictsort:'pretty_name.lower' %}
+		{% if F.pretty_name != 'inbox' %}
+		  <li>
+		    <a href='{% url 'emailclient.folder' F.real_name %}'>
+		      {{ F.pretty_name }}<span class='badge pull-right {{ F.real_name }}-newmail'></span>
+		    </a>
+		  </li>
+		{% endif %}
               {% endfor %}
 	      <li class='divider'></li>
 	      <li><a href='#' class='new-folder'>New Folder</a></li>
@@ -41,12 +48,19 @@
 	      <span class='glyphicon glyphicon-folder-open'></span>
 	    </a>
 	    <ul class='dropdown-menu' role='menu'>
-              {% for F in folder_list %}
-		<li>
-		  <a href='#' class='move-folder' data-foldername='{{ F.real_name }}'>
-		    {{ F.pretty_name }}
-		  </a>
-		</li>
+	      <li>
+		<a href='#' class='move-folder' data-foldername='.'>
+		  Inbox
+		</a>
+	      </li>
+              {% for F in folder_list|dictsort:'pretty_name.lower' %}
+		{% if F.pretty_name != 'inbox' %}
+		  <li>
+		    <a href='#' class='move-folder' data-foldername='{{ F.real_name }}'>
+		      {{ F.pretty_name }}
+		    </a>
+		  </li>
+		{% endif %}
               {% endfor %}
 	      <li class='divider'></li>
 	      <li><a href='#' class='new-folder'>New Folder</a></li>

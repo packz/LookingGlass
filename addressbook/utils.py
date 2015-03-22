@@ -70,8 +70,11 @@ def my_address():
 
 
 def double_metaphone(name=None):
+    if not name:
+        return []
     DM = fuzzy.DMetaphone()
     DMetaphone = DM(name)
-    while not DMetaphone[-1]:
+    while ((len(DMetaphone) != 0) and
+           (not DMetaphone[-1])):
         DMetaphone.pop()
     return DMetaphone

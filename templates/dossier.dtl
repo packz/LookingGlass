@@ -147,7 +147,7 @@ All below gets commented out if this is the user's own address.  Go deep.
   </div>
 </div>
 <hr>
-<div class='row text-center'>
+<div class='row text-center bottom-row'>
   <div class='col-md-3'>
     {% if K.user_state > 20 %}
     <a class='btn btn-default' title='Compose' href='{% url 'emailclient.compose' FP=K.fingerprint %}'>
@@ -157,7 +157,7 @@ All below gets commented out if this is the user's own address.  Go deep.
     </a>
     {% endif %}
   </div>
-  <div class='col-md-3'>    
+  <div class='col-md-3'>
     {% if K.user_state == 0 or K.user_state == 40 or K.user_state == 60 or K.user_state == 80 %}
       {% if K.expires >= today %}
 	<a class='btn btn-default {% if K.user_state == 60 %}mycollapse{% endif %}' id='handshaker' title='{{ Handshake_Title }}'>
