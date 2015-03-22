@@ -400,7 +400,13 @@ $('#reset-to-defaults').click(function() {
 });
 
 $('#get-mail-log').click(function() {
-  $.getJSON('{% url 'settings.log_dump' %}', function(data) {
+  $.getJSON('{% url 'settings.mail_log' %}', function(data) {
+    $('#log-view').val(data);
+  });
+});
+
+$('#get-mail-queue').click(function() {
+  $.getJSON('{% url 'settings.mail_queue' %}', function(data) {
     $('#log-view').val(data);
   });
 });

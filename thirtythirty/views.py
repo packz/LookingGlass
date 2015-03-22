@@ -221,7 +221,7 @@ def settings(request, advanced=False):
     
     Settings = [
         {'title':'Passphrase reset',
-         'id':'cPassphraseR',
+         'id':'PassphraseR',
          'advanced':True,
          'desc':"You can change one, or both.",
          'controls':[
@@ -252,7 +252,7 @@ def settings(request, advanced=False):
              ]},
 
         {'title':'IP Address settings',
-         'id':'cIP',
+         'id':'IP',
          'advanced':True,
          'controls':[
              {'desc':'Dynamic vs Static IP',
@@ -282,7 +282,7 @@ def settings(request, advanced=False):
              ]},
 
         {'title':'Dead man switch',
-         'id':'cDead-man',
+         'id':'Dead-man',
          'advanced':True,
          'controls':[
              {'desc':'Dead man switch',
@@ -296,7 +296,7 @@ def settings(request, advanced=False):
              ]},
 
         {'title':'Radio interface',
-         'id':'cRadio',
+         'id':'Radio',
          'advanced':True,
          'controls':[
              {'desc':'Enable mesh radio interface',
@@ -305,7 +305,7 @@ def settings(request, advanced=False):
              ]},
 
         {'title':'Process management',
-         'id':'cProcess',
+         'id':'Process',
          'advanced':True,
          'controls':[
              {'desc':'Flush mail queue',
@@ -336,7 +336,7 @@ def settings(request, advanced=False):
              ]},
 
         {'title':'Updates',
-         'id':'cUpdates',
+         'id':'Updates',
          'controls':[
              {'desc':'Update',
               'class':'bg-info',
@@ -355,7 +355,7 @@ def settings(request, advanced=False):
              ]},
 
         {'title':'Backup / Restore',
-         'id':'cBackups',
+         'id':'Backups',
          'controls':[
              {'desc':'Backup',
               'type':'button', 'id':'sysbackup',
@@ -376,7 +376,7 @@ def settings(request, advanced=False):
              ]},
 
         {'title':'System administration',
-         'id':'cSysadmin',
+         'id':'Sysadmin',
          'controls':[
              {'desc':'Report bug',
               'type':'button', 'href':reverse('bug_report'),
@@ -402,7 +402,7 @@ def settings(request, advanced=False):
              ]},
 
         {'title':'Passphrase convenience',
-         'id':'cPassphraseC',
+         'id':'PassphraseC',
          'advanced':True,
          'controls':[
              {'desc':'USB key token',
@@ -442,7 +442,7 @@ def settings(request, advanced=False):
              ]},
 
         {'title':'Darknet mode',
-         'id':'cDarknet',
+         'id':'Darknet',
          'advanced':True,
          'controls':[
              {'desc':'Darknet mode',
@@ -458,7 +458,7 @@ def settings(request, advanced=False):
              ]},
 
         {'title':'Remote access',
-         'id':'cRemote',
+         'id':'Remote',
          'advanced':True,
          'controls':[
              {'desc':'Remote user access',
@@ -474,7 +474,7 @@ def settings(request, advanced=False):
              ]},
 
         {'title':'System logs',
-         'id':'cLogs',
+         'id':'Logs',
          'viewport':'log-view',
          'view_ro':True,
          'advanced':True,
@@ -482,6 +482,9 @@ def settings(request, advanced=False):
              {'desc':'Mail log',
               'type':'link', 'id':'get-mail-log',
              },
+             {'desc':'Mail queue',
+              'type':'link', 'id':'get-mail-queue',
+              },
              {'desc':'Recent login history',
               'type':'link', 'id':'get-user-log',
              },
@@ -491,7 +494,7 @@ def settings(request, advanced=False):
              ]},
 
         {'title':'Mail filters',
-         'id':'cMailFilter',
+         'id':'MailFilter',
          'viewport':'mail-filter',
          'view_ro':False,
          'advanced':True,
@@ -502,7 +505,7 @@ def settings(request, advanced=False):
              ]},
 
         {'title':'Mailing lists',
-         'id':'cMailman',
+         'id':'Mailman',
          'advanced':True,
          'controls':[
              {'desc':'Run encrypted mail list',
@@ -513,7 +516,7 @@ def settings(request, advanced=False):
 
         # https://en.wikipedia.org/wiki/Cypherpunk_anonymous_remailer
         {'title':'Anonymous remailing',
-         'id':'cAnonymousRemail',
+         'id':'AnonymousRemail',
          'advanced':True,
          'controls':[
              {'desc':'Provide remailing services to other users',
@@ -983,12 +986,20 @@ def server_states(request):
 
 
 @session_pwd_wrapper
-def log_dump(request):
+def mail_log(request):
     return HttpResponse(json.dumps(
         subprocess.check_output(['/usr/bin/sudo', '-u', 'root',
                                  '/usr/bin/tail',
                                  '-n', '25',
                                  '/var/log/mail.log'])
+        ), content_type='application/json')
+
+
+@session_pwd_wrapper
+def mail_queue(request):
+    return HttpResponse(json.dumps(
+        subprocess.check_output(['/usr/sbin/postqueue',
+                                 '-p'])
         ), content_type='application/json')
 
 
