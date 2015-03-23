@@ -51,17 +51,26 @@ textarea {
 
     <div class='container-fluid'>
       <div class='row funbuttons'>
-	<div class='col-md-1'>
-	  <button type='button' 
-		  id='trash' title='Discard draft' 
-		  class='btn btn-info'><span class='glyphicon glyphicon-trash'></span></button>
-	</div>
 	{% if advanced %}
-	<div class='col-md-1'>
-	  <button type='button' 
-		  id='export' title='Export'
-		  class='btn btn-info'><span class='glyphicon glyphicon-open-file'></span> Export</button>
+	<div class='col-md-2'>
+	  <div class='btn-group' role='group' aria-label='goodies'>
+	    <button type='button' 
+		    id='trash' title='Discard draft' 
+		    class='btn btn-info'><span class='glyphicon glyphicon-trash'></span></button>
+	    <button type='button' 
+		    id='export' title='Export'
+		    class='btn btn-default'><span class='glyphicon glyphicon-open-file'></span></button>
+	    <button type='button'
+		    id='attach' title='Attach'
+		    class='btn btn-default'><span class='glyphicon glyphicon-paperclip'></span></button>
+	  </div>
 	</div>
+	{% else %}
+	  <div class='col-md-1'>
+	    <button type='button' 
+		    id='trash' title='Discard draft' 
+		    class='btn btn-info'><span class='glyphicon glyphicon-trash'></span></button>
+	  </div>
 	{% endif %}
 	<div class='col-md-2 pull-right'>
 	  <button type='button' 

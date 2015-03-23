@@ -109,7 +109,6 @@ class QRunner(models.Manager):
                                           Destination=destination,
                                           Headers=Headers,
                                           Subject='Cryptographic overhead')
-
         
     
     def Run(self, passphrase=None, do_not_repeat_these=None):
@@ -117,6 +116,7 @@ class QRunner(models.Manager):
             do_not_repeat_these = []
         Engine = {
             Queue.AXOLOTL:'Axolotl',
+            Queue.ADDRESS_RST:'Address_Reset',
 #            Queue.AXOANONHS:'Anonymous_Axolotl',
             Queue.GPG_PK_PULL:'Pull_PK',
             Queue.GPG_PK_PUSH:'Push_PK',
@@ -145,6 +145,18 @@ class QRunner(models.Manager):
             ~Q(direction = Queue.SMP_Replay)
             ).count() > 0:
             self.Run(passphrase=passphrase, do_not_repeat_these=do_not_repeat_these)
+
+
+    def Address_Reset(self, passphrase=None, Message=None):
+        logger.debug('%s requested a state reset' % Message.address)
+        Message.address.delete_local_state(passphrase)
+        addressbook.queue.Queue.objects.create(
+            address=Message.address,
+            body=Message.body,
+            direction=addressbook.queue.Queue.RX,
+            message_type=addressbook.queue.Queue.AXOLOTL,
+            )
+        Message.delete()
 
 
     def Push_PK(self, passphrase=None, Message=None):
@@ -286,13 +298,11 @@ We'll try again in a bit and see if it magically starts working.
                     Queue.objects.create(address=A,
                                          direction=Queue.RX,
                                          message_type=Queue.AXOLOTL,
-                                         messageid=str(uuid4()),
                                          body=Axo_Body)
                 else:
                     logger.debug("I'll just go right ahead and shake this dude")
                     Queue.objects.create(address=A,
                                          direction=Queue.TX,
-                                         messageid=str(uuid4()),
                                          message_type=Queue.AXOLOTL)
             
             if Differently_Named:
@@ -300,7 +310,7 @@ We'll try again in a bit and see if it magically starts working.
                 return False
             else:
                 return True
-
+            
 
     def Axolotl(self, passphrase=None, Message=None):
         try: Ratchet_Objects.decrypt_database(passphrase)
@@ -323,8 +333,10 @@ We'll try again in a bit and see if it magically starts working.
                 Loop_Header = []
                 if re.search('multiple init', Message.body):
                     logger.warning('multiple init attempts - add header to warn other side of possible loop')
-                    # FIXME: this should be a constant somewhere
                     Loop_Header.append(('X-Lookingglass-Axo-Loop', 'True'))
+                elif re.search('conversation reset', Message.body):
+                    logger.debug('signalling this is a reset request for %s' % Message.address)
+                    Loop_Header.append(('X-Lookingglass-Address-Reset', 'True'))
                 try:
                     HS = Convo.my_handshake(Passphrase=passphrase)
                     self.__queue_local(
@@ -374,7 +386,7 @@ We'll try again in a bit and see if it magically starts working.
                 Queue.objects.create(address=Message.address,
                                      direction=Queue.TX,
                                      message_type=Queue.AXOLOTL,
-                                     messageid=uuid4()) # Don't remove this, even though `default` should handle it...  it wasn't.
+                                     )
                 logger.debug('Got Axo SYN from %s, sending our shake' % HS.FPrint)
             if Who.their_fingerprint() is not None:
                 logger.warning('Multiple conversation init attempts from %s' % addressbook.address.Address.objects.get(fingerprint=HS.FPrint))
@@ -386,9 +398,17 @@ We'll try again in a bit and see if it magically starts working.
                                          direction=Queue.TX,
                                          body='multiple init attempts',
                                          message_type=Queue.AXOLOTL,
-                                         messageid=uuid4()) # Don't remove this, even though `default` should handle it...  it wasn't.
+                                         )
             else:
-                Who.greetings(HS)
+                try:
+                    Who.greetings(HS)
+                except AttributeError:
+                    logger.error('ratchet synch state is waaaay out of whack - start over')
+                    Who.delete()
+                    Message.address.user_state = addressbook.address.Address.KNOWN
+                    Message.address.save()
+                    Message.delete()
+                    return
                 Who.save()
                 Message.address.user_state = addressbook.address.Address.NOT_VETTED
                 Message.address.save()
@@ -399,7 +419,7 @@ We'll try again in a bit and see if it magically starts working.
             Message.delete()
         else:
             logger.error('ZOMGBBQ - what manner of Axolotl handshake is this?')
-        
+
 
     def Socialist_Millionaire(self, passphrase=None, Message=None):
         """
@@ -432,9 +452,15 @@ We'll try again in a bit and see if it magically starts working.
                 logger.warning('I already know: %s' % Message.address.email)
                 Message.delete()
                 return
-            Convo = ratchet.conversation.Conversation.objects.get(
-                UniqueKey = Message.address.fingerprint
-                )
+            try:
+                Convo = ratchet.conversation.Conversation.objects.get(
+                    UniqueKey = Message.address.fingerprint
+                    )
+            except ratchet.conversation.Conversation.DoesNotExist:
+                logger.error("Conversation for %s doesn't exist." % Message.address)
+                
+                Message.delete()
+                return
             try:
                 MySMP = smp.models.SMP.objects.get(UniqueKey = Message.address.fingerprint)
             except smp.models.SMP.DoesNotExist:
@@ -472,7 +498,6 @@ We'll try again in a bit and see if it magically starts working.
                     body = str(addressbook.gpg.symmetric(passphrase=passphrase,
                                                          msg=Got)),
                     direction = Queue.RX,
-                    messageid=str(uuid4()),
                     message_type = Queue.QCOMMIE,
                     )
                 Message.delete()
@@ -492,7 +517,6 @@ We'll try again in a bit and see if it magically starts working.
                     address = Message.address,
                     body = Convo.encrypt(plaintext=Send),
                     direction = Queue.TX,
-                    messageid=str(uuid4()),
                     message_type = Queue.SOCIALISM,
                     )
                 logger.debug('SMTP queued step: %s/5' % MySMP.step)
@@ -549,7 +573,6 @@ We'll try again in a bit and see if it magically starts working.
             body = Convo.encrypt(plaintext=Send),
             direction = Queue.TX,
             message_type = Queue.SOCIALISM,
-            messageid = str(uuid4()),
             )
         logger.debug("Dequeued SMP for %s - step %s/5" % (Address, Send_as_Step.Step))
 
@@ -557,7 +580,7 @@ We'll try again in a bit and see if it magically starts working.
 class Queue(models.Model):
     body = models.TextField(null=False)
     address = models.ForeignKey('Address')
-    messageid = models.TextField(unique=True, default=str(uuid4()))
+    messageid = models.TextField(unique=True, default=lambda: str(uuid4()))
     
     creation = models.DateTimeField(auto_now_add=True)
     modified = models.DateTimeField(auto_now=True)
@@ -582,7 +605,7 @@ class Queue(models.Model):
     UNKNOWN     = 'WTFBBQ'
     AXOLOTL     = 'AXOLUL'
     AXOANONHS   = 'AXOWHO'
-    AXOERROR    = 'AXOBAR'
+    ADDRESS_RST = 'ADDRST'
     GPG_PK_PULL = 'GPGPLL'
     GPG_PK_PUSH = 'GPGPSH'
     SERVER_INFO = 'SERVUP'
@@ -592,9 +615,9 @@ class Queue(models.Model):
         (UNKNOWN, 'I do not know what is going on'),
         (AXOLOTL, 'Axolotl handshake'),
         (AXOANONHS, 'Axolotl anonymous handshake'),
-        (AXOERROR, 'Axolotl unintelligible warning'),
         (GPG_PK_PULL, 'Requesting GPG public key from the cloud'),
         (GPG_PK_PUSH, 'I am sending my GPG public key data into the cloud'),
+        (ADDRESS_RST, 'Address reset request'),
         (SERVER_INFO, 'Server health report request'),
         (SOCIALISM, 'Socialist millionaire protocol'),
         (QCOMMIE, 'Temporarily queued socialist millionaire protocol'),

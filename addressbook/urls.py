@@ -17,6 +17,7 @@ urlpatterns = patterns('',
     url(r'^ajax/import$', views.key_import, name='addressbook.key_import'),
     url(r'^ajax/nickname$', views.nickname, name='addressbook.nickname'),
     url(r'^ajax/qpush$', views.push_to_queue, name='addressbook.push_to_queue'),
+    url(r'^ajax/reset$', views.reset_contact, name='addressbook.reset_contact'),
                        
     url(r'^ajax/search$', views.search, name='addressbook.search'),
     url(r'^ajax/search/(?P<Q>.*)$', views.search, name='addressbook.search'),

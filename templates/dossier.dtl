@@ -55,6 +55,16 @@
     {% endif %}
   </div>
 </div>
+{% if advanced and not K.is_me %}
+<div class='row'>
+  <div class='col-md-1 text-center'>
+    <button class='btn btn-danger' 
+	    title='Reset' id='contact-reset'>
+      <span class='glyphicon glyphicon-flash'></span> Contact reset
+    </button>
+  </div>
+</div>
+{% endif %}
 <hr>
 {% if K.is_me %}
 <div class='row'>
@@ -281,6 +291,18 @@ $('.smp').keyup(function() {
 });
 {% endif %}
 
+{% if not K.is_me %}
+$('#contact-reset').click(function(){
+  $.post('{% url 'addressbook.reset_contact' %}',
+       {
+  csrfmiddlewaretoken: '{{ csrf_token }}',
+          FP:'{{ K.fingerprint }}',
+       },
+    function (data) {
+      if (data.ok) { location.reload(); };
+     });
+});
+
 $('#delete-addr').click(function(){
   if (confirm('Permanently delete address for {% if K.nickname %}{{ K.nickname }}{% else %}{{ K.covername }}{% endif %}?')) {
     $.post('{% url 'addressbook.delete' %}',
@@ -294,4 +316,5 @@ $('#delete-addr').click(function(){
             });
   };
 });
+{% endif %}
 </script>

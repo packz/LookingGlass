@@ -56,6 +56,11 @@ class Command(BaseCommand):
                     dest='delete',
                     default=False,
                     help='Delete a conversation'),
+        make_option('--reset',
+                    action='store_true',
+                    dest='reset',
+                    default=False,
+                    help='Remote reset a conversation'),
         make_option('--subject',
                     action='store',
                     default=None,
@@ -117,7 +122,23 @@ class Command(BaseCommand):
                     print 'Demoting %s to KNOWN' % Addr.email
                     Sucksess = True
             if not Sucksess:
-                print 'Obstinately deleted NOTHING'
+                print 'Obstinately deleted NOTHING'                    
+            exit()
+
+        if settings['reset']:
+            for Arg in args:
+                for Addr in addressbook.address.Address.objects.filter(
+                    is_me = False,
+                    system_use = False,
+                    ).filter(
+                    Q(covername__icontains=Arg) |\
+                    Q(nickname__icontains=Arg) |\
+                    Q(email__icontains=Arg) |\
+                    Q(fingerprint__icontains=Arg)):
+                    print 'Signalling %s to restart connection state from KNOWN' % Addr.email
+                    Addr.remote_restart(settings['passphrase'])
+            exit()
+                    
 
         if settings['dump']:
             print '#{:^41}{:^41} {:^4}{:^40}'.format('My_FP', 'Their_FP', 'Tx/Rx', 'Address')

@@ -326,9 +326,41 @@ class Address(models.Model):
         return ret
 
 
-    def Conversation(self):
-        return ratchet.conversation.Conversation.objects.filter(
-            UniqueKey = self.fingerprint
+    def delete_local_state(self, passphrase=None):
+        if not passphrase: return False
+        try: Ratchet_Objects.decrypt_database(passphrase)
+        except thirtythirty.exception.Target_Exists: pass
+        try: SMP_Objects.decrypt_database(passphrase)
+        except thirtythirty.exception.Target_Exists: pass
+        try:
+            ratchet.conversation.Conversation.objects.get(
+                UniqueKey = self.fingerprint
+                ).delete()
+        except ratchet.conversation.Conversation.DoesNotExist:
+            pass
+        try:
+            smp.models.SMP.objects.get(
+                UniqueKey = self.fingerprint
+                ).delete()
+        except smp.models.SMP.DoesNotExist:
+            pass
+        addressbook.queue.Queue.objects.filter(
+            address=self,
+            message_type=addressbook.queue.Queue.QCOMMIE,
+            ).delete()
+        self.user_state = self.KNOWN
+        self.save()
+        return True
+
+
+    def remote_restart(self, passphrase=None):
+        if not passphrase: return False
+        if not self.delete_local_state(passphrase): return False
+        addressbook.queue.Queue.objects.create(
+            address=self,
+            body='conversation reset',
+            direction=addressbook.queue.Queue.TX,
+            message_type=addressbook.queue.Queue.AXOLOTL,
             )
 
 
@@ -339,6 +371,7 @@ class Address(models.Model):
                 'nickname':self.nickname,
                 'is_me':self.is_me,
                 'type':'Address',
+                # FIXME: need to unlock the DB to reach this
 #                'conversation':self.Conversation().Export(),
                 }
 

@@ -222,6 +222,25 @@ def key_import(request):
 
 
 @session_pwd_wrapper
+def reset_contact(request):
+    PP = request.session.get('passphrase', None)
+    Who = request.POST.get('FP', None)
+
+    ret = {'ok':False, 'FP':Who}
+    
+    if Who and PP:
+        try:
+            A = addressbook.address.Address.objects.get(fingerprint=Who)
+            A.remote_restart(PP)
+            ret['ok'] = True
+        except addressbook.address.Address.DoesNotExist:
+            pass
+        
+    return HttpResponse(json.dumps(ret),
+                        content_type='application/json')
+    
+
+@session_pwd_wrapper
 def add_contact(request):
     Covername = request.POST.get('covername')
     ret = {'ok':False}

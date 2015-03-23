@@ -107,7 +107,15 @@ class Command(BaseCommand):
                                                                      message_type=addressbook.queue.Queue.AXOLOTL).count() != 0:
                 logger.warning('Already have a Axolotl handshake queued via %s' % Msg['Message-Id'])
                 return True
-            if 'X-Lookingglass-Axo-Loop' in Msg:
+            if 'X-Lookingglass-Address-Reset' in Msg:
+                addressbook.queue.Queue.objects.create(
+                    address=Addr,
+                    body=Payload,
+                    messageid=Msg['Message-Id'],
+                    direction=addressbook.queue.Queue.RX,
+                    message_type=addressbook.queue.Queue.ADDRESS_RST)
+                return True
+            elif 'X-Lookingglass-Axo-Loop' in Msg:
                 RL = addressbook.utils.time_lock()
                 if RL.is_locked('QUEUE'):
                     logger.critical('We may have a loop here.  Proactively stall out until we get things straight.')
