@@ -16,6 +16,9 @@ urlpatterns = patterns('',
 
     url(r'^ajax/mailbox/new$', views.new_mail, name='emailclient.new_mail'),
 
+    url(r'^ajax/msg/attach$', views.attach, name='emailclient.attach'),
+    url(r'^ajax/msg/detach$', views.detach, name='emailclient.detach'),
+                       
     url(r'^ajax/msg/receive/(?P<Key>.*)$', views.receive, name='emailclient.receive'),
     url(r'^ajax/msg/save$', views.save, name='emailclient.save'),
     url(r'^ajax/msg/send$', views.send, name='emailclient.send'),

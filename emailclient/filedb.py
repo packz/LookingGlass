@@ -1,18 +1,59 @@
 
 from django.db.models import Q
 
+import email
 import mailbox
+import os.path
 import subprocess
-from email.utils import make_msgid, formatdate, parsedate
 
 import addressbook
 import emailclient.utils
+
+from ratchet.utils import hulk_smash_unicode
 
 from thirtythirty.settings import USERNAME
 MAIL_ROOT = '/home/%s/Maildir/' % USERNAME
 
 import logging
 logger = logging.getLogger(__name__)
+
+class MIMEandMaildir(email.MIMEMultipart.MIMEMultipart,
+                     mailbox.MaildirMessage):    
+    def get_date(self):
+        return 0 
+
+    def my_attach(self, filename=None):
+        if not os.path.exists(filename):
+            raise(emailclient.exception.No_Attachment("Can't find %s" % filename))
+        part = email.MIMEBase.MIMEBase('application', 'octet-stream')
+        part.set_payload(file(filename, 'rb').read())
+        email.Encoders.encode_base64(part)
+        part.add_header('Content-Disposition', 'attachment; filename="%s"' % filename)
+        self.attach(part)
+
+    def my_format(self, to=None, ffrom=None,
+                  date=None, subject=None,
+                  body=None, attach=[]):
+        self.preamble = hulk_smash_unicode(body)
+        for A in attach:
+            self.my_attach(A)
+        for X in ['Subject', 'To', 'From', 'Date']:
+            # otherwise we'll add multiple values
+            del self[X]
+        self['Subject'] = subject
+        self['To'] = to
+        if ffrom:
+            self['From'] = ffrom
+        else:
+            self['From'] = addressbook.utils.my_address().email
+        if date:
+            self['Date'] = date
+        else:
+            self['Date'] = email.utils.formatdate()
+        self.set_flags('S')
+        self.set_subdir('cur')
+
+
 
 def __count_new_mail(aMbx=None):
     count = 0
@@ -110,23 +151,27 @@ def message_count(folderName=None):
     else: return 0
     
 
-def sorted_messages_in_folder(folder=None, folderName=None, messageKey=None):
+def sorted_messages_in_folder(folder=None, folderName=None, messageKey=None, debug=False):
     """
     FIXME: this fails pretty hard once the # of msgs in a folder gets >20 - need to move over to something like https://github.com/coddingtonbear/django-mailbox
     """
     if folder:
-#        logger.debug('Traced request for folder w/ contents `%s`' % (folder.keys()))
-        Sort = sorted(folder.keys(), key=lambda msg: parsedate(folder.get(msg)['date']))
+        if debug:
+            logger.debug('Traced request for folder w/ contents `%s`' % (folder.keys()))
+        Sort = sorted(folder.keys(),
+                      key=lambda msg: email.utils.parsedate(folder.get(msg)['date']))
         Sort.reverse()
         return [ folder.get(X) for X in Sort ]
     elif folderName is not None:
-#        logger.debug('Traced request for folderName `%s`' % (folderName))
+        if debug:
+            logger.debug('Traced request for folderName `%s`' % (folderName))
         # may get passed empty string for inbox - be ware
         Mbx = mailbox.Maildir(MAIL_ROOT, factory=False).get_folder(folderName)
         if Mbx:
             return sorted_messages_in_folder(folder=Mbx)
     elif messageKey:
-#        logger.debug('Traced request for messageKey `%s`' % (messageKey))
+        if debug:
+            logger.debug('Traced request for messageKey `%s`' % (messageKey))
         Folder = folder_from_msg_key(messageKey)
         if Folder:
             return sorted_messages_in_folder(folder=Folder['mbx'])
@@ -147,8 +192,6 @@ def flag(aKey=None, addFlag=None, remFlag=None):
     Msg = F.get(aKey)
     Msg.set_subdir('cur')
     if addFlag:
-#        if addFlag == 'T':
-#            logger.debug('%s flagged for trash' % aKey)
         Msg.add_flag(addFlag)
         F[aKey] = Msg
     if remFlag:
@@ -216,7 +259,7 @@ def format_email(to=None,
     """
     if not msgObject:
         msgObject = mailbox.MaildirMessage()
-        msgObject['Message-Id'] = make_msgid()
+        msgObject['Message-Id'] = email.utils.make_msgid()
     msgObject.set_payload(body)
     for X in ['Subject', 'To', 'From', 'Date']:
         # otherwise we'll add multiple values
@@ -230,7 +273,7 @@ def format_email(to=None,
     if date:
         msgObject['Date'] = date
     else:
-        msgObject['Date'] = formatdate()
+        msgObject['Date'] = email.utils.formatdate()
     msgObject.set_flags('S')
     msgObject.set_subdir('cur')
     return msgObject
@@ -247,8 +290,6 @@ def save_local(to=None,
     """
     MK may be None when the message was Axolotl and disappeared after decrypt
     """
-#    logger.debug('Got request to save local to folder `%s`' % Folder)
-
     if not addressbook.gpg.verify_symmetric(passphrase):
         return {'ok':False,
                 'extra':'wrong passphrase'}

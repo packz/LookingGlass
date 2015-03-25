@@ -56,6 +56,7 @@ server {{
 server {{
         listen 80;
 	listen 443 ssl;
+        client_max_body_size 0;
 	ssl_certificate		/etc/ssl/certs/LookingGlass.crt.pem;
 	ssl_certificate_key	/etc/ssl/private/LookingGlass.pem;
 	keepalive_timeout	70;
@@ -71,7 +72,6 @@ server {{
         error_page 502 /502.html;
 
 	location @gunicorn {{
-                client_max_body_size 0;
 		proxy_pass http://gunicorn;
 		proxy_redirect off;
 		proxy_read_timeout 5m;

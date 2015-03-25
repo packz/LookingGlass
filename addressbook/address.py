@@ -356,6 +356,9 @@ class Address(models.Model):
     def remote_restart(self, passphrase=None):
         if not passphrase: return False
         if not self.delete_local_state(passphrase): return False
+        addressbook.queue.Queue.objects.filter(
+            address=self,
+            ).delete()
         addressbook.queue.Queue.objects.create(
             address=self,
             body='conversation reset',

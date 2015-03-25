@@ -183,7 +183,7 @@ class QRunner(models.Manager):
             emailclient.utils.submit_to_smtpd(Payload="""The upstream server seems to have experienced a problem during registration.
 The error is:
 `%s`
-Please send an error report so we can see to this.
+Please send a bug report so we can see to this.
 """ % Resp['reason'],
                                               Destination=Me.email,
                                               Subject='Ever so sorry...',
@@ -404,9 +404,7 @@ We'll try again in a bit and see if it magically starts working.
                     Who.greetings(HS)
                 except AttributeError:
                     logger.error('ratchet synch state is waaaay out of whack - start over')
-                    Who.delete()
-                    Message.address.user_state = addressbook.address.Address.KNOWN
-                    Message.address.save()
+                    Message.address.remote_restart(passphrase)
                     Message.delete()
                     return
                 Who.save()
@@ -465,7 +463,7 @@ We'll try again in a bit and see if it magically starts working.
                 MySMP = smp.models.SMP.objects.get(UniqueKey = Message.address.fingerprint)
             except smp.models.SMP.DoesNotExist:
                 # FIXME: check the addressbook user state
-                logger.debug("We're behind the curve!  Creating SMP for `%s`" % Message.address)
+                logger.debug("We're behind the curve!  Creating SMP for %s" % Message.address)
                 MySMP = smp.models.SMP.objects.hash_secret(Conversation=Convo,
                                                            passphrase=passphrase)
             try:

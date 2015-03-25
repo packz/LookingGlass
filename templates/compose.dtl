@@ -1,5 +1,9 @@
 {% extends "email_base.dtl" %}
 
+{% block css_include %}
+<link href="/css/dropzone.css" rel="stylesheet">
+{% endblock css_include %}
+
 {% block local_style %}
 .enwiden {
   width: 100%;
@@ -34,7 +38,8 @@ textarea {
 
     <div class='input-group'>
       <span class='input-group-addon'>To:</span>
-      <input type='text' class='form-control typeahead bootstrap-weird-offset' 
+      <input type='text' 
+	     class='form-control typeahead bootstrap-weird-offset' 
 	     id='to' name='to' value='{{ magic.to }}' {% if magic.fp %}disabled{% endif %}>
     </div>
 
@@ -51,53 +56,53 @@ textarea {
 
     <div class='container-fluid'>
       <div class='row funbuttons'>
-	{% if advanced %}
-	<div class='col-md-2'>
-	  <div class='btn-group' role='group' aria-label='goodies'>
-	    <button type='button' 
-		    id='trash' title='Discard draft' 
-		    class='btn btn-info'><span class='glyphicon glyphicon-trash'></span></button>
-	    <button type='button' 
-		    id='export' title='Export'
-		    class='btn btn-default'><span class='glyphicon glyphicon-open-file'></span></button>
-	    <button type='button'
-		    id='attach' title='Attach'
-		    class='btn btn-default'><span class='glyphicon glyphicon-paperclip'></span></button>
-	  </div>
+	<div class='col-md-1'>
+	  <button type='button' 
+		  id='trash' title='Discard draft' 
+		  class='btn btn-info'><span class='glyphicon glyphicon-trash'></span></button>
 	</div>
-	{% else %}
-	  <div class='col-md-1'>
-	    <button type='button' 
-		    id='trash' title='Discard draft' 
-		    class='btn btn-info'><span class='glyphicon glyphicon-trash'></span></button>
-	  </div>
-	{% endif %}
+	{% comment %}
+	<div class='col-md-1'>
+	  <button type='button'
+		id='attach' title='Attach'
+		class='btn btn-default'>
+	    <span class='glyphicon glyphicon-paperclip'></span>
+	  </button>
+	</div>
+	{% endcomment %}
 	<div class='col-md-2 pull-right'>
 	  <button type='button' 
-		  id='send' title='Send' 
-		  class='btn btn-primary'><span class='glyphicon glyphicon-send'></span> Encrypt & Send</button>
-	</div>
-	<div class='col-md-1 pull-right'>
-	  <p id='save-state' class='text-muted text-right'></p>
-	</div>
+		id='send' title='Send' 
+		class='btn btn-primary'><span class='glyphicon glyphicon-send'></span> Encrypt & Send</button>
+      </div>
+      <div class='col-md-1 pull-right'>
+	<p id='save-state' class='text-muted text-right'></p>
       </div>
     </div>
+      </div>
 
   </div>
   </form>
-{% endblock panel_body %}
 
+  <form id='dz' class='dropzone' action='{% url 'emailclient.attach' %}'>
+    {% csrf_token %}
+    <input type='hidden' id='MK' name='MK' value='{{ magic.MK }}'>
+  </form>
+{% endblock panel_body %}
 
 {% block js_includes %}
 <script type='text/javascript' src='/js/typeahead.bundle.js'></script>
+<script type='text/javascript' src='/js/dropzone.js'></script>
 {% endblock js_includes %}
-
 
 {% block js %}
 
 var TYPING = false;
 var SAVED = true;
 var COUNT = 0;
+
+var MAX_CHARACTERS = 50;
+var DRAFT_INTERVAL = 3000;
 
 function cursor_to_body_end() {
   /* MFW this code */
@@ -226,7 +231,29 @@ var Names = new Bloodhound({
   local: Addressbook,
 });
 
+function attach_init() {
+  Dropzone.autoDiscover = false;
+  $('#dz').hide();
+  var myDZ = myDZ = new Dropzone('#dz', {
+     addRemoveLinks:true,
+  });
+  myDZ.on('removedfile', function(file) {
+    console.log(file.name);
+  });
+   {% for A in attachments %}
+     var A{{ forloop.counter }} = { name:'{{ A.name }}', size:{{ A.size }} };
+     myDZ.options.addedfile.call(myDZ, A{{ forloop.counter }});
+     myDZ.files.push(A{{ forloop.counter }});
+   {% endfor %}
+}
+
+$('#attach').click(function() {
+   $('#dz').toggle();
+   $(this).blur();
+});
+
 $(document).ready(function(){
+  attach_init();
 {% if not magic.to %}
   $('#to').focus();
 {% elif not magic.subject %}
@@ -240,12 +267,12 @@ $(document).ready(function(){
   if ((! TYPING) && (! SAVED)) {
     save_draft();
     SAVED = true;
-  } else if (COUNT > 50) {
+  } else if (COUNT > MAX_CHARACTERS) {
     save_draft();
     SAVED = true;
   };
   TYPING = false;
-  }, 3000);
+  }, DRAFT_INTERVAL);
 });
 
 var oakLeaves = $('.typeahead').typeahead({ 

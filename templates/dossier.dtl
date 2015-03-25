@@ -55,16 +55,6 @@
     {% endif %}
   </div>
 </div>
-{% if advanced and not K.is_me %}
-<div class='row'>
-  <div class='col-md-1 text-center'>
-    <button class='btn btn-danger' 
-	    title='Reset' id='contact-reset'>
-      <span class='glyphicon glyphicon-flash'></span> Contact reset
-    </button>
-  </div>
-</div>
-{% endif %}
 <hr>
 {% if K.is_me %}
 <div class='row'>
@@ -189,6 +179,16 @@ All below gets commented out if this is the user's own address.  Go deep.
     {% endif %}
   </div>
   <div class='col-md-3'>
+{% if K.user_state < 100 or advanced %}
+  {% if not K.is_me %}
+    <button class='btn btn-danger' 
+	    title='Reset' id='contact-reset'>
+      <span class='glyphicon glyphicon-flash'></span> Contact reset
+    </button>
+    <br>
+    <br>
+  {% endif %}
+{% endif %}
     <a class='btn btn-default' title='Delete' id='delete-addr'>
       <span class='text-danger'><span class='glyphicon glyphicon-remove'></span> Delete</span>
     </a>
@@ -292,16 +292,18 @@ $('.smp').keyup(function() {
 {% endif %}
 
 {% if not K.is_me %}
+{% if K.user_state < 100 or advanced %}
 $('#contact-reset').click(function(){
-  $.post('{% url 'addressbook.reset_contact' %}',
-       {
-  csrfmiddlewaretoken: '{{ csrf_token }}',
-          FP:'{{ K.fingerprint }}',
-       },
-    function (data) {
+  if (confirm('This will restart the handshake process - this may take some time.')) {
+    $.post('{% url 'addressbook.reset_contact' %}', {
+      csrfmiddlewaretoken: '{{ csrf_token }}',
+      FP:'{{ K.fingerprint }}',
+    }, function (data) {
       if (data.ok) { location.reload(); };
-     });
+    });
+  };
 });
+{% endif %}
 
 $('#delete-addr').click(function(){
   if (confirm('Permanently delete address for {% if K.nickname %}{{ K.nickname }}{% else %}{{ K.covername }}{% endif %}?')) {

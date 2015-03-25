@@ -7,7 +7,9 @@ from django.db.models import Q
 
 import datetime
 import json
+import os.path
 import re
+import subprocess
 from types import StringType, ListType
 
 import addressbook
@@ -505,3 +507,42 @@ def delete_folder(request):
     folderName = request.POST.get('folderName')
     return HttpResponse(json.dumps(emailclient.filedb.delete_folder(folderName)),
                         content_type='application/json')
+
+
+@session_pwd_wrapper
+def attach(request):
+    MK = request.POST.get('MK', None)
+    if not MK:
+        return HttpResponse(json.dumps({'error':'No message key yet'}),
+                            content_type='application/json')
+    Attach_Dir = '/tmp/attachments/%s' % MK
+    if not os.path.exists(Attach_Dir):
+        subprocess.call(['mkdir', '-p', Attach_Dir])
+    
+    File = request.FILES['file']
+    with file('%s/%s' % (Attach_Dir, File.name), 'wb') as destination:
+        for chunk in File.chunks():
+            destination.write(chunk)
+    logger.debug('Saved %s/%s' % (Attach_Dir, File.name))
+    return HttpResponse(json.dumps({'ok':True}),
+                        content_type='application/json')
+
+
+@session_pwd_wrapper
+def detach(request):
+    ret = {}
+    MK = request.POST.get('MK', None)
+    FN = requst.POST.get('FN', None)
+    Attach = '/tmp/attachments/%s/%s' % (MK, FN)
+    if not MK:
+        ret['error'] = 'No message key'
+    elif not FN:
+        ret['error'] = 'No filename'
+    elif not os.path.exists(Attach):
+        ret['error'] = "Doesn't exist"
+    elif os.path.exists(Attach):
+        os.unlink(Attach)
+        ret['DEAD'] = Attach
+    return HttpResponse(json.dumps(ret),
+                        content_type='application/json')
+    

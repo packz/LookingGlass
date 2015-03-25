@@ -49,7 +49,7 @@ MAILTO=root
 
 {recron:20}{USERNAME:8}if [[ -e /tmp/address.wav ]]; then /usr/bin/aplay /tmp/address.wav; fi &>/dev/null
 
-{daily:20}{USERNAME:8}/usr/bin/find /tmp -maxdepth 1 -type f -name '*sessionid*' -atime +3 -delete &>/dev/null
+{daily:20}{USERNAME:8}/usr/bin/find /tmp -maxdepth 1 -type f -name '*sessionid*' -mtime +3 -delete &>/dev/null
 
 {daily:20}{USERNAME:8}/usr/bin/find /home/{USERNAME}/Maildir -regex '.*:2\,[A-Z]*T[DF]*$' -type f -atime +3 -delete &>/dev/null
 
