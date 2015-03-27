@@ -96,6 +96,8 @@ def popen_wrapper(arglist=None, stdin=None,
     http://thraxil.org/users/anders/posts/2008/03/13/Subprocess-Hanging-PIPE-is-your-enemy/
 
     Can't use StringIO here, /usr/bin/make will often crap out a bunch of stuff.
+
+    FIXME: I am such a fucktard.  This needs to return the exit status as well.  WTF was I thinking?
     """
     if not arglist: arglist = []
     SO = tempfile.NamedTemporaryFile()

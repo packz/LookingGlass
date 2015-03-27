@@ -18,7 +18,7 @@ UPSTREAM = {
     'bug_report_email':'last.box@sdtrssmsbmw7eqm4.onion',
     'keyserver':       'sdtrssmsbmw7eqm4.onion:58008',
     'update_log':'/tmp/update.log',
-    'update_lock':'/var/cache/alert.lock',
+    'update_lock':'/var/cache/LookingGlass/alert.lock',
     'update_cache':'/var/cache/LookingGlass',              # update the preinst script if you change this
     'update_script_dir':'/var/cache/LookingGlass',         # update the preinst script if you change this
     'updates':[{'type':'RSYNC',

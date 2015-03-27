@@ -21,7 +21,7 @@ import smp
 
 import thirtythirty.settings as TTS
 from thirtythirty.gpgauth import session_pwd_wrapper, set_up_single_user
-from thirtythirty.updater import Available, Validate, Unpack, Cleanup
+from thirtythirty.updater import Available, Validate, Unpack, Cleanup, ChangeLog
 
 import logging
 logger = logging.getLogger(__name__)
@@ -345,12 +345,15 @@ def settings(request, advanced=False):
               'help':Update_Version,
               'warn':Update_Warn,
               },
-             {'desc':'Manual upgrade',
-              'type':'button', 'id':'manual-update',
-              'disabled':True,
+             {'desc':'Force update',
+              'type':'button', 'id':'force-update',
+              'warn':'No mercy.  No resistance.  Open up.',
+              'advanced':True,
               },
              {'desc':'Upgrade file',
               'type':'file', 'id':'upgradefile',
+              'help':'Manual upgrade upload',
+              'width':4,
               },
              ]},
 
@@ -1039,5 +1042,40 @@ def update(request):
             return HttpResponse(json.dumps({'ok':False,
                                             'extra':'ERROR'}),
                                 content_type='application/json')
+    return HttpResponse(json.dumps(ret),
+                        content_type='application/json')
+
+
+@session_pwd_wrapper
+def force_update(request):
+    ret = {'ok':False}
+    Filename = request.POST.get('filename', None)
+    Location = '%s/%s' % (TTS.UPSTREAM['update_cache'], Filename)
+    if Filename and os.path.exists(Location):
+        ret['location'] = Location
+        try:
+            Unpack(Location)
+            Cleanup()
+            ret['ok'] = True
+        except thirtythirty.exception.UpgradeException as e:
+            ret['error'] = e
+    return HttpResponse(json.dumps(ret),
+                        content_type='application/json')
+        
+
+@session_pwd_wrapper
+def update_upload(request):
+    ret = {'ok':False}
+    if request.FILES.has_key('updatefile'):
+        Filename = request.FILES['updatefile'].name
+        ret['filename'] = Filename
+        if 'tar.bz2' in Filename:
+            Location = '%s/%s' % (TTS.UPSTREAM['update_cache'], Filename)
+            with file(Location, 'wb') as destination:
+                for chunk in request.FILES['updatefile'].chunks():
+                    destination.write(chunk)
+            ret['changelog'] = ChangeLog(Location)
+            if ret['changelog']:
+                ret['ok'] = True
     return HttpResponse(json.dumps(ret),
                         content_type='application/json')

@@ -30,6 +30,8 @@ urlpatterns = patterns('',
     url(r'^smp/', include('smp.urls')),
 
     url(r'^settings/ajax/backup$', views.backup, name='settings.backup'),
+    url(r'^settings/ajax/restore$', views.restore, name='settings.restore'),
+                       
     url(r'^settings/ajax/db_disaster$', views.db_disaster, name='settings.db_disaster'),
     url(r'^settings/ajax/ip_address$', views.ip_address, name='settings.ip_address'),
     url(r'^settings/ajax/last$', views.last, name='settings.last'),
@@ -37,11 +39,13 @@ urlpatterns = patterns('',
     url(r'^settings/ajax/mail_queue$', views.mail_queue, name='settings.mail_queue'),                       
     url(r'^settings/ajax/mounts$', views.mount_states, name='settings.mounts'),
     url(r'^settings/ajax/passcache$', views.passphrase_cache, name='settings.passphrase_cache'),
-    url(r'^settings/ajax/restore$', views.restore, name='settings.restore'),
     url(r'^settings/ajax/servers$', views.server_states, name='settings.servers'),
     url(r'^settings/ajax/set-advanced$', views.set_advanced, name='settings.set-advanced'),
     url(r'^settings/ajax/symmetricopy$', views.symmetric_copy, name='settings.symmetric_copy'),
     url(r'^settings/ajax/thirtythirty$', views.thirtythirty_logs, name='settings.thirtythirty_logs'),
+
+    url(r'^settings/ajax/update-upload', views.update_upload, name='settings.update_upload'),
+    url(r'^settings/ajax/fupdate', views.force_update, name='settings.force_update'),
     url(r'^settings/ajax/update', views.update, name='settings.update'),
                        
     url(r'^settings/kick(?P<process>/.*)?$', views.kick, name='settings.kick'),

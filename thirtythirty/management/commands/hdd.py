@@ -3,7 +3,9 @@ from django.core.management.base import BaseCommand
 
 from optparse import make_option
 
+import getpass
 import os
+
 import thirtythirty.exception as TTE
 import thirtythirty.hdd as TTH
 import thirtythirty.settings as TTS
@@ -88,7 +90,9 @@ class Command(BaseCommand):
             settings['passphrase'] = file(TTS.LUKS['key_file'], 'r').read()
         if settings['keyfile'] and os.path.exists(settings['keyfile']):
             settings['passphrase'] = file(settings['keyfile'], 'r').read()
-                    
+        if not settings['passphrase']:
+            settings['passphrase'] = getpass.getpass()
+
         if settings['print'] or settings['csv']:
             for V in TTH.Volumes(unlisted=False):
                 if settings['print']:

@@ -142,7 +142,7 @@ a[disabled] {
 	  {% endif %}
 	  <div class='form-group'>
 	    {% for control in setting.controls %}
-	      <div class='row'>
+	      <div id='row-{{ control.id }}' class='row {% if control.advanced and not advanced %}mycollapse{% endif %}'>
 		<div class='col-md-{% if control.width %}{{ control.width }}{% else %}3{% endif %}'>
 		<div class='input-group'>
 		  {% if control.type == 'password' %}
@@ -179,7 +179,7 @@ a[disabled] {
 		    </div>
 		  {% elif control.type == 'file' %}
 		    <div class='container-fluid desmash'>
-		      <input type='file' id='{{ control.id }}' name='{{ control.id }}'></input>
+		      <input type='file' id='{{ control.id }}' name='{{ control.id }}' title='{{ control.desc }}'></input>
 		    </div>
 		  {% elif control.type == 'link' %}
 		    <div class='container desmash'>
@@ -241,7 +241,7 @@ $('.collapse').collapse('hide');
 
 var REFRESHER = false;
 var PASSPHRASE_MODE = 'reset-to-defaults';
-
+var Upgrade_Filename = '';
 
 function load_mounts() {
   if (REFRESHER) {
@@ -356,8 +356,47 @@ $('#update').click(function(){
   };
 });
 
+$('#force-update').click(function(){
+  $.post('{% url 'settings.force_update' %}',
+    {'csrfmiddlewaretoken': '{{ csrf_token }}',
+     'filename': Upgrade_Filename,
+    }, function(e) {
+  if (!e.ok) {
+    alert(e.error);
+  } else {
+    location.reload();
+  }});
+});
+
+$('#upgradefile').change(function(e) {
+  $('#upgradefile').attr('disabled', true);
+  $('#upgradefile').addClass('disabled');
+  var postData = new FormData();
+  postData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+  postData.append('updatefile', e.target.files[0]);
+  $.ajax({
+    url:'{% url 'settings.update_upload' %}',
+    type:'POST',
+    data:postData,
+    cache:false,
+    dataType:'json',
+    processData:false,
+    contentType:false,
+   }).done(function(data) {
+    if (data.ok) {
+      $('#row-force-update').removeClass('mycollapse');
+      $('#row-upgradefile').addClass('mycollapse');
+      Upgrade_Filename = data.filename;
+      alert(data.changelog);
+    } else {
+      $('#upgradefile').attr('disabled', false);
+      $('#upgradefile').removeClass('disabled');
+    }
+   });
+});
+
 $('#restorefile').change(function(e) {
-  files = e.target.files;
+  var restore_files = e.target.files;
   $('#sysrestore').removeAttr('disabled');
   $('#sysrestore').removeClass('disabled');
   $('#sysrestore').addClass('btn-success');
@@ -367,7 +406,7 @@ $('#sysrestore').click(function() {
   if (confirm('This will OVERWRITE your current settings.  Continue?')) {
     var postData = new FormData();
     postData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-    postData.append('backupfile', files[0]);
+    postData.append('backupfile', restore_files[0]);
     $.ajax({
      url:'{% url 'settings.restore' %}',
      type:'POST',

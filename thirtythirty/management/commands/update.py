@@ -44,7 +44,9 @@ class Command(BaseCommand):
     def alert_user_new_updates(self,
                                Version=None,
                                ChangeLog=None):
-        if os.path.exists(TTS.UPSTREAM['update_lock']): return
+        if os.path.exists(TTS.UPSTREAM['update_lock']):
+            logger.debug('update_lock exists - do not alert user')
+            return
         Me = addressbook.utils.my_address()
         PL = """
         A newer version of LookingGlass is available!
@@ -78,8 +80,9 @@ class Command(BaseCommand):
             logger.debug('Already up to date')
             exit(0)
 
-        if not settings['force'] and os.path.exists(TTS.UPSTREAM['update_lock']):
+        if settings['force'] and os.path.exists(TTS.UPSTREAM['update_lock']):
             # we probably have something genuinely email-worthy to talk about
+            logger.debug('--force makes me loud')
             os.unlink(TTS.UPSTREAM['update_lock'])
 
         Cache = TTUp.Update_Cache(Data_URI=URI,

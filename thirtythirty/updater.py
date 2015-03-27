@@ -2,6 +2,7 @@
 import os
 import re
 import subprocess
+import tempfile
 
 from emailclient.utils import submit_to_smtpd
 
@@ -236,19 +237,32 @@ def __open_control(DF=None):
 def __run_control(path=None):
     """
     run the control files in path directory
+
+    needed exit status, so not using popen_wrapper.
     """
     if os.path.exists(path):
-        STO, STE = TTU.popen_wrapper(
-            ['/bin/run-parts',
-             '--exit-on-error',
-             '--report',
-             path,
-             ])
-        if STE != '':
-            logger.warning(STO, STE)
-            raise TTE.PostInstException('trouble in %s: %s' % (path, STE))
-        if STO != '':
-            logger.debug(STO)
+        logger.debug('Running %s' % path)
+        SO = tempfile.NamedTemporaryFile()
+        SE = tempfile.NamedTemporaryFile()
+        Current = subprocess.Popen(['/usr/bin/sudo', '-u', 'root',
+                                    '/bin/run-parts',
+                                    '--exit-on-error',
+                                    '--report',
+                                    path,
+                                    ],
+                                   stderr=SE,
+                                   stdout=SO)
+        Current.communicate()
+        SO.seek(0)
+        SE.seek(0)
+        if Current.returncode != 0:
+            logger.warning('%s | %s' % (SO.read(), SE.read()))
+            raise TTE.PostInstException('trouble in %s' % (path))
+        elif ((os.fstat(SO.fileno()).st_size != 0) or
+              (os.fstat(SE.fileno()).st_size != 0)):
+            logger.debug('%s | %s' % (SO.read(), SE.read()))
+        else:
+            logger.debug('No output')
 
 
 def Unpack(Data_File=None):
