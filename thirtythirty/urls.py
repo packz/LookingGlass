@@ -1,7 +1,7 @@
 
 from django.conf.urls import patterns, include, url
 
-from thirtythirty import views
+from thirtythirty import views, bug_report
 
 urlpatterns = patterns('',
     url(r'^$', views.index, name='index'),
@@ -14,8 +14,8 @@ urlpatterns = patterns('',
 
     url(r'^about', views.about, name='about'),
 
-    url(r'^bug-?report', views.bug_report, name='bug_report'),
-    url(r'^submit-?bug', views.submit_bug, name='submit_bug'),
+    url(r'^bug-?report', bug_report.render, name='bug_report'),
+    url(r'^submit-?bug', bug_report.submit, name='submit_bug'),
                        
     url(r'LOCKDOWN', views.lockdown, name='lockdown'),
     url(r'REBOOT', views.reboot, name='reboot'),

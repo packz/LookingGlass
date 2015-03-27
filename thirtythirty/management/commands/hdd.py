@@ -5,6 +5,7 @@ from optparse import make_option
 
 import getpass
 import os
+import time
 
 import thirtythirty.exception as TTE
 import thirtythirty.hdd as TTH
@@ -23,17 +24,17 @@ class Command(BaseCommand):
                     default=None,
                     help='Set (new) passphrase',
                     ),
+        make_option('--lock',
+                    action='store_true',
+                    dest='lock',
+                    default=False,
+                    help='Lock drives',
+                    ),
         make_option('--unlock',
                     action='store_true',
                     dest='unlock',
                     default=False,
                     help='Unlock drives',
-                    ),
-        make_option('--key-file',
-                    action='store',
-                    dest='keyfile',
-                    default=None,
-                    help='Use keyfile rather than key on commandline',
                     ),
         make_option('-l', '--old',
                     action='store',
@@ -86,12 +87,10 @@ class Command(BaseCommand):
 
 
     def handle(self, *args, **settings):
-        if os.path.exists(TTS.LUKS['key_file']):
-            settings['passphrase'] = file(TTS.LUKS['key_file'], 'r').read()
-        if settings['keyfile'] and os.path.exists(settings['keyfile']):
-            settings['passphrase'] = file(settings['keyfile'], 'r').read()
-        if not settings['passphrase']:
-            settings['passphrase'] = getpass.getpass()
+        if settings['lock']:
+            for V in TTH.Volumes():
+                V.lock()
+            exit(0)
 
         if settings['print'] or settings['csv']:
             for V in TTH.Volumes(unlisted=False):
@@ -102,6 +101,14 @@ class Command(BaseCommand):
             exit(0)
 
         if settings['decimate']:
+            print "This will PERMANENTLY erase the LUKS volumes.  Are you sure? (Type 'YES')",
+            Y = raw_input()
+            if Y != 'YES':
+                print 'Your drives remain safe'
+                exit(-1)
+            print 'HOSING EVERYTHING WITH PAIN IN FIVE - AWAIT PAIN'
+            time.sleep(5)
+            print 'PAIN INBOUND'
             for V in TTH.Volumes(unlisted=False):
                 V.lock()
                 try: V.remove()
@@ -112,6 +119,11 @@ class Command(BaseCommand):
             try: os.unlink(TTS.GPG['export'])
             except: pass
             exit()
+
+        if os.path.exists(TTS.LUKS['key_file']):
+            settings['passphrase'] = file(TTS.LUKS['key_file'], 'r').read()
+        if not settings['passphrase']:
+            settings['passphrase'] = getpass.getpass()
 
         if not settings['passphrase']:
             print 'Need a passphrase to do that.'

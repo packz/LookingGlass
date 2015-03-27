@@ -77,11 +77,14 @@ def HS_Name():
 
 def query_daemon_states(specifically=None):
     ret = TTS.DAEMONS
+    SHUTUP = file(os.devnull, 'w')
     for X in ret:
         if specifically and X['name'] != specifically: continue
         X['running'] = False
         try:
-            subprocess.check_call(X['check'])
+            subprocess.check_call(X['check'],
+                                  stdout=SHUTUP,
+                                  stderr=subprocess.STDOUT)
             X['running'] = True
             if specifically: return True
         except: pass
@@ -97,7 +100,7 @@ def popen_wrapper(arglist=None, stdin=None,
 
     Can't use StringIO here, /usr/bin/make will often crap out a bunch of stuff.
 
-    FIXME: I am such a fucktard.  This needs to return the exit status as well.  WTF was I thinking?
+    FIXME: I am such a doofus.  This needs to return the exit status as well.  WTF was I thinking?
     """
     if not arglist: arglist = []
     SO = tempfile.NamedTemporaryFile()

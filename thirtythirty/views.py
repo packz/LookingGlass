@@ -785,66 +785,6 @@ def about(request):
     return HttpResponse(template.render(context))
 
 
-@session_pwd_wrapper
-def bug_report(request):
-    template = loader.get_template('bug_report.dtl')
-    Severity = [
-        {'id':'WISH', 'desc':"This is cool, but you know what would be REALLY cool...", 'class':'text-muted'},
-        {'id':'MINOR', 'desc':"This is harder than it needs to be...", 'class':'text-info'},
-        {'id':'MAJOR', 'desc':"I can barely make this work by...", 'class':'text-warning'},
-        {'id':'EPIC', 'desc':"So broken I can't work because...", 'class':'text-danger'},
-        ]
-    Passed = {
-        'title':'Bug Report',
-        'bg_image':'notreallyabug.jpg',
-        'severity':Severity,
-        'explanation':"""
-        Here is some text.
-        """,
-        }
-    context = RequestContext(request, Passed)
-    return HttpResponse(template.render(context))
-
-
-@session_pwd_wrapper
-def submit_bug(request):
-    Passphrase = request.session.get('passphrase', None)
-    if ((not Passphrase) or (not addressbook.gpg.verify_symmetric(Passphrase))):
-        return HttpResponse('I need a passphrase.  :(')
-    for X in ['severity', 'summary']:
-        if request.POST.get(X) == None:
-            return HttpResponse(json.dumps({'ok':False}),
-                                content_type='application/json')
-    Attach = []
-    # if shit's bad enough, send along the logs
-    if request.POST.get('severity') in ['MAJOR', 'EPIC']:
-        if not Passphrase:
-            Attach = ['/tmp/thirtythirty.err',
-                      '/tmp/thirtythirty.log',
-                      '/tmp/pip.log',]
-        else:
-            Encrypt = ['/tmp/thirtythirty.err',
-                       '/tmp/thirtythirty.log',
-                       '/tmp/pip.log',]
-            # encrypt the logs
-            BRE = addressbook.address.Address.objects.filter(
-                email=TTS.UPSTREAM['bug_report_email'].upper()).first()
-            for E in Encrypt:
-                if os.path.exists(E):
-                    BRE.asymmetric(filename=E,
-                                   passphrase=Passphrase)
-                    Attach.append('%s.asc' % E)
-    logger.debug('Sending %s bug report' % request.POST.get('severity'))
-    emailclient.utils.submit_to_smtpd(
-        Attachments=Attach,
-        Destination=TTS.UPSTREAM['bug_report_email'],
-        Payload=request.POST.get('summary'),
-        Subject='BUGRPT:%s' % request.POST.get('severity'),
-        )
-    return HttpResponse(json.dumps({'ok':True}),
-                        content_type='application/json')
-
-
 def lockdown(request):
     do_lockdown(request)
     template = loader.get_template('lockdown.dtl')
