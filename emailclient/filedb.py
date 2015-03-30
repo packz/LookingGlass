@@ -7,53 +7,13 @@ import os.path
 import subprocess
 
 import addressbook
-import emailclient.utils
-
-from ratchet.utils import hulk_smash_unicode
+import emailclient
 
 from thirtythirty.settings import USERNAME
 MAIL_ROOT = '/home/%s/Maildir/' % USERNAME
 
 import logging
 logger = logging.getLogger(__name__)
-
-class MIMEandMaildir(email.MIMEMultipart.MIMEMultipart,
-                     mailbox.MaildirMessage):    
-    def get_date(self):
-        return 0 
-
-    def my_attach(self, filename=None):
-        if not os.path.exists(filename):
-            raise(emailclient.exception.No_Attachment("Can't find %s" % filename))
-        part = email.MIMEBase.MIMEBase('application', 'octet-stream')
-        part.set_payload(file(filename, 'rb').read())
-        email.Encoders.encode_base64(part)
-        part.add_header('Content-Disposition', 'attachment; filename="%s"' % filename)
-        self.attach(part)
-
-    def my_format(self, to=None, ffrom=None,
-                  date=None, subject=None,
-                  body=None, attach=[]):
-        self.preamble = hulk_smash_unicode(body)
-        for A in attach:
-            self.my_attach(A)
-        for X in ['Subject', 'To', 'From', 'Date']:
-            # otherwise we'll add multiple values
-            del self[X]
-        self['Subject'] = subject
-        self['To'] = to
-        if ffrom:
-            self['From'] = ffrom
-        else:
-            self['From'] = addressbook.utils.my_address().email
-        if date:
-            self['Date'] = date
-        else:
-            self['Date'] = email.utils.formatdate()
-        self.set_flags('S')
-        self.set_subdir('cur')
-
-
 
 def __count_new_mail(aMbx=None):
     count = 0

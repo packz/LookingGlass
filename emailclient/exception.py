@@ -13,3 +13,5 @@ class Bad_Passphrase(EmailException):
 class No_Attachment(EmailException):
     pass
 
+class Ambiguous_To(EmailException):
+    pass
