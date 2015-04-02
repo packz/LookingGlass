@@ -4,8 +4,6 @@ from django.core.exceptions import MultipleObjectsReturned
 import re
 from types import StringType
 
-import fuzzy
-
 import addressbook.address
 import addressbook.exception
 
@@ -70,6 +68,13 @@ def my_address():
 
 
 def double_metaphone(name=None):
+    """
+    FIXME: move the import statement to the head when we up the image
+    """
+    try:
+        import fuzzy
+    except:
+        return []
     if not name:
         return []
     DM = fuzzy.DMetaphone()

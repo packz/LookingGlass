@@ -3,6 +3,7 @@ from django.db.models import Q
 
 import email
 import subprocess
+import mailbox
 
 import addressbook
 import emailclient
@@ -38,7 +39,7 @@ class LGFolder(mailbox.Maildir):
 
         
 
-class LGEmail(email.MIMEMultipart.MIMEMultipart,
+class LGEmail(email.mime.multipart.MIMEMultipart,
               mailbox.MaildirMessage):    
     def get_date(self):
         return 0 
@@ -78,7 +79,7 @@ class LGEmail(email.MIMEMultipart.MIMEMultipart,
 
     def Decrypt(self, Passphrase=None):
         if not addressbook.gpg.verify_symmetric(Passphrase):
-            raise(emailclient.exception.Bad_Passphrase('Lame passphrase')
+            raise(emailclient.exception.Bad_Passphrase('Lame passphrase'))
 
 
     def Attach(self,

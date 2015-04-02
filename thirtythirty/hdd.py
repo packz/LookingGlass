@@ -330,7 +330,8 @@ Mounted: %s
         StdOut, StdErr = thirtythirty.utils.popen_wrapper(['/bin/mount',
                                               self.Info['mountpoint']])
         if (StdOut, StdErr) != ('', ''):
-            raise(thirtythirty.exception.CannotMount('unlock() failed'))
+            if not re.search('already mounted', StdErr):
+                raise(thirtythirty.exception.CannotMount('unlock() failed'))
         if self.Info.has_key('post-up'):
             for S in self.Info['post-up']:
                 thirtythirty.utils.popen_wrapper(S)
