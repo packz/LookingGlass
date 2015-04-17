@@ -69,7 +69,7 @@ class QRunner(models.Manager):
             'Accept':'text/plain',
             }
         try:
-            conn = httplib.HTTPConnection(TTS.UPSTREAM['keyserver'], timeout=60)
+            conn = httplib.HTTPConnection(TTS.UPSTREAM['keyserver'], timeout=120)
             conn.request('POST', '/%s' % func,
                          json.dumps(data),
                          Headers)
@@ -455,9 +455,8 @@ We'll try again in a bit and see if it magically starts working.
                     UniqueKey = Message.address.fingerprint
                     )
             except ratchet.conversation.Conversation.DoesNotExist:
-                logger.error("Conversation for %s doesn't exist." % Message.address)
-                
-                Message.delete()
+                logger.warning("Conversation for %s doesn't exist - could indicate delayed Axolotl greetings()" % Message.address)
+                # DON'T DELETE THE MESSAGE HERE                
                 return
             try:
                 MySMP = smp.models.SMP.objects.get(UniqueKey = Message.address.fingerprint)

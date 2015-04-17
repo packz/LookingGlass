@@ -177,6 +177,7 @@ function save_draft() {
   }, 'json');  
 };
 
+
 $('#trash').click(function() {
     $.post('{% url 'emailclient.discard' %}',
   {

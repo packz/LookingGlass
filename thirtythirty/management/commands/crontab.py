@@ -5,7 +5,7 @@ from optparse import make_option
 import random
 
 import thirtythirty.models
-from thirtythirty.settings import PASSPHRASE_CACHE, LUKS
+from thirtythirty.settings import PASSPHRASE_CACHE, LUKS, SESSION_FILE_PATH
 LUKS_CACHE = LUKS['key_file']
 
 # we can't use USERNAME from thirtythirty.settings, as this is 'self-running' as root
@@ -28,7 +28,7 @@ class Command(BaseCommand):
     
     def handle(self, *args, **settings):
         P = thirtythirty.models.preferences.objects.first()
-        Cache_Time = '*/30 * * * *'
+        Cache_Time = '30 * * * *'
         if P:
             Cache_Time = P.passphrase_cache_time
         Raw = """
@@ -60,6 +60,8 @@ MAILTO=root
 
 {cachetime:20}{USERNAME:8}/home/{USERNAME}/.virtualenvs/thirtythirty/bin/python /home/{USERNAME}/thirtythirty/manage.py lockdb --lock --headless && shred -zu {cache_loc} &>/dev/null
 
+{cachetime:20}{USERNAME:8}shred -zu {session_cache}/*
+
 {cachetime:20}{USERNAME:8}if [[ -e {cache_luks} ]]; then shred -zu {cache_luks}; fi &>/dev/null
 
 """.format(**{
@@ -73,6 +75,7 @@ MAILTO=root
             'random_minute':str(random.randrange(0, 60)),
             'reboot':'@reboot',
             'recron':'*/30 * * * *',
+            'session_cache':SESSION_FILE_PATH,
             'frequently':'*/10 * * * *',
         })
         if settings['print']:

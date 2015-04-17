@@ -122,8 +122,9 @@ DATABASE_ROUTERS = ['thirtythirty.cryptorouter.AddressRouter',
                     'thirtythirty.cryptorouter.SmpRouter',
                     'thirtythirty.cryptorouter.DefaultRouter',]
 
-
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_ENGINE = 'django.contrib.sessions.backends.file'
+SESSION_FILE_PATH = '/run/shm/sessions' # created by /etc/init.d/nginx
 
 # using gpg for our session password
 AUTHENTICATION_BACKENDS = ( 'thirtythirty.gpgauth.gpgAuth', )

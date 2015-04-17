@@ -398,11 +398,15 @@ def receive(request, Key=None):
             emailclient.filedb.discard(Key)
 
             if Preferences.rx_symmetric_copy:
+                if '[SYMMETRIC]' not in Msg['subject']:
+                    Subject = '[SYMMETRIC] %s' % Msg['subject']
+                else:
+                    Subject = Msg['subject']
                 M = emailclient.filedb.save_local(
                     to=Msg['to'],
                     ffrom=Msg['from'],
                     date=Msg['date'],
-                    subject='[SYMMETRIC] %s' % Msg['subject'],
+                    subject = Subject,
                     body=Payload,
                     passphrase=Passphrase,
                     Folder='', # inbox

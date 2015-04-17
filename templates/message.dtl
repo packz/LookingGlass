@@ -17,8 +17,6 @@
 
 {% block panel_body %}
 
-{% include 'passphrase_modal.dtl' %}
-
 <div class='container-fluid'>
   
 <div class='row'>
@@ -84,7 +82,7 @@
     {% endif %}
     <div class='container-fluid'>
       <div class='text-center mycollapse' id='message-locked'>
-	<button type='button' class='btn btn-default btn-danger' data-toggle='modal' data-target='#passphrase-modal'>
+	<button type='button' class='btn btn-default btn-danger'>
 	  <h2><span class='gpg-button glyphicon glyphicon-lock'></span><span class='axo-button glyphicon glyphicon-link mycollapse'></span></h2>
 	  <h4 class='gpg-button lock-text'>DECRYPT</h4>
 	  <h4 class='axo-button mycollapse lock-text'>OPEN & DELETE</h4>
@@ -127,7 +125,6 @@ function message_load() {
   $.post('{% url 'emailclient.receive' Key=Key %}',
          {'csrfmiddlewaretoken':'{{ csrf_token }}',
           'axo-failsafe':$('#axo-failsafe').val(),
-          'passphrase':$('#passphrase').val(),
          },
          function(data){
        $('#message-raw').text(data.rawdog);
@@ -194,7 +191,6 @@ function message_load() {
        console.log('automagically request user keys...');
        $('.message-loading').fadeOut('slow', function() {
           $('#message-locked').fadeIn('slow');
-          $('#passphrase-modal').modal('show');
        });
        } else if (data.msg_type == 'FAIL') {
        console.log('uh oh');
@@ -218,12 +214,10 @@ $(document).ready(function(){
   message_load();
 });
 
-function passphrase_submitted() {
-  $('#message-locked').fadeOut('slow', function() {
-   $('.lock-text').text('Try Again');
-  });
+$('#message-locked').click(function(){
+  $('#message-locked').fadeOut('slow');
   message_load();
-};
+});
 
 {% if title == 'trash' %}
 $('#trash-msg').click(function() {
@@ -265,6 +259,5 @@ $('#trash-msg').click(function() {
 {% endif %}
 
 {% include 'folder_mgmt.js' %}
-{% include 'passphrase_modal.js' %}
 
 {% endblock js %}

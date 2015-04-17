@@ -306,8 +306,12 @@ def settings(request, advanced=False):
 
         {'title':'Process management',
          'id':'Process',
-         'advanced':True,
          'controls':[
+             {'desc':'NTP time sync',
+              'type':'button',
+              'class':'kick',
+              'id':'ntp-sync',
+              },
              {'desc':'Flush mail queue',
               'type':'button',
               'class':'kick',
@@ -585,26 +589,31 @@ def kick(request, process=None):
     """
     note the initial slash - due to parsing of RE in url.py
     """
-    if process == '/postqueue-flush':
+    process = process[1:]
+    if process == 'postqueue-flush':
         subprocess.call(['/usr/bin/sudo', '-u', 'root',
                          '/usr/sbin/postqueue', '-f'])
         return HttpResponse('postqueue')
-    elif process == '/postfix-restart':
+    elif process == 'postfix-restart':
         subprocess.call(['/usr/bin/sudo', '-u', 'root',
                          '/usr/bin/make', '--directory', '/etc/postfix', 'reload'])
         return HttpResponse('postfix')
-    elif process == '/tor-restart':
+    elif process == 'tor-restart':
         subprocess.call(['/usr/bin/sudo', '-u', 'root',
                          '/etc/init.d/tor', 'restart'])
         return HttpResponse('tor')
-    elif process == '/django-restart':
+    elif process == 'django-restart':
         subprocess.call(['/usr/bin/sudo', '-u', 'root',
                          '/usr/bin/supervisorctl', 'restart', 'gunicorn'])
         return HttpResponse('django')
-    elif process == '/qmanage-run':
+    elif process == 'qmanage-run':
         QR = addressbook.queue.QRunner()
         QR.Run(passphrase=request.session.get('passphrase', None))
         return HttpResponse('qmanage')
+    elif process == 'ntp-sync':
+        subprocess.call(['/usr/bin/sudo', '-u', 'root',
+                         '/etc/init.d/ntp-bootstrap', 'start'])
+        return HttpResponse('ntp-bootstrap')
     else:
         return HttpResponse('no')
 

@@ -14,9 +14,9 @@ class preferences(models.Model):
 
     # this is crontab(5) format
     # minute / hour / dom / month / dow
-    HHOUR  = '*/30 * * * *'
+    HHOUR  = '0,30 * * * *'
     HOURLY = '@hourly'
-    HOUR3  = '*/3 * * * *'
+    HOUR3  = '0 */3 * * *'
     HOUR12 = '0,12 * * * *'
     DAILY  = '@daily'
     passphrase_cache_timeouts = (

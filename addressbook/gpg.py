@@ -38,7 +38,7 @@ def generate_key(passphrase=None,
                                           )
     Fingerprint = addressbook.GPG.gen_key(Input)
     logger.debug('Key created, running DB import scripts')
-    addressbook.address.Address.objects.rebuild_addressbook()
+    addressbook.address.Address.objects.rebuild_addressbook(Private=True)
     return Fingerprint
 
 
