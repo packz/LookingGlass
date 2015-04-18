@@ -13,7 +13,7 @@ import thirtythirty
 import thirtythirty.settings as TTS
 
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('addressbook')
 
 Ratchet_Objects = ratchet.conversation.Conversation.objects
 Ratchet_Objects.init_for('ratchet')
@@ -132,7 +132,6 @@ class AddressMgr(models.Manager):
                 direction=addressbook.queue.Queue.TX,
                 message_type=addressbook.queue.Queue.GPG_PK_PULL,
                 body=Covername,
-                messageid=str(uuid4()), # Don't remove this, even though `default` should handle it...  it wasn't.
                 )
             logger.debug('Added request for %s' % Covername)
         return A
@@ -156,7 +155,6 @@ class AddressMgr(models.Manager):
                                        email=str(uuid4()))
             H = addressbook.queue.Queue.objects.create(
                 address=A,
-                messageid=str(uuid4()), # Don't remove this, even though `default` should handle it...  it wasn't.
                 direction=addressbook.queue.Queue.TX,
                 message_type=addressbook.queue.Queue.GPG_PK_PULL,
                 body=fprint)
@@ -240,7 +238,7 @@ class Address(models.Model):
     fingerprint = models.CharField(
         primary_key=True,
         max_length=40,
-        default=str(uuid4())) # borken?
+        default=lambda: str(uuid4()))
 
     covername    = models.CharField(max_length=85, unique=True)
     comment      = models.CharField(max_length=100, null=True)

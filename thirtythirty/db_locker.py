@@ -13,7 +13,7 @@ import emailclient
 import thirtythirty
 
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('thirtythirty')
 
 
 def alert_user_auto_recovery():

@@ -12,7 +12,7 @@ import thirtythirty.settings as TTS
 import addressbook
 
 import logging
-logger = logging.getLogger(__name__)        
+logger = logging.getLogger('thirtythirty')
 
 def Scan(Server=None):
     """

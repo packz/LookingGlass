@@ -14,7 +14,7 @@ import thirtythirty.db_locker
 import ratchet
 
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('ratchet')
 
 
 class Skipped_Key(models.Model):

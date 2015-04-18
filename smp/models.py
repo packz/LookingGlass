@@ -14,7 +14,7 @@ import thirtythirty.db_locker
 from thirtythirty.settings import LOOKINGGLASS_VERSION_STRING
 
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('smp')
 
 
 def mulm(x, y, mod):

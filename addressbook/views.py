@@ -18,7 +18,7 @@ import thirtythirty
 from thirtythirty.gpgauth import session_pwd_wrapper, set_up_single_user
 
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('addressbook')
 
 KEY_EXPIRATION_WARNING = datetime.date.today() - datetime.timedelta(days=14)
 

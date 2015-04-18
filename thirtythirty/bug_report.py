@@ -12,7 +12,7 @@ import thirtythirty.settings as TTS
 from thirtythirty.gpgauth import session_pwd_wrapper
 
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('thirtythirty')
 
 
 class Bug_Report(object):

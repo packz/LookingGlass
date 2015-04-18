@@ -13,7 +13,7 @@ from thirtythirty.settings import USERNAME
 MAIL_ROOT = '/home/%s/Maildir/' % USERNAME
 
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('emailclient')
 
 def __count_new_mail(aMbx=None):
     count = 0

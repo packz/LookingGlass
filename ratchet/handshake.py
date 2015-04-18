@@ -5,7 +5,7 @@ import addressbook
 import ratchet
 
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('ratchet')
 
 
 def HandshakeFactory(*args, **kwargs):
@@ -149,7 +149,7 @@ Version: %s
         if not jPayload:
             raise(ratchet.exception.Bad_Passphrase(
                 'Could not decrypt our handshake'))
-        self.FPrint = jPayload.pubkey_fingerprint
+        self.FPrint = jPayload.pubkey_fingerprint or jPayload.key_id
         Payload = self.deserialize(jPayload.data)
         for K, V in self.from_b64(Payload).items():
             if K == 'FPrint':

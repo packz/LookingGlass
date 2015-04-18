@@ -20,7 +20,7 @@ import thirtythirty
 from thirtythirty.gpgauth import session_pwd_wrapper, set_up_single_user
 
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('emailclient')
 
 
 @session_pwd_wrapper
@@ -358,6 +358,8 @@ def receive(request, Key=None):
         Payload = None
         Ok = False
         Preferences = set_up_single_user()
+
+        
         
         if ((request.POST.get('axo-failsafe', False) == 'true') and
             (addressbook.gpg.verify_symmetric(Passphrase))):
@@ -365,6 +367,13 @@ def receive(request, Key=None):
                 Addr = addressbook.address.Address.objects.get(email__iexact=Msg['From'])
             except addressbook.address.Address.DoesNotExist:
                 Payload = '* Failed to load Address for user %s *' % Msg['From']
+                return HttpResponse(
+                    json.dumps({'ok':Ok,
+                                'msg_type':'FAIL',
+                                'payload':Payload}))
+
+            if Addr.user_state < addressbook.address.Address.NOT_VETTED:
+                Payload = '* Handshake for %s still pending *' % Msg['From']
                 return HttpResponse(
                     json.dumps({'ok':Ok,
                                 'msg_type':'FAIL',

@@ -10,7 +10,7 @@ import thirtythirty.settings as TTS
 from electrum import SimpleConfig, wallet
 
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('thirtythirty')
 
 def Vitals(request=None):
     Electrum_Data = '/home/%s/.electrum/wallets/default_wallet' % TTS.USERNAME

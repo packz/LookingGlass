@@ -22,7 +22,7 @@ import thirtythirty.settings as TTS
 import thirtythirty.utils as TTU
 
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('setup')
 
 def gen_passphrase(request, words=4):
         return HttpResponse(json.dumps(setup.passphrase.generate(words)),

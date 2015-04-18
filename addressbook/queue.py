@@ -20,7 +20,7 @@ import thirtythirty.exception
 import thirtythirty.settings as TTS
 
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('addressbook')
 
 Ratchet_Objects = ratchet.conversation.Conversation.objects
 Ratchet_Objects.init_for('ratchet')
@@ -291,6 +291,7 @@ We'll try again in a bit and see if it magically starts working.
                 A.nickname = Old_Nickname
                 New_CN = A.covername
                 A.save()
+                # FIXME: copy any existing convo states over here to the new addr
                 if (Old_CN == New_CN):
                     Differently_Named = False
                 if Axo_Body:
@@ -366,7 +367,7 @@ We'll try again in a bit and see if it magically starts working.
                 HS = ratchet.handshake.EncryptedHandshake(Import=Message.body,
                                                           Passphrase=passphrase)
                 if HS.FPrint == None:
-                    logger.critical('Axo handshake from %s came without a fingerprint - could be bad news.  Deleting.' % Message.address)
+                    logger.error('Axo handshake from %s came without a fingerprint.' % Message.address)
                     Message.delete()
                     return
             except ratchet.exception.Bad_Passphrase:

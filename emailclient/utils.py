@@ -8,7 +8,7 @@ import re
 import addressbook
 
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('emailclient')
 
 def text_payload(Msg=None):
     if Msg.is_multipart():
