@@ -306,6 +306,8 @@ Mounted: %s
         StdOut, StdErr = thirtythirty.utils.popen_wrapper(['/bin/chown', self.Info['owner'],
                                               self.Info['mountpoint']])
         if (StdOut, StdErr) != ('', ''):
+            logger.error(StdOut)
+            logger.error(StdErr)
             raise(thirtythirty.exception.CannotOwn('lv_create(%s) failed' % self.Name))
         for Location, Octal in self.Info['permissions']:
             StdOut, StdErr = thirtythirty.utils.popen_wrapper(['/bin/chmod', Octal, Location])

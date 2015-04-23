@@ -60,7 +60,7 @@ MAILTO=root
 
 {cachetime:20}{USERNAME:8}/home/{USERNAME}/.virtualenvs/thirtythirty/bin/python /home/{USERNAME}/thirtythirty/manage.py lockdb --lock --headless && shred -zu {cache_loc} &>/dev/null
 
-{cachetime:20}{USERNAME:8}shred -zu {session_cache}/*
+{cachetime:20}{USERNAME:8}shred -zu {session_cache}/* &>/dev/null
 
 {cachetime:20}{USERNAME:8}if [[ -e {cache_luks} ]]; then shred -zu {cache_luks}; fi &>/dev/null
 

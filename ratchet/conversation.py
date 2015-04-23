@@ -52,6 +52,8 @@ class ConversationMgr(thirtythirty.db_locker.LockManager,
         if ((not unique_key) or
             (not passphrase)):
             return None
+        if (('-' in unique_key) and (len(unique_key) == 36)):
+            raise(ratchet.exception.No_Address('Address fingerprint looks like a UUID, to me'))
         self.init_for('ratchet')
         Convo = self.create(UniqueKey=unique_key)
         Convo.begin_at_the_beginening()
@@ -371,6 +373,8 @@ class Conversation(models.Model):
         if self.DHRatchet.tx == None:
             self.DHRatchet.genEC()
             self.NumberTx = 0
+        if not self.ChainKey.tx:
+            raise(ratchet.exception.Broken_State('ChainKey.tx is None?!'))
         MessageKey = sha256(
             self.ChainKey.tx + '0'
             ).digest()

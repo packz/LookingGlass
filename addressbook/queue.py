@@ -215,6 +215,9 @@ We'll try registration again and see if it magically starts working.
         
 
     def Pull_PK(self, passphrase=None, Message=None):
+        try: Ratchet_Objects.decrypt_database(passphrase)
+        except thirtythirty.exception.Target_Exists: pass
+        
         Me = addressbook.utils.my_address()
         if Message and Message.direction == Queue.RX:
             logger.warning('Got a PK request RX message unexpectedly')
@@ -280,6 +283,7 @@ We'll try again in a bit and see if it magically starts working.
             Old_Nickname = Message.address.nickname
             Old_CN = Message.address.covername
             Axo_Body = self.__get_axo_body(Message.address.fingerprint)
+            Convo = ratchet.conversation.Conversation.objects.filter(UniqueKey=Message.address.fingerprint).first()
             # we have to blast it out first, as covername is unique
             Message.address.delete()
             Message.delete()
@@ -291,7 +295,10 @@ We'll try again in a bit and see if it magically starts working.
                 A.nickname = Old_Nickname
                 New_CN = A.covername
                 A.save()
-                # FIXME: copy any existing convo states over here to the new addr
+                if Convo:
+                    logger.debug('Moving the existing conversation over...')
+                    Convo.unique_key = FP
+                    Convo.save()
                 if (Old_CN == New_CN):
                     Differently_Named = False
                 if Axo_Body:
@@ -372,17 +379,22 @@ We'll try again in a bit and see if it magically starts working.
                     return
             except ratchet.exception.Bad_Passphrase:
                 logger.critical("Can't see into this handshake!")
-                Message.delete()
+                Message.message_type = Queue.ADDRESS_RST
+                Message.save()
                 return
             try:
                 Who = ratchet.conversation.Conversation.\
                       objects.get(UniqueKey=HS.FPrint)
                 logger.debug('Got Axo ACK from %s' % HS.FPrint)
             except ratchet.conversation.Conversation.DoesNotExist:
-                Who = ratchet.conversation.Conversation.\
-                      objects.initiate_handshake_for(
-                    unique_key=HS.FPrint,
-                    passphrase=passphrase)
+                try:
+                    Who = ratchet.conversation.Conversation.\
+                          objects.initiate_handshake_for(
+                        unique_key=HS.FPrint,
+                        passphrase=passphrase)
+                except ratchet.conversation.exception.No_Address:
+                    logger.error('We have not finished looking up the key for %s - bailing out of handshake for now.' % HS.FPrint)
+                    return
                 # turn around and send our shake out
                 Queue.objects.create(address=Message.address,
                                      direction=Queue.TX,
@@ -470,9 +482,15 @@ We'll try again in a bit and see if it magically starts working.
                 Got = Convo.decrypt(Message.body)
             except:
                 logger.warning("Let's let the other side know something went sideways...")
-                self.__queue_local(
-                    destination=Message.address.email,
-                    payload=Convo.encrypt('Axolotl decrypt error'))
+                try:
+                    self.__queue_local(
+                        destination=Message.address.email,
+                        payload=Convo.encrypt('Axolotl decrypt error'))
+                except ratchet.exception.Broken_State:
+                    logger.critical('This is one effed up conversation.')
+                    Message.address.remote_restart(passphrase)
+                    Message.delete()
+                    return
                 MySMP.remove(fail=True)
                 logger.debug('Returned %s to %s' % (Message.address.email,
                                                     Message.address.get_user_state_display()))

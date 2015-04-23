@@ -357,12 +357,20 @@ class Address(models.Model):
         addressbook.queue.Queue.objects.filter(
             address=self,
             ).delete()
-        addressbook.queue.Queue.objects.create(
-            address=self,
-            body='conversation reset',
-            direction=addressbook.queue.Queue.TX,
-            message_type=addressbook.queue.Queue.AXOLOTL,
-            )
+        if '@' in self.email:
+            addressbook.queue.Queue.objects.create(
+                address=self,
+                body='conversation reset',
+                direction=addressbook.queue.Queue.TX,
+                message_type=addressbook.queue.Queue.AXOLOTL,
+                )
+        else:
+            addressbook.queue.Queue.objects.create(
+                address=self,
+                body=self.covername,
+                direction=addressbook.queue.Queue.TX,
+                message_type=addressbook.queue.Queue.GPG_PK_PULL,
+                )
 
 
     def Backup(self):

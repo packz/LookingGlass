@@ -51,19 +51,24 @@ function async_badge_update() {
     $.each(d, function(key, val) {
       $('.' + key + '-newmail').text(val);
     });
+
+    $.getJSON('{% url 'smp.pending' %}', function(d) {
+      if (d.length > 0) {
+	$('#attn-contact').show();
+	$.each(d, function(key, val) {
+	  $('#' + val + '-attn').show();
+	  $('#' + val + '-cog').hide();
+	});
+      };
+
+      /* unroll THIS */
+      setTimeout(function() {
+	async_badge_update();
+      }, 60000);
+
+    });
+
   });
-  $.getJSON('{% url 'smp.pending' %}', function(d) {
-    if (d.length > 0) {
-      $('#attn-contact').show();
-      $.each(d, function(key, val) {
-	$('#' + val + '-attn').show();
-	$('#' + val + '-cog').hide();
-      });
-    };
-  });
-  setTimeout(function() {
-    async_badge_update();
-  }, 60000);
 }
 {% block js %}
 {% endblock js %}
