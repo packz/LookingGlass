@@ -221,8 +221,11 @@ def send(request):
                                         'extra':'Bad passphrase'}))
 
     if request.POST.get('MK', None):
-        # delete draft, if it exists
-        emailclient.filedb.discard(request.POST.get('MK'))
+        # move draft to trash
+        MK = request.POST.get('MK')
+        if emailclient.filedb.folder_from_msg_key(MK) == 'drafts':
+            emailclient.filedb.flag(MK, addFlag='T')
+            emailclient.filedb.move(MK, folderName='trash')
 
     To = request.POST.get('to', None)
     Addr = addressbook.address.Address.objects.filter(
@@ -305,6 +308,7 @@ def receive(request, Key=None):
         return HttpResponse(json.dumps({'ok':False, 'status':'nonesuch'}),
                             content_type='application/json')
     Msg = FolderHash['mbx'].get(Key)
+    
     # mark as 'S'een
     emailclient.filedb.flag(Key, addFlag='S')
 
@@ -358,8 +362,6 @@ def receive(request, Key=None):
         Payload = None
         Ok = False
         Preferences = set_up_single_user()
-
-        
         
         if ((request.POST.get('axo-failsafe', False) == 'true') and
             (addressbook.gpg.verify_symmetric(Passphrase))):
@@ -399,16 +401,15 @@ def receive(request, Key=None):
                 Payload = Convo.decrypt(Msg.as_string())
             except ratchet.exception.RatchetException:
                 Payload = '* Decrypt failed: %s *' % Addr.magic()
-                emailclient.filedb.discard(Key)
                 return HttpResponse(
                     json.dumps({'ok':False,
                                 'msg_type':'FAIL',
                                 'payload':Payload}))
-            emailclient.filedb.discard(Key)
-
+            
             if Preferences.rx_symmetric_copy:
-                if '[SYMMETRIC]' not in Msg['subject']:
-                    Subject = '[SYMMETRIC] %s' % Msg['subject']
+                if Msg['subject']:
+                    if '[SYMMETRIC]' not in Msg['subject']:
+                        Subject = '[SYMMETRIC] %s' % Msg['subject']
                 else:
                     Subject = Msg['subject']
                 M = emailclient.filedb.save_local(
@@ -421,7 +422,9 @@ def receive(request, Key=None):
                     Folder='', # inbox
                     )
                 logger.debug('Made a symmetric copy: %s' % (M['extra']))
-                                  
+
+            if Key:
+                emailclient.filedb.discard(Key)
         
         return HttpResponse(
             json.dumps({'ok':Ok,
