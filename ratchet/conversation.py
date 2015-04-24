@@ -1,5 +1,5 @@
 
-from django.db import models
+from django.db import models, IntegrityError
 from django.utils import timezone
 
 from curve25519 import keys as ECkey
@@ -344,10 +344,13 @@ class Conversation(models.Model):
         for i in range(NumberPurported - NumberRx):
             MessageKey = sha256(pChainKey + '0').digest()
             pChainKey = sha256(pChainKey + '1').digest()
-            Skipped_Key(Convo=self,
-                        HeaderKeyRx=HeaderKeyRx,
-                        MessageKey=MessageKey).save()
-            Counter += 1
+            try:
+                Skipped_Key(Convo=self,
+                            HeaderKeyRx=HeaderKeyRx,
+                            MessageKey=MessageKey).save()
+                Counter += 1
+            except IntegrityError:
+                logger.warning('IntegrityError - duplicate key derivation')
         logger.debug('saved %s skipped keys' % (Counter))
         MessageKey = sha256(pChainKey + '0').digest()
         pChainKey = sha256(pChainKey + '1').digest()
