@@ -175,7 +175,19 @@ class QRunner(models.Manager):
                 },
             }
         logger.debug('Pushing')
-        Resp = self.__connect_upstream(func='push_key', data=Notify)
+        try:
+            Resp = self.__connect_upstream(func='push_key', data=Notify)
+        except socket.error:
+            logger.error('Connection reset by peer - tor having issues?')
+            emailclient.utils.submit_to_smtpd(Payload="""The upstream server seems to have experienced a temporary problem during registration.
+The error is
+`Connection Timeout`
+We'll try registration again and see if it magically starts working.
+""",
+            Destination=Me.email,
+            Subject='Temporary problem - key registration',
+            From='Sysop <root>')
+            return False
         Me = addressbook.utils.my_address()
         if Resp['ok'] == 'FAIL':
             logger.error('PK push failed: %s' % Resp['reason'])
