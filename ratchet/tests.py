@@ -3,14 +3,19 @@ from django.test import TestCase
 from django.db import IntegrityError
 
 import uuid
+import random
 
 import ratchet
 
 class RatchetTest(TestCase):
     def geterset(self, k1name='.ALICE', k2name='.BOB'):
         try:
-            Alice = ratchet.conversation.Conversation.objects.initiate_handshake_for(unique_key=k2name, passphrase='1234')
-            Bob   = ratchet.conversation.Conversation.objects.initiate_handshake_for(unique_key=k1name, passphrase='1234')
+            Alice = ratchet.conversation.Conversation.objects.initiate_handshake_for(unique_key=k2name,
+                                                                                     passphrase='1234',
+                                                                                     test_mode=True)
+            Bob   = ratchet.conversation.Conversation.objects.initiate_handshake_for(unique_key=k1name,
+                                                                                     passphrase='1234',
+                                                                                     test_mode=True)
         except IntegrityError:
             Alice = ratchet.conversation.Conversation.objects.get(UniqueKey=k2name)
             Bob = ratchet.conversation.Conversation.objects.get(UniqueKey=k1name)
@@ -172,3 +177,66 @@ class RatchetTest(TestCase):
 
         self.assertEqual(Bob.decrypt(M1a), A2Bxml)
         self.assertEqual(Alice.decrypt(M1b), B2A)
+
+
+    def test_out_of_order_decrypt(self):
+        Alice, Bob = self.cut_to_the_jibber_jabber()
+
+        Plaintext = {}
+        Ciphertext = {}
+        for X in range(0, 11):
+            Plaintext[X] = str(uuid.uuid4())
+            Ciphertext[X] = Alice.encrypt(plaintext=Plaintext[X])
+            
+        for Y in [10, 8, 6, 4, 2, 0]:
+            self.assertEqual(Bob.decrypt(Ciphertext[Y]), Plaintext[Y])
+
+        self.assertEqual(ratchet.conversation.Skipped_Key.objects.filter(Convo=Bob).count(), 5)
+
+        for Y in [1, 3, 5, 7, 9]:
+            self.assertEqual(Bob.decrypt(Ciphertext[Y]), Plaintext[Y])
+
+        self.assertEqual(ratchet.conversation.Skipped_Key.objects.filter(Convo=Bob).count(), 0)
+
+
+    def test_interleave_decrypt(self):
+        Alice, Bob = self.cut_to_the_jibber_jabber()
+
+        APlaintext = {}
+        ACiphertext = {}
+        BPlaintext = {}
+        BCiphertext = {}
+        
+        random.seed(49152) # c64 represent
+        sample_size = 50
+        
+        # preload some msgs from alice
+        for X in range(0, sample_size+1):
+            APlaintext[X] = str(uuid.uuid4())
+            ACiphertext[X] = Alice.encrypt(plaintext=APlaintext[X])
+
+        # decrypt while encrypting
+        while len(APlaintext.keys()) > int(sample_size / 2):
+            R = random.choice(APlaintext.keys())
+            A = APlaintext[R]
+            del APlaintext[R]
+            self.assertEqual(Bob.decrypt(ACiphertext[R]), A)
+            BPlaintext[R] = str(uuid.uuid4())
+            BCiphertext[R] = Bob.encrypt(plaintext=BPlaintext[R])
+
+        # make sure the above encrypted are legible
+        Shuffle = BCiphertext.keys()
+        random.shuffle(Shuffle)
+        for R in Shuffle:
+            self.assertEqual(Alice.decrypt(BCiphertext[R]), BPlaintext[R])
+            
+        # decrypt the rest
+        while len(APlaintext.keys()) > 0:
+            R = random.choice(APlaintext.keys())
+            A = APlaintext[R]
+            del APlaintext[R]
+            self.assertEqual(Bob.decrypt(ACiphertext[R]), A)
+            BPlaintext[R] = str(uuid.uuid4())
+            BCiphertext[R] = Bob.encrypt(plaintext=BPlaintext[R])
+        
+        self.assertEqual(ratchet.conversation.Skipped_Key.objects.filter(Convo=Bob).count(), 0)

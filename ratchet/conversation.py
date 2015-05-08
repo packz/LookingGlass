@@ -45,14 +45,16 @@ class ConversationMgr(thirtythirty.db_locker.LockManager,
         thirtythirty.db_locker.LockManager.__init__(self)
         models.Manager.__init__(self, *args, **kwargs)
     
-    def initiate_handshake_for(self, unique_key=None, passphrase=None):
+    def initiate_handshake_for(self, unique_key=None, passphrase=None, test_mode=False):
         """
         Others there are whose hands have sunbeams in them...
         """
+        if test_mode:
+            logger.warning('Test mode enabled')
         if ((not unique_key) or
             (not passphrase)):
             return None
-        if (('-' in unique_key) and (len(unique_key) == 36)):
+        if (('-' in unique_key) and (len(unique_key) == 36) and not test_mode):
             raise(ratchet.exception.No_Address('Address fingerprint looks like a UUID, to me'))
         self.init_for('ratchet')
         Convo = self.create(UniqueKey=unique_key)
