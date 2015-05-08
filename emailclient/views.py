@@ -161,7 +161,7 @@ def edit(request, Key=None, advanced=False):
         'folder_list':emailclient.filedb.list_folders(sanitize=True),
         'friends':addressbook.address.Address.objects.filter(is_me=False, system_use=False),
         'magic':{
-            'MK':Key,
+#            'MK':Key,
             'body':Body,
             'to':Msg['To'],
             'subject':Msg['Subject'],
@@ -407,11 +407,10 @@ def receive(request, Key=None):
                                 'payload':Payload}))
             
             if Preferences.rx_symmetric_copy:
+                Subject = Msg['subject']                
                 if Msg['subject']:
                     if '[SYMMETRIC]' not in Msg['subject']:
                         Subject = '[SYMMETRIC] %s' % Msg['subject']
-                else:
-                    Subject = Msg['subject']
                 M = emailclient.filedb.save_local(
                     to=Msg['to'],
                     ffrom=Msg['from'],

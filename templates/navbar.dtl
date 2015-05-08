@@ -31,13 +31,17 @@
         {% endif %}
 
         <li class='disabled'>
+          <a title='Not yet - but soon!'><span class='glyphicon glyphicon-globe left-hand-icons'></span> SkyDrive</a>
+        </li>
+	
+        <li class='disabled'>
           <a title='Not yet - but soon!'><span class='glyphicon glyphicon-bitcoin left-hand-icons'></span> Wallet</a>
         </li>
 
         <li class='disabled'>
           <a title='Not yet - but soon!'><span class='glyphicon glyphicon-bullhorn left-hand-icons'></span> News</a>
         </li>
-
+	
       </ul><!-- end left navbar -->
 
       <ul class='nav navbar-nav navbar-right'>
