@@ -30,6 +30,13 @@ UPSTREAM = {
         'A4D0785226C649011F01F5EE2E08B316D5BE3439',
         '9D78B8A6E3F607D0D705DEB8EF12B2899AE46EB7',
         ],
+    'tahoe':{
+        'config':'/home/tahoe/.tahoe/tahoe.cfg',   # update the firstboot script if you change this
+        'keyserver_furl' : str('pb://'
+                               'xv6iupgkbjz56siojdiev4cgdbm5husc'
+                               '@tylwl7kqpo2e4qvq.onion'
+                               ':60179/introducer'),
+        }
     }
 
 # i tried using getuser() here, but supervisord kept feeding my script 'root' before it dropped privs...
@@ -259,6 +266,23 @@ LUKS = {
                 ],
             },
         {
+            'name':'pi_electrum',
+            'description':'Wallet',
+            'size':'10M',
+            'mountpoint':'/home/%s/.electrum' % USERNAME,
+            'owner':'pi:',
+            'permissions':[
+                ('/home/%s/.electrum' % USERNAME, '700'),
+                ],
+            # 'post-init':[    # FIXME: need to catch the seed - heh
+            #     ['/home/%s/.virtualenvs/thirtythirty/bin/electrum' % USERNAME,
+            #      '--offline',
+            #      '--gui', 'stdio',
+            #      '--password', file(PASSPHRASE_CACHE, 'r').read(),
+            #      'create']
+            #     ],
+            },
+        {
             'name':'pi_gpg',
             'description':'Address Book',
             'size':'10M',
@@ -309,23 +333,6 @@ LUKS = {
         #         ],
         #     },
         {
-            'name':'pi_electrum',
-            'description':'Wallet',
-            'size':'10M',
-            'mountpoint':'/home/%s/.electrum' % USERNAME,
-            'owner':'pi:',
-            'permissions':[
-                ('/home/%s/.electrum' % USERNAME, '700'),
-                ],
-            # 'post-init':[    # FIXME: need to catch the seed - heh
-            #     ['/home/%s/.virtualenvs/thirtythirty/bin/electrum' % USERNAME,
-            #      '--offline',
-            #      '--gui', 'stdio',
-            #      '--password', file(PASSPHRASE_CACHE, 'r').read(),
-            #      'create']
-            #     ],
-            },
-        {
             'name':'postfix_etc',
             'description':'Mail server',
             'size':'01M',
@@ -354,11 +361,17 @@ LUKS = {
 GPG = {
     'encoding':'utf-8',
     'export':'/srv/docs/public_key.asc',
+    'keyserver':[
+        'hkp://keys.gnupg.net',
+        'hkp://pgp.mit.edu',
+        'hkp://pool.sks-keyservers.net',
+        ],
     'options':[
         '--keyid-format=LONG',
-        '--throw-keyids',
+        '--keyserver-options=no-honor-keyserver-url',
         '--personal-digest-preferences=sha256',
         '--s2k-digest-algo=sha256',
+        '--throw-keyids',
         ],
     'root':'/home/%s/.gnupg' % USERNAME,
     'symmetric_location':'/home/%s/.gnupg/symmetric.asc' % USERNAME,

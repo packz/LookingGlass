@@ -126,7 +126,10 @@ def sorted_messages_in_folder(folder=None, folderName=None, messageKey=None, deb
         if debug:
             logger.debug('Traced request for folderName `%s`' % (folderName))
         # may get passed empty string for inbox - be ware
-        Mbx = mailbox.Maildir(MAIL_ROOT, factory=False).get_folder(folderName)
+        try:
+            Mbx = mailbox.Maildir(MAIL_ROOT, factory=False).get_folder(folderName)
+        except:
+            return []
         if Mbx:
             return sorted_messages_in_folder(folder=Mbx)
     elif messageKey:

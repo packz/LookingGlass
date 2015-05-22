@@ -37,6 +37,7 @@ def Vitals(request=None):
     if os.path.exists(Electrum_Data):
         Config = SimpleConfig()
         ret['btc_mpk'] = wallet.WalletStorage(Config).get('master_public_key')
+
     return ret
 
 

@@ -119,7 +119,7 @@ class QRunner(models.Manager):
             Queue.ADDRESS_RST:'Address_Reset',
 #            Queue.AXOANONHS:'Anonymous_Axolotl',
             Queue.GPG_PK_PULL:'Pull_PK',
-            Queue.GPG_PK_PUSH:'Push_PK',
+            Queue.GPG_PK_PUSH:'Keyserver_Push',
             Queue.SERVER_INFO:'Server_Info',
             Queue.SOCIALISM:'Socialist_Millionaire',
             Queue.QCOMMIE:'Queued_SMP',
@@ -157,6 +157,29 @@ class QRunner(models.Manager):
             message_type=addressbook.queue.Queue.AXOLOTL,
             )
         Message.delete()
+
+
+    def Keyserver_Push(self, passphrase=None, Message=None):
+        if Message and Message.direction == Queue.RX:
+            logger.warning('Got a PK publish RX message unexpectedly')
+            return False
+        logger.debug('Pushing')
+        Resp = addressbook.gpg.push_to_keyserver()
+        if Resp['failed']:
+            emailclient.utils.submit_to_smtpd(Payload="""The upstream server seems to have experienced a temporary problem during registration.
+The error is:
+`%s`
+We'll try registration again in a bit and see if it magically starts working.
+""" % '\n'.join(Resp['status']),
+                                              Destination=Me.email,
+                                              Subject='Temporary problem - key registration',
+                                              From='Sysop <root>')
+            return False
+        else:
+            Message.delete()
+            Me.comment = ' '.join(Resp['status'])
+            Me.save()
+            return True
 
 
     def Push_PK(self, passphrase=None, Message=None):

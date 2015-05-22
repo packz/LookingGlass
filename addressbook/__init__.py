@@ -3,7 +3,8 @@ import thirtythirty.settings as TTS
 
 import gnupg
 GPG = gnupg.GPG(gnupghome=TTS.GPG['root'],
-                options=TTS.GPG['options'])
+#	        verbose=True,
+            options=TTS.GPG['options'])
 GPG.encoding = TTS.GPG['encoding']
 
 import addressbook.exception

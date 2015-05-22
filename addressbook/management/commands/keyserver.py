@@ -23,6 +23,11 @@ class Command(BaseCommand):
                     default=False,
                     dest='pull',
                     help='Pull user key from keyserver pool'),
+        make_option('--unexpire',
+                    action='store_true',
+                    default=False,
+                    dest='unexpire',
+                    help='Upditae user key expiration'),
         )
 
     
@@ -31,4 +36,12 @@ class Command(BaseCommand):
             addressbook.gpg.push_to_keyserver()
 
         elif settings['pull']:
-            addressbook.gpg.pull_from_keyserver(settings['pull'])
+            addressbook.gpg.pull_from_keyserver(covername=settings['pull'])
+
+        elif settings['unexpire']:
+            import getpass
+            pw = getpass.getpass()
+            if addressbook.gpg.change_expiration(passwd=pw):
+                print 'pushing the update'
+                if addressbook.gpg.push_to_keyserver():
+                    print 'dun'

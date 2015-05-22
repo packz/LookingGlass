@@ -52,11 +52,17 @@ def format_date(msgDate, format='%d%b%yZ%H%M'):
     if type(msgDate) is tuple:
         return strftime(format, msgDate)
     elif type(msgDate) is str:
-        return strftime(format,
-                        parsedate(msgDate))
+        try:
+            return strftime(format,
+                            parsedate(msgDate))
+        except:
+            return '0000-00-00'
     else:
-        return strftime(format,
-                        parsedate(msgDate['date']))
+        try:
+            return strftime(format,
+                            parsedate(msgDate['date']))
+        except:
+            return '0000-00-00'
 
 @register.filter
 def message_key(aMsg):

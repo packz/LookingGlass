@@ -1,6 +1,7 @@
 
 from os import chmod
 from stat import S_IRUSR, S_IWUSR
+from time import time
 
 import re
 import subprocess
@@ -86,6 +87,27 @@ save
 """ % (Me.covername.upper(), Me.email.upper(), passwd)
     Raw = __gpg_edit_key(Script)
     if re.search('signing failed', Raw): return False
+    return True
+
+
+def change_expiration(passwd=None, expire='8m'):
+    Script = """0
+expire
+%s
+%s
+1
+expire
+%s
+%s
+save
+""" % (
+    expire,
+    passwd,
+    expire,
+    passwd
+    )
+    Raw = __gpg_edit_key(Script)
+    if re.search('Invalid passphrase', Raw): return False
     return True
 
 
@@ -207,3 +229,63 @@ def verify_data(eeenput=None):
             'fp':S.pubkey_fingerprint,
             'timestamp':S.timestamp,
             }
+
+
+def push_to_keyserver():
+    Me = addressbook.utils.my_address()
+    ret = {'failed':True,
+           'status':[]}
+    for X in TTS.GPG['keyserver']:
+        S = addressbook.GPG.send_keys(X, Me.fingerprint)
+        Info = re.sub('(?s).*gpg: sending key', '', S.stderr).strip()
+        logger.debug(Info)
+        ret['status'].append(Info)
+        if not re.search('failed', Info):
+            ret['failed'] = False
+    return ret
+
+
+def __search_keyserver(covername=None):
+    """
+    do sanity checking of the key here
+    return only very very good prospects
+    """
+    Epoch = time()
+    Search = '%s@*.onion' % re.sub(' ', '.', covername)
+    RE_Match = '<%s@[0-9A-Z]{16}\.ONION>$' % re.sub(' ', '\.', covername).upper()
+    ret = []
+    for KS in TTS.GPG['keyserver']:
+        for Key in addressbook.GPG.search_keys(Search, KS):
+            try: # key w/o expiration results in empty string
+                if float(Key['expires']) < Epoch:
+                    logger.debug('Key %s expired' % Key['keyid'])
+                    continue
+            except ValueError:
+                logger.debug('Key %s no expiration' % Key['keyid'])
+                continue
+            try:
+                if re.search(RE_Match, Key['uids'][0]):
+                    if Key not in ret:
+                        ret.append(Key)
+            except ValueError:
+                logger.debug('Key %s uid AFU' % Key['keyid'])
+                continue
+    return ret
+
+
+def __key_from_fingerprint(FP=None):
+    for KS in TTS.GPG['keyserver']:
+        if addressbook.GPG.recv_keys(KS, FP).count == 1:
+            addressbook.address.Address.objects.rebuild_addressbook()
+            return FP
+
+        
+def pull_from_keyserver(address=None, covername=None):
+    if not (address or covername): return None
+    if not covername:
+        if not isinstance(address, addressbook.address.Address): return None
+        covername = address.covername
+        if not covername: return None
+    for Match in __search_keyserver(covername):
+        logger.debug('Requesting key for %s' % Match['keyid'])
+        print __key_from_fingerprint(Match['keyid'])
