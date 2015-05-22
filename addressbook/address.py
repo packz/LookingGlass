@@ -198,6 +198,11 @@ class AddressMgr(models.Manager):
             if Parsed:
                 if Parsed.has_key('Name'):
                     A.covername = Parsed['Name']
+                    # remove any pending addressbook requests for this covername
+                    Address.objects.filter(
+                        covername=A.covername,
+                        fingerprint__contains='-',
+                        ).delete()
                 if Parsed.has_key('Comment'):
                     A.comment = Parsed['Comment']
                 if Parsed.has_key('Email'):
@@ -206,7 +211,10 @@ class AddressMgr(models.Manager):
                 logger.debug('%s recognised as system_use' % A.email)
                 A.system_use = True
             A.save()
-            logger.debug("Hello, %s - let's get to know each other." % A.email)
+            logger.debug("Hello, %s - creating a handshake for you" % A.email)
+            addressbook.queue.Queue.objects.create(address=A,
+                                                   direction=addressbook.queue.Queue.TX,
+                                                   message_type=addressbook.queue.Queue.AXOLOTL)
         return ret
 
 

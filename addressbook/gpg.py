@@ -278,14 +278,26 @@ def __key_from_fingerprint(FP=None):
         if addressbook.GPG.recv_keys(KS, FP).count == 1:
             addressbook.address.Address.objects.rebuild_addressbook()
             return FP
+    return None
 
         
-def pull_from_keyserver(address=None, covername=None):
-    if not (address or covername): return None
-    if not covername:
+def pull_from_keyserver(address=None, covername=None, fingerprint=None):
+    if not (address or covername or fingerprint): return None
+    if address:
         if not isinstance(address, addressbook.address.Address): return None
         covername = address.covername
         if not covername: return None
-    for Match in __search_keyserver(covername):
-        logger.debug('Requesting key for %s' % Match['keyid'])
-        print __key_from_fingerprint(Match['keyid'])
+    if covername:
+        Search_Result = __search_keyserver(covername)
+        if len(Search_Result) == 1:
+            fingerprint = Search_Result[0]['keyid']
+        else:
+            logger.error('Got too many matches...  %s' % str(Search_Result))
+            return None
+    if not fingerprint:
+        logger.debug('No fingerprint?')
+        return None
+    logger.debug('Requesting key for %s' % fingerprint)
+    if __key_from_fingerprint(fingerprint):
+        return addressbook.address.Address.objects.get(fingerprint=fingerprint)
+

@@ -117,8 +117,7 @@ class QRunner(models.Manager):
         Engine = {
             Queue.AXOLOTL:'Axolotl',
             Queue.ADDRESS_RST:'Address_Reset',
-#            Queue.AXOANONHS:'Anonymous_Axolotl',
-            Queue.GPG_PK_PULL:'Pull_PK',
+            Queue.GPG_PK_PULL:'Keyserver_Pull',
             Queue.GPG_PK_PUSH:'Keyserver_Push',
             Queue.SERVER_INFO:'Server_Info',
             Queue.SOCIALISM:'Socialist_Millionaire',
@@ -353,7 +352,19 @@ We'll try again in a bit and see if it magically starts working.
                 return False
             else:
                 return True
-            
+
+
+    def Keyserver_Pull(self, passphrase=None, Message=None):
+        """
+        FIXME: there is no FAIL/TEMPFAIL code here - need to write that yet.
+        """
+        Resp = None
+        if re.search('^[0-9A-Fa-f]{5,40}$', Message.body):
+            Resp = addressbook.gpg.pull_from_keyserver(fingerprint=Message.body)
+        else:
+            Resp = addressbook.gpg.pull_from_keyserver(covername=Message.body)
+        logger.debug(Resp)
+                        
 
     def Axolotl(self, passphrase=None, Message=None):
         try: Ratchet_Objects.decrypt_database(passphrase)

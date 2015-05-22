@@ -33,10 +33,10 @@ class Command(BaseCommand):
     
     def handle(self, *args, **settings):
         if settings['push']:
-            addressbook.gpg.push_to_keyserver()
+            print addressbook.gpg.push_to_keyserver()
 
         elif settings['pull']:
-            addressbook.gpg.pull_from_keyserver(covername=settings['pull'])
+            print addressbook.gpg.pull_from_keyserver(covername=settings['pull'])
 
         elif settings['unexpire']:
             import getpass
