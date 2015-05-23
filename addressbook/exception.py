@@ -50,3 +50,6 @@ class MultipleMatches(GPGException):
 
 class KeyserverTimeout(GPGException):
     pass
+
+class NoKeyMatch(GPGException):
+    pass

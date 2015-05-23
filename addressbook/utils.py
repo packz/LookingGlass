@@ -7,6 +7,9 @@ from types import StringType
 import addressbook.address
 import addressbook.exception
 
+import logging
+logger = logging.getLogger('addressbook')
+
 import cPickle
 import datetime
 import thirtythirty.settings as TTS
@@ -29,6 +32,7 @@ class time_lock(object):
         if not TTS.HASHCASH['BACKOFF'].has_key(which):
             raise(addressbook.exception.Bad_Key('No key %s' % which))
         if not os.path.exists(TTS.HASHCASH['BACKOFF'][which]):
+            logger.debug('Locking for first time')
             self.lock(which)
             return False
         Now = datetime.datetime.now()

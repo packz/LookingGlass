@@ -257,6 +257,8 @@ def __search_keyserver(covername=None):
         if 'timed out' in K.stderr:
             logger.warning('Server timeout: %s' % KS)
             Timeout_Count += 1
+        elif len(K) == 0:
+            logger.warning('%s has no keys.' % KS)
         for Key in K:
             try: # key w/o expiration results in empty string
                 if float(Key['expires']) < Epoch:
@@ -298,8 +300,7 @@ def pull_from_keyserver(address=None, covername=None, fingerprint=None):
         elif len(Search_Result) > 1:
             raise(addressbook.exception.MultipleMatches(Search_Result))
         elif len(Search_Result) == 0:
-            logger.error('No results')
-            return None
+            raise(addressbook.exception.NoKeyMatch(Search_Result))
     if not fingerprint:
         logger.debug('No fingerprint?')
         return None

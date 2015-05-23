@@ -29,69 +29,6 @@ SMP_Objects = smp.models.SMP.objects
 SMP_Objects.init_for('smp')
 
 class QRunner(models.Manager):
-    def __make_resource(self, Query=None):
-        """
-        Builds a stable hash for the Pull_PK hashcash routine
-        
-        This is a compromise between storing the requestor's fingerprint
-        (bad, allows network analysis if the backend server is captured)
-        and leaving the backend server all gaped out for a DOS
-        (also bad, because I hait administrivia)
-        """
-        ret = []
-        A = addressbook.utils.my_address()
-        for X in sorted(A.fingerprint.upper()[-8:]):
-            if X not in ret:
-                ret.append(X)
-        ret.append('.')
-        for Y in sorted(Query.upper()):
-            if Y == ' ': continue
-            if Y not in ret:
-                ret.append(Y)
-        return ''.join(ret)
-
-
-    def __connect_upstream(self, func=None, data=None):
-        """
-        Connect via JSON API to server
-
-        Modifies 'ok' in JSON to TEMPFAIL/FAIL/OK rather than True/False
-
-        Rate limiter keeps us polite
-        """
-        RL = addressbook.utils.time_lock()
-        if RL.is_locked('UPSTREAM'):
-            logger.warning('We are querying the keyserver too hard - backing off')
-            return {'ok':'TEMPFAIL',
-                    'reason':'We are querying the keyserver too hard - backing off'}
-        Headers = {
-            'Content-type':'application/json',
-            'Accept':'text/plain',
-            }
-        try:
-            conn = httplib.HTTPConnection(TTS.UPSTREAM['keyserver'], timeout=120)
-            conn.request('POST', '/%s' % func,
-                         json.dumps(data),
-                         Headers)
-        except socket.timeout:
-            logger.error('Connect timeout - cannot reach %s' % TTS.UPSTREAM['keyserver'])
-            return {'ok':'TEMPFAIL', 'reason':'Cannot connect to PK server.  try again later.'}
-        X = None
-        try:
-            X = conn.getresponse().read()
-        except httplib.BadStatusLine:
-            logger.error('PK server appears to be on its face.')
-            return {'ok':'TEMPFAIL', 'reason':'Cannot send to PK server.  try again later.'}
-        except socket.timeout:
-            logger.error('Read timeout - sluggish %s' % TTS.UPSTREAM['keyserver'])
-            return {'ok':'TEMPFAIL', 'reason':'PK server slow to respond.  try again later.'}
-        try:
-            return json.loads(X)
-        except ValueError:
-            logger.error("We're in it now...  Up to our necks.  No JSON from PK server: `%s`" % X)
-            return {'ok':'FAIL', 'reason':'PK server sent bogus JSON.  try again later.'}
-
-
     def __queue_local(self, destination=None,
                       payload=None,
                       headers=None):
@@ -180,67 +117,6 @@ We'll try registration again in a bit and see if it magically starts working.
             Me.save()
             return True
 
-
-    def Push_PK(self, passphrase=None, Message=None):
-        if Message and Message.direction == Queue.RX:
-            logger.warning('Got a PK publish RX message unexpectedly')
-            return False
-        logger.debug('Creating JSON to send')
-        FP = addressbook.utils.my_address().fingerprint
-        PK = addressbook.GPG.export_keys(FP)
-        Notify = {
-            'public_key':str(PK),
-            'hashcash':hashcash.mint(FP, bits=TTS.HASHCASH['BITS']['UPSTREAM']),
-            'request-id':str(uuid4()),
-            'server':{
-                'version':TTS.LOOKINGGLASS_VERSION_STRING,
-                },
-            }
-        logger.debug('Pushing')
-        try:
-            Resp = self.__connect_upstream(func='push_key', data=Notify)
-        except socket.error:
-            logger.error('Connection reset by peer - tor having issues?')
-            emailclient.utils.submit_to_smtpd(Payload="""The upstream server seems to have experienced a temporary problem during registration.
-The error is
-`Connection Timeout`
-We'll try registration again and see if it magically starts working.
-""",
-            Destination=Me.email,
-            Subject='Temporary problem - key registration',
-            From='Sysop <root>')
-            return False
-        Me = addressbook.utils.my_address()
-        if Resp['ok'] == 'FAIL':
-            logger.error('PK push failed: %s' % Resp['reason'])
-            Message.delete()
-            emailclient.utils.submit_to_smtpd(Payload="""The upstream server seems to have experienced a problem during registration.
-The error is:
-`%s`
-Please send a bug report so we can see to this.
-""" % Resp['reason'],
-                                              Destination=Me.email,
-                                              Subject='Ever so sorry...',
-                                              From='Sysop <root>')
-            return False
-        elif Resp['ok'] == 'TEMPFAIL':
-            logger.error('PK push failed: %s' % Resp['reason'])
-            emailclient.utils.submit_to_smtpd(Payload="""The upstream server seems to have experienced a temporary problem during registration.
-The error is:
-`%s`
-We'll try registration again and see if it magically starts working.
-""" % Resp['reason'],
-                                              Destination=Me.email,
-                                              Subject='Temporary problem - key registration',
-                                              From='Sysop <root>')
-            return False
-        logger.debug('PK push success: %s' % Resp['UserID'])
-        Message.delete()
-        Me.comment = Resp['UserID']
-        Me.save()
-        return True
-
-
     def __get_axo_body(self, old_uuid=None):
         Axo = Queue.objects.filter(address=old_uuid,
                                    message_type=Queue.AXOLOTL,
@@ -248,123 +124,57 @@ We'll try registration again and see if it magically starts working.
         if Axo: return Axo.body
         
 
-    def Pull_PK(self, passphrase=None, Message=None):
+    def Keyserver_Pull(self, passphrase=None, Message=None):
         try: Ratchet_Objects.decrypt_database(passphrase)
         except thirtythirty.exception.Target_Exists: pass
-        
+
+        RL = addressbook.utils.time_lock()
+        if RL.is_locked('UPSTREAM'):
+            logger.warning('We are querying the keyserver too hard - backing off')
+            return False
+                
         Me = addressbook.utils.my_address()
-        if Message and Message.direction == Queue.RX:
-            logger.warning('Got a PK request RX message unexpectedly')
-            return False
-        Request = {
-            'version':TTS.LOOKINGGLASS_VERSION_STRING,
-            'request-id':str(uuid4()),
-            }
-        if re.search('^[0-9A-Fa-f]{5,40}$', Message.body):
-            Type = 'fingerprint'
-        else:
-            Type = 'covername'
-            try:
-                First, Last = Message.body.split(' ')
-                Request['dm_first'] = addressbook.utils.double_metaphone(First)
-                Request['dm_last'] = addressbook.utils.double_metaphone(Last)
-            except ValueError: pass
-        Request[Type] = Message.body
-        Detached_Binary = addressbook.GPG.sign(Request[Type],
-                                               detach=True,
-                                               passphrase=passphrase,
-                                               binary=True)
-        Request['signature'] = binascii.b2a_base64(Detached_Binary.data)
-        Request['hashcash'] = hashcash.mint(self.__make_resource(Request[Type]),
-                                            bits=TTS.HASHCASH['BITS']['UPSTREAM'])
-        Func = 'pull_by_covername'
-        if Type == 'fingerprint':
-            Func = 'pull_by_fingerprint'
-        try:
-            Resp = self.__connect_upstream(func=Func, data=Request)
-        except:
-            logger.error('PK pull failed')
-            emailclient.utils.submit_to_smtpd(Payload="""The upstream server seems to have experienced a temporary problem during key lookup.
-We'll try again in a bit and see if it magically starts working.
-""",
-                                              Destination=Me.email,
-                                              Subject='Temporary problem - key lookup',
-                                              From='Sysop <root>')
-            
-            return False
-        if (Resp['ok'] == 'FAIL'):
-            # Solid failure, dude
-            logger.debug(Resp['reason'])
-            Message.address.user_state = addressbook.address.Address.FAIL
-            Message.address.save()
-            Message.delete()
-            return False
-        elif (Resp['ok'] == 'TEMPFAIL'):
-            # don't kill the msg, try again in a bit
-            logger.debug(Resp['reason'])
-            return False
-        elif (not Resp.has_key('pk')):
-            # Solid failure, dude
-            logger.debug(Resp)
-            Message.address.user_state = addressbook.address.Address.FAIL
-            Message.address.save()
-            Message.delete()
-            return False
-        else:
-            # sucksess
-            Differently_Named = True
-            New_CN = None
-            Old_Nickname = Message.address.nickname
-            Old_CN = Message.address.covername
-            Axo_Body = self.__get_axo_body(Message.address.fingerprint)
-            Convo = ratchet.conversation.Conversation.objects.filter(UniqueKey=Message.address.fingerprint).first()
-            # we have to blast it out first, as covername is unique
-            Message.address.delete()
-            Message.delete()
-            for FP in addressbook.address.Address.objects.import_key(Resp['pk']):
-                # if the user created a nickname while we were doing the lookup, copy it
-                logger.debug('Got key %s' % str(FP))
-                A = addressbook.address.Address.objects.get(fingerprint=FP)
-                A.user_state = addressbook.address.Address.KNOWN
-                A.nickname = Old_Nickname
-                New_CN = A.covername
-                A.save()
-                if Convo:
-                    logger.debug('Moving the existing conversation over...')
-                    Convo.unique_key = FP
-                    Convo.save()
-                if (Old_CN == New_CN):
-                    Differently_Named = False
-                if Axo_Body:
-                    logger.debug('This was via an axo request already pending - recreating it')
-                    Queue.objects.create(address=A,
-                                         direction=Queue.RX,
-                                         message_type=Queue.AXOLOTL,
-                                         body=Axo_Body)
-                else:
-                    logger.debug("I'll just go right ahead and shake this dude")
-                    Queue.objects.create(address=A,
-                                         direction=Queue.TX,
-                                         message_type=Queue.AXOLOTL)
-            
-            if Differently_Named:
-                logger.warning('Requested PK for `%s`, but got PK for `%s` instead.' % (Old_CN, New_CN))
-                return False
-            else:
-                return True
-
-
-    def Keyserver_Pull(self, passphrase=None, Message=None):
-        """
-        FIXME: there is no FAIL/TEMPFAIL code here - need to write that yet.
-        """
+        
         Resp = None
-        if re.search('^[0-9A-Fa-f]{5,40}$', Message.body):
-            Resp = addressbook.gpg.pull_from_keyserver(fingerprint=Message.body)
-        else:
-            Resp = addressbook.gpg.pull_from_keyserver(covername=Message.body)
-        logger.debug(Resp)
-                        
+        try:
+            if re.search('^[0-9A-Fa-f]{5,40}$', Message.body):
+                Resp = addressbook.gpg.pull_from_keyserver(fingerprint=Message.body)
+            else:
+                Resp = addressbook.gpg.pull_from_keyserver(covername=Message.body)
+                
+        except addressbook.exception.MultipleMatches as Matches:
+            logger.debug(Matches)
+            Message.address.user_state = addressbook.address.Address.FAIL
+            Message.address.save()
+            emailclient.utils.submit_to_smtpd(Payload="""The upstream server returned many keys for "%s".
+This is exciting new territory in errors!  Please fill out a bug report!  Thank you!
+""" % Message.address.covername,
+            Destination=Me.email,
+            Subject='FATAL problem - many users go by "%s"' % Message.address.covername,
+            From='Sysop <root>')
+            Message.delete()
+            
+        except addressbook.exception.NoKeyMatch:
+            logger.debug('No matches')
+            Message.address.user_state = addressbook.address.Address.FAIL
+            Message.address.save()
+            emailclient.utils.submit_to_smtpd(Payload="""No upstream server knows "%s".
+This may be a typo in the covername - please bother a developer to write the synonym code in a bug report!  Thank you!
+""" % Message.address.covername,
+            Destination=Me.email,
+            Subject='FATAL problem - no one by the name of "%s"' % Message.address.covername,
+            From='Sysop <root>')
+            Message.delete()
+            
+        except addressbook.exception.KeyserverTimeout:
+            logger.debug('Keyservers all timed out - TEMPFAIL')
+            emailclient.utils.submit_to_smtpd(Payload="""The upstream server seems to have experienced a temporary problem during key lookup for "%s".
+We'll try again in a bit and see if it magically starts working.
+""" % Message.address.covername,
+            Destination=Me.email,
+            Subject='Temporary problem - key lookup for "%s"' % Message.address.covername,
+            From='Sysop <root>')
+            
 
     def Axolotl(self, passphrase=None, Message=None):
         try: Ratchet_Objects.decrypt_database(passphrase)

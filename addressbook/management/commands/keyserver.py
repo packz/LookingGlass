@@ -28,7 +28,7 @@ class Command(BaseCommand):
                     action='store_true',
                     default=False,
                     dest='unexpire',
-                    help='Upditae user key expiration'),
+                    help='Update user key expiration'),
         )
 
     
