@@ -357,8 +357,9 @@ LUKS = {
 
 
 # GPG setup - crypto tweaks
-
+GPG_TIMEOUT = 10
 GPG = {
+    'debug':False,
     'encoding':'utf-8',
     'export':'/srv/docs/public_key.asc',
     'keyserver':[
@@ -368,7 +369,7 @@ GPG = {
         ],
     'options':[
         '--keyid-format=LONG',
-        '--keyserver-options=no-honor-keyserver-url',
+        '--keyserver-options=no-honor-keyserver-url,timeout=%s' % GPG_TIMEOUT,
         '--personal-digest-preferences=sha256',
         '--s2k-digest-algo=sha256',
         '--throw-keyids',

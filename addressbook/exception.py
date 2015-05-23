@@ -37,3 +37,16 @@ class No_File(FileLockException):
 
 class File_Exists(FileLockException):
     pass
+
+
+class GPGException(Exception):
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
+
+class MultipleMatches(GPGException):
+    pass
+
+class KeyserverTimeout(GPGException):
+    pass

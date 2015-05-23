@@ -7,6 +7,7 @@ from optparse import make_option
 
 import addressbook
 import thirtythirty.settings as TTS
+from thirtythirty.hdd import drives_are_unlocked
 
 class Command(BaseCommand):
     args = '<None>'
@@ -32,6 +33,11 @@ class Command(BaseCommand):
 
     
     def handle(self, *args, **settings):
+        if not drives_are_unlocked():
+            print "I can't do anything if I can't reach the GPG database."
+            print "Try `./manage.py hdd --unlock`"
+            exit(-1)
+        
         if settings['push']:
             print addressbook.gpg.push_to_keyserver()
 

@@ -19,9 +19,6 @@ logger = logging.getLogger('addressbook')
 def generate_key(passphrase=None,
                  covername=None,
                  email=None,):
-    """
-    FIXME: clock is ticking on code to handle key expiration
-    """
     Me = addressbook.address.Address.objects.filter(is_me=True).first()
     if Me:
         logger.debug('requested gpg key, but we already have an addressbook entry')
@@ -254,8 +251,13 @@ def __search_keyserver(covername=None):
     Search = '%s@*.onion' % re.sub(' ', '.', covername)
     RE_Match = '<%s@[0-9A-Z]{16}\.ONION>$' % re.sub(' ', '\.', covername).upper()
     ret = []
+    Timeout_Count = 0
     for KS in TTS.GPG['keyserver']:
-        for Key in addressbook.GPG.search_keys(Search, KS):
+        K = addressbook.GPG.search_keys(Search, KS)
+        if 'timed out' in K.stderr:
+            logger.warning('Server timeout: %s' % KS)
+            Timeout_Count += 1
+        for Key in K:
             try: # key w/o expiration results in empty string
                 if float(Key['expires']) < Epoch:
                     logger.debug('Key %s expired' % Key['keyid'])
@@ -270,6 +272,8 @@ def __search_keyserver(covername=None):
             except ValueError:
                 logger.debug('Key %s uid AFU' % Key['keyid'])
                 continue
+    if Timeout_Count >= len(TTS.GPG['keyserver']):
+        raise(addressbook.exception.KeyserverTimeout('All servers timed out'))
     return ret
 
 
@@ -291,8 +295,10 @@ def pull_from_keyserver(address=None, covername=None, fingerprint=None):
         Search_Result = __search_keyserver(covername)
         if len(Search_Result) == 1:
             fingerprint = Search_Result[0]['keyid']
-        else:
-            logger.error('Got too many matches...  %s' % str(Search_Result))
+        elif len(Search_Result) > 1:
+            raise(addressbook.exception.MultipleMatches(Search_Result))
+        elif len(Search_Result) == 0:
+            logger.error('No results')
             return None
     if not fingerprint:
         logger.debug('No fingerprint?')

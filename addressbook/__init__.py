@@ -3,7 +3,7 @@ import thirtythirty.settings as TTS
 
 import gnupg
 GPG = gnupg.GPG(gnupghome=TTS.GPG['root'],
-#	        verbose=True,
+	        verbose=TTS.GPG['debug'],
             options=TTS.GPG['options'])
 GPG.encoding = TTS.GPG['encoding']
 
