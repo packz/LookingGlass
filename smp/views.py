@@ -11,7 +11,7 @@ import thirtythirty.exception
 from thirtythirty.gpgauth import session_pwd_wrapper
 
 import logging
-logger = logging.getLogger('smp')
+logger = logging.getLogger(__name__)
 
 SMP_Objects = smp.models.SMP.objects
 SMP_Objects.init_for('smp')

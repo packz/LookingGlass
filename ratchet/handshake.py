@@ -5,7 +5,7 @@ import addressbook
 import ratchet
 
 import logging
-logger = logging.getLogger('ratchet')
+logger = logging.getLogger(__name__)
 
 
 def HandshakeFactory(*args, **kwargs):

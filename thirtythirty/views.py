@@ -24,7 +24,7 @@ from thirtythirty.gpgauth import session_pwd_wrapper, set_up_single_user
 from thirtythirty.updater import Available, Validate, Unpack, Cleanup, ChangeLog
 
 import logging
-logger = logging.getLogger('thirtythirty')
+logger = logging.getLogger(__name__)
 
 def too_many_logins():
     Minutes = 10

@@ -14,7 +14,7 @@ import thirtythirty.settings as TTS
 MAIL_ROOT = '/home/%s/Maildir/' % TTS.USERNAME
 
 import logging
-logger = logging.getLogger('emailclient')
+logger = logging.getLogger(__name__)
 
 def Folders(hidden=False):
     Root = mailbox.Maildir(MAIL_ROOT, factory=False).list_folders()

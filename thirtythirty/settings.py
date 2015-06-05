@@ -180,33 +180,39 @@ LOGGING = {
     'loggers':{
         'django':{
             'handlers':['stream'],
-            'propagate':True,
             'level':'WARNING',
+            'propagate':True,
             },
         # UGH
         'addressbook': {
             'handlers': ['file'],
             'level': 'DEBUG',
+            'propagate':True,
             },
         'emailclient': {
             'handlers': ['file'],
             'level': 'DEBUG',
+            'propagate':True,
             },
         'ratchet': {
             'handlers': ['file'],
             'level': 'DEBUG',
+            'propagate':True,
             },
         'setup': {
             'handlers': ['file'],
             'level': 'DEBUG',
+            'propagate':True,
             },
         'smp': {
             'handlers': ['file'],
             'level': 'DEBUG',
+            'propagate':True,
             },
         'thirtythirty': {
             'handlers': ['file'],
             'level': 'DEBUG',
+            'propagate':True,
             },
         },
     }

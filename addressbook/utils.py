@@ -8,7 +8,7 @@ import addressbook.address
 import addressbook.exception
 
 import logging
-logger = logging.getLogger('addressbook')
+logger = logging.getLogger(__name__)
 
 import cPickle
 import datetime

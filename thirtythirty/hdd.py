@@ -10,7 +10,7 @@ import thirtythirty.exception
 import thirtythirty.settings as TTS
 
 import logging
-logger = logging.getLogger('thirtythirty')
+logger = logging.getLogger(__name__)
 
 def Volumes(unlisted=False, VG=None):
     ret = []

@@ -20,7 +20,7 @@ import thirtythirty.exception
 import thirtythirty.settings as TTS
 
 import logging
-logger = logging.getLogger('addressbook')
+logger = logging.getLogger(__name__)
 
 Ratchet_Objects = ratchet.conversation.Conversation.objects
 Ratchet_Objects.init_for('ratchet')
@@ -179,6 +179,11 @@ We'll try again in a bit and see if it magically starts working.
     def Axolotl(self, passphrase=None, Message=None):
         try: Ratchet_Objects.decrypt_database(passphrase)
         except thirtythirty.exception.Target_Exists: pass
+
+        if Message.address.is_me:
+            logger.warning('Got a request to handshake myself?  Piss off.')
+            Message.delete()
+            return False
 
         if Message.direction == Queue.TX:
             logger.debug('Got request to send Axo SYN: %s' % Message.address.fingerprint)

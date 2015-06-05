@@ -13,7 +13,7 @@ import thirtythirty
 import thirtythirty.settings as TTS
 
 import logging
-logger = logging.getLogger('addressbook')
+logger = logging.getLogger(__name__)
 
 Ratchet_Objects = ratchet.conversation.Conversation.objects
 Ratchet_Objects.init_for('ratchet')
@@ -210,11 +210,13 @@ class AddressMgr(models.Manager):
             if Key['fingerprint'].upper() in TTS.UPSTREAM['trusted_prints']:
                 logger.debug('%s recognised as system_use' % A.email)
                 A.system_use = True
-            A.save()
-            logger.debug("Hello, %s - creating a handshake for you" % A.email)
-            addressbook.queue.Queue.objects.create(address=A,
-                                                   direction=addressbook.queue.Queue.TX,
-                                                   message_type=addressbook.queue.Queue.AXOLOTL)
+                A.save()
+            else:
+                A.save()
+                logger.debug("Hello, %s - creating a handshake for you" % A.email)
+                addressbook.queue.Queue.objects.create(address=A,
+                                                       direction=addressbook.queue.Queue.TX,
+                                                       message_type=addressbook.queue.Queue.AXOLOTL)
         return ret
 
 

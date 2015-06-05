@@ -14,7 +14,7 @@ from thirtythirty.gpgauth import set_up_single_user
 import thirtythirty.settings as TTS
 
 import logging
-logger = logging.getLogger('addressbook')
+logger = logging.getLogger(__name__)
 
 def generate_key(passphrase=None,
                  covername=None,
