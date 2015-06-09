@@ -210,9 +210,8 @@ class AddressMgr(models.Manager):
             if Key['fingerprint'].upper() in TTS.UPSTREAM['trusted_prints']:
                 logger.debug('%s recognised as system_use' % A.email)
                 A.system_use = True
-                A.save()
-            else:
-                A.save()
+            A.save()
+            if not A.is_me:
                 logger.debug("Hello, %s - creating a handshake for you" % A.email)
                 addressbook.queue.Queue.objects.create(address=A,
                                                        direction=addressbook.queue.Queue.TX,
