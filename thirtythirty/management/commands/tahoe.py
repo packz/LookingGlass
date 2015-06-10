@@ -31,9 +31,9 @@ expire.enabled = true
 expire.mode = age
 expire.override_lease_duration = 14 days
 
-[drop_upload]
-enabled = {DROP_UPLOAD}
-local.directory = {UPLOAD}
+#[drop_upload]
+#enabled = {DROP_UPLOAD}
+#local.directory = {UPLOAD}
 """
 
 class Command(BaseCommand):
@@ -67,6 +67,6 @@ class Command(BaseCommand):
         if settings['print']:
             print Cooked
         else:
-            fh = file(TTS.UPSTREAM['tahoe']['config'], 'w')
+            FH = file('%s/tahoe.cfg' % TTS.UPSTREAM['tahoe']['directory'], 'w')
             FH.write(Cooked)
             FH.close()

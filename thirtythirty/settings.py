@@ -26,16 +26,18 @@ UPSTREAM = {
                 },
                ],
     'trusted_prints':[
-        # these need to be system_use, not imported by the user
+        # these get flagged as system_use
         'A4D0785226C649011F01F5EE2E08B316D5BE3439',
         '9D78B8A6E3F607D0D705DEB8EF12B2899AE46EB7',
         ],
     'tahoe':{
-        'config':'/home/tahoe/.tahoe/tahoe.cfg',   # update the firstboot script if you change this
+        # keep in sync with postinst.2 and firstboot
+        'directory':'/var/lib/tahoe-lafs/LookingGlass',
         'keyserver_furl' : str('pb://'
-                               'xv6iupgkbjz56siojdiev4cgdbm5husc'
-                               '@tylwl7kqpo2e4qvq.onion'
-                               ':60179/introducer'),
+                               'x4lipzre6dwzrrb62q7kgjmket5b6kvs@'
+                               'tylwl7kqpo2e4qvq.onion'
+                               ':60179/'
+                               '4jg6uu25pkz5nirvovglpsoysyu66xk5'),
         }
     }
 
