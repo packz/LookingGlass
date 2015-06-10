@@ -16,9 +16,11 @@ Raw = """
 nickname = {HOSTNAME}
 tub.port = {PORT}
 tub.location = {FQDN}:{PORT}
+web.port = tcp:3456:interface=0.0.0.0
 
 [client]
-introducer.furl = {FURL}
+helper.furl = {HELPER_FURL}
+introducer.furl = {INTRODUCER_FURL}
 mutable.format = mdmf
 shares.needed = {NEEDED}
 shares.happy = {HAPPY}
@@ -56,10 +58,11 @@ class Command(BaseCommand):
             'HOSTNAME':HOSTNAME,
             'PORT':58005,
             'FQDN':FQDN,
-            'FURL':TTS.UPSTREAM['tahoe']['keyserver_furl'],
-            'NEEDED':1,
-            'HAPPY':1,
-            'TOTAL':1,
+            'HELPER_FURL':TTS.UPSTREAM['tahoe']['helper_furl'],
+            'INTRODUCER_FURL':TTS.UPSTREAM['tahoe']['introducer_furl'],
+            'NEEDED':TTS.UPSTREAM['tahoe']['shares']['needed'],
+            'HAPPY':TTS.UPSTREAM['tahoe']['shares']['happy'],
+            'TOTAL':TTS.UPSTREAM['tahoe']['shares']['total'],
             'SPACE':'2G',
             'DROP_UPLOAD':True,
             'UPLOAD':'/home/pi/UPLOAD',

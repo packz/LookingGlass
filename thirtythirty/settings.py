@@ -31,14 +31,19 @@ UPSTREAM = {
         '9D78B8A6E3F607D0D705DEB8EF12B2899AE46EB7',
         ],
     'tahoe':{
-        # keep in sync with postinst.2 and firstboot
-        'directory':'/var/lib/tahoe-lafs/LookingGlass',
-        'keyserver_furl' : str('pb://'
+        'shares':{
+            'needed':1,
+            'happy':1,
+            'total':1,
+            },
+        'directory':'/var/lib/tahoe-lafs/LookingGlass', # keep this in sync with postinst.2 and firstboot
+        'introducer_furl': str('pb://'
                                'x4lipzre6dwzrrb62q7kgjmket5b6kvs@'
                                'tylwl7kqpo2e4qvq.onion'
                                ':60179/'
                                '4jg6uu25pkz5nirvovglpsoysyu66xk5'),
-        }
+        'helper_furl':'',  # future use
+        },
     }
 
 # i tried using getuser() here, but supervisord kept feeding my script 'root' before it dropped privs...
