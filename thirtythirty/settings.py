@@ -31,6 +31,7 @@ UPSTREAM = {
         '9D78B8A6E3F607D0D705DEB8EF12B2899AE46EB7',
         ],
     'tahoe':{
+        'my_port':58008,
         'shares':{
             'needed':1,
             'happy':1,

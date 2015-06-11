@@ -56,7 +56,7 @@ class Command(BaseCommand):
         HOSTNAME = re.sub('\.onion$', '', FQDN)
         Cooked = Raw.format(**{
             'HOSTNAME':HOSTNAME,
-            'PORT':58005,
+            'PORT':TTS.UPSTREAM['tahoe']['my_port'],
             'FQDN':FQDN,
             'HELPER_FURL':TTS.UPSTREAM['tahoe']['helper_furl'],
             'INTRODUCER_FURL':TTS.UPSTREAM['tahoe']['introducer_furl'],
