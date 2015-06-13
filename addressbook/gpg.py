@@ -238,7 +238,10 @@ def push_to_keyserver():
         logger.debug(Info)
         ret['status'].append(Info)
         if not re.search('failed', Info):
+            logger.debug('Push to %s: SUCCESS' % X)
             ret['failed'] = False
+        else:
+            logger.debug('Push to %s: FAIL' % X)
     return ret
 
 

@@ -211,7 +211,7 @@ class AddressMgr(models.Manager):
                 logger.debug('%s recognised as system_use' % A.email)
                 A.system_use = True
             A.save()
-            if not A.is_me:
+            if ((not A.is_me) and (not A.system_use)):
                 logger.debug("Hello, %s - creating a handshake for you" % A.email)
                 addressbook.queue.Queue.objects.create(address=A,
                                                        direction=addressbook.queue.Queue.TX,

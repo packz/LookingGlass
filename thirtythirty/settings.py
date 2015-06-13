@@ -11,7 +11,7 @@ except:
 LOOKINGGLASS_VERSION_STRING = 'LookingGlass V%02d.%02d.%02d' % LOOKINGGLASS_VERSION
 
 # makes authentication a bit faster, at the expense of ZOMG security
-PASSPHRASE_CACHE = '/run/shm/passphrase_cache'
+PASSPHRASE_CACHE = '/dev/shm/passphrase_cache'
 
 # Things I need to know to talk to the outside world
 UPSTREAM = {
@@ -83,13 +83,16 @@ INSTALLED_APPS = (
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'thirtythirty',
+    'django_rq',
+    'rest_framework',
     'gunicorn',
-    'setup',
-    'emailclient',
     'addressbook',
+    'emailclient',
+    'queue',
     'ratchet',
+    'setup',
     'smp',
+    'thirtythirty',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -120,13 +123,13 @@ DATABASES = {
     # these DBs are manually encrypted/decrypted
     'smp': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': '/run/shm/smp.sqlite3',
+        'NAME': '/dev/shm/smp.sqlite3',
         'LOCKED': '/home/%s/.gnupg/smp.gpg' % USERNAME,
         'BACKUP': '/home/%s/.gnupg/smp.gpg~' % USERNAME,
         },
     'ratchet': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': '/run/shm/ratchet.sqlite3',
+        'NAME': '/dev/shm/ratchet.sqlite3',
         'LOCKED': '/home/%s/.gnupg/ratchet.gpg' % USERNAME,
         'BACKUP': '/home/%s/.gnupg/ratchet.gpg~' % USERNAME,
         },
@@ -139,7 +142,7 @@ DATABASE_ROUTERS = ['thirtythirty.cryptorouter.AddressRouter',
 
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_ENGINE = 'django.contrib.sessions.backends.file'
-SESSION_FILE_PATH = '/run/shm/sessions' # created by /etc/init.d/nginx
+SESSION_FILE_PATH = '/dev/shm/sessions' # created by lookingglass-fixup.service
 
 # using gpg for our session password
 AUTHENTICATION_BACKENDS = ( 'thirtythirty.gpgauth.gpgAuth', )
@@ -202,6 +205,11 @@ LOGGING = {
             'level': 'DEBUG',
             'propagate':True,
             },
+        'queue': {
+            'handlers': ['file'],
+            'level': 'DEBUG',
+            'propagate':True,
+            },
         'ratchet': {
             'handlers': ['file'],
             'level': 'DEBUG',
@@ -220,6 +228,11 @@ LOGGING = {
         'thirtythirty': {
             'handlers': ['file'],
             'level': 'DEBUG',
+            'propagate':True,
+            },
+        'rq.worker': {
+            'handlers': ['file'],
+            'level': 'WARNING',  # rq is chatty
             'propagate':True,
             },
         },
@@ -258,8 +271,8 @@ LUKS = {
     'device':'/dev/mmcblk0',
     'vg_name':'LookingGlass',
     'fs':'ext4',
-    'shortcut_check_file':'/run/shm/drives_exist',
-    'key_file':'/run/shm/luks.key',  # do not change this without updating /etc/crypttab !
+    'shortcut_check_file':'/dev/shm/drives_exist',
+    'key_file':'/dev/shm/luks.key',  # do not change this without updating /etc/crypttab !
     'mounts':[ # list, so we can (roughly) define boot/shutdown order
         {
             'name':'tor_var',
@@ -415,5 +428,36 @@ HASHCASH = {
         'WEBUI':18,
         'MILTER':20,
         'UPSTREAM':20,
+        },
+    }
+
+
+# rest framework for new angular.js interface
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.BasicAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        ),
+    'DEFAULT_PERMISSION_CLASSES':[
+        'rest_framework.permissions.AllowAny',
+    ],
+    'DEFAULT_RENDERER_CLASSES':(
+        'rest_framework.renderers.JSONRenderer',
+    ),
+}
+    
+# redis queue for async job queue
+RQ_QUEUES = {
+    'default':{
+        'HOST': 'localhost',
+        'PORT': 6379,
+        'DB': 0,
+        'PASSWORD': None,
+        'DEFAULT_TIMEOUT': 360,
+        },
+    'low':{
+        'HOST': 'localhost',
+        'PORT': 6379,
+        'DB': 0,
         },
     }

@@ -3,7 +3,7 @@ from django.test import TestCase
 
 import addressbook
 
-PASSPHRASE = file('/run/shm/email.key', 'r').read()
+PASSPHRASE = file('/dev/shm/email.key', 'r').read()
 
 class GPGTest(TestCase):
     # def test_only_one_me(self):

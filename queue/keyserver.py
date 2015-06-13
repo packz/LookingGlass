@@ -9,6 +9,7 @@ import datetime
 import addressbook
 import emailclient
 import ratchet
+import thirtythirty.hdd
 
 import logging
 logger = logging.getLogger(__name__)
@@ -18,7 +19,10 @@ Ratchet_Objects.init_for('ratchet')
 
 @job
 def Push():
-    logger.debug('Pushing')
+    logger.debug('Keyserver push')
+    if not thirtythirty.hdd.drives_are_unlocked():
+        logger.warning('Drives not unlocked yet.')
+        exit()
     Resp = addressbook.gpg.push_to_keyserver()
     Me = addressbook.utils.my_address()
     if Resp['failed']:

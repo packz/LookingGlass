@@ -2,15 +2,9 @@
 from django.db import models
 from django.db.models import Q
 
-import binascii
-import httplib
-import json
 import re
-import socket
 from uuid import uuid4
 from types import StringType
-
-import hashcash
 
 import addressbook
 import ratchet
@@ -99,6 +93,7 @@ class QRunner(models.Manager):
         if Message and Message.direction == Queue.RX:
             logger.warning('Got a PK publish RX message unexpectedly')
             return False
+        Me = addressbook.utils.my_address()
         logger.debug('Pushing')
         Resp = addressbook.gpg.push_to_keyserver()
         if Resp['failed']:
@@ -113,7 +108,7 @@ We'll try registration again in a bit and see if it magically starts working.
             return False
         else:
             Message.delete()
-            Me.comment = ' '.join(Resp['status'])
+            Me.comment = 'KS Accepted - %s' % ' '.join(Resp['status'])
             Me.save()
             return True
 
@@ -185,6 +180,11 @@ We'll try again in a bit and see if it magically starts working.
             Message.delete()
             return False
 
+        if Message.address.system_use:
+            logger.warning('Got a request to handshake a system user.  No.')
+            Message.delete()
+            return False
+        
         if Message.direction == Queue.TX:
             logger.debug('Got request to send Axo SYN: %s' % Message.address.fingerprint)
             try:

@@ -7,7 +7,7 @@ class FileDB:
     """
     def __init__(self,
                  clobber=False,
-                 loc='/run/shm'):
+                 loc='/dev/shm'):
         from os import rename
         from os.path import exists
         self.file_loc = loc

@@ -13,3 +13,4 @@ import addressbook.covername
 import addressbook.gpg
 import addressbook.queue
 import addressbook.utils
+import addressbook.views

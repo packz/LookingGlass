@@ -114,7 +114,7 @@ class Command(BaseCommand):
                 try: V.remove()
                 except: pass
             for F in ['gpg.key', 'covername', 'drive.key', 'luks.key']:
-                try: os.unlink('/run/shm/%s' % F)
+                try: os.unlink('/dev/shm/%s' % F)
                 except: pass
             try: os.unlink(TTS.GPG['export'])
             except: pass

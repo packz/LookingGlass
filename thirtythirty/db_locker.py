@@ -54,7 +54,7 @@ class LockManager(object):
     Test = {
         'BACKUP':'/tmp/test.gpg~',
         'LOCKED':'/tmp/test.gpg',
-        'NAME':'/run/shm/test.sqlite',
+        'NAME':'/dev/shm/test.sqlite',
         }
     
     def init_for(self, db_name=None):
