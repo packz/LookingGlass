@@ -337,6 +337,11 @@ def settings(request, advanced=False):
               'class':'kick',
               'id':'qmanage-run',
               },
+             {'desc':'Queue kicker',
+              'type':'button',
+              'class':'kick',
+              'id':'rqworker',
+              },
              ]},
 
         {'title':'Updates',
@@ -613,6 +618,10 @@ def kick(request, process=None):
     elif process == 'ntp-sync':
         subprocess.call(['/usr/bin/sudo', '-u', 'root',
                          '/lib/systemd/ntp-bootstrap'])
+        return HttpResponse('ntp-bootstrap')
+    elif process == 'rqworker':
+        subprocess.call(['/usr/bin/sudo', '-u', 'root',
+                         '/bin/systemctl', 'restart', 'rqworker'])
         return HttpResponse('ntp-bootstrap')
     else:
         return HttpResponse('no')

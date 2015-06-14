@@ -50,7 +50,7 @@ def Pull(covername=None):
 
     if not exists(TTS.PASSPHRASE_CACHE):
         logger.warning('I need a passphrase to continue - rescheduling.')
-        Sched = django_rq.get_scheduler('default')
+        Sched = django_rq.get_scheduler()
         Sched.enqueue_in(datetime.timedelta(minutes=30), Pull, covername=covername)
         exit()
 
@@ -95,4 +95,4 @@ We'll try again in a bit and see if it magically starts working.
       Subject='Temporary problem - key lookup for "%s"' % covername,
       From='Sysop <root>')
         Sched = django_rq.get_scheduler('default')
-        Sched.enqueue_in(datetime.timedelta(minutes=30), Pull, covername=address)
+        Sched.enqueue_in(datetime.timedelta(minutes=30), Pull, covername=covername)
