@@ -33,9 +33,9 @@ class Command(BaseCommand):
         Cache_Time = '30 * * * *'
         if P:
             Cache_Time = P.passphrase_cache_time
-        Key_Flush = '#' # don't run the key flush code
-        if thirtythirty.hdd.drives_are_unlocked():
-            Key_Flush = '' # drives have been mounted, flush the key
+        Key_Flush = '#' # don't run the key flush code during LUKS create @ init
+        if thirtythirty.hdd.drives_exist():
+            Key_Flush = '' # drives are gtg, we can flush the key @ intervals
         Raw = """
 SHELL=/bin/bash
 MAILTO=root
