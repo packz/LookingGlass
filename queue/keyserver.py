@@ -1,7 +1,4 @@
 
-from django.db import models
-from django.db.models import Q
-
 import django_rq
 from django_rq import job
 
@@ -54,7 +51,7 @@ def Pull(covername=None):
         Sched.enqueue_in(datetime.timedelta(minutes=30), Pull, covername=covername)
         exit()
 
-    passphrase = file(TTS.PASSPHRASE_CACHE).read()
+    passphrase = file(TTS.PASSPHRASE_CACHE, 'r').read()
 
     try: Ratchet_Objects.decrypt_database(passphrase)
     except thirtythirty.exception.Target_Exists: pass
