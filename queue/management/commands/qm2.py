@@ -5,6 +5,7 @@ from optparse import make_option
 
 import django_rq
 
+import addressbook
 import queue
 import thirtythirty.settings as TTS
 import thirtythirty.utils as TTU
@@ -30,7 +31,7 @@ class Command(BaseCommand):
                     action='store_true',
                     dest='test',
                     default=False,
-                    help='Push a test task onto the queue',
+                    help='Test task for the queue',
                     ),
         make_option('--dump', '--list', '--print',
                     action='store_true',
@@ -38,12 +39,18 @@ class Command(BaseCommand):
                     default=False,
                     help='Dump queue contents',
                     ),
-        make_option('--register',
+        make_option('--register', '--push',
                     action='store_true',
                     dest='register',
                     default=False,
-                    help='Push registration task onto the queue',
-                    ),                    
+                    help='Push registration to keyservers',
+                    ),
+        make_option('--pull',
+                    action='store',
+                    dest='pull',
+                    default=None,
+                    help='Pull covername PULL from keyservers',
+                    ),
         )
 
     def handle(self, *args, **settings):
@@ -58,3 +65,5 @@ class Command(BaseCommand):
             print 'did it!'
         elif settings['register']:
             queue.keyserver.Push.delay()
+        elif settings['pull']:
+            django_rq.enqueue(queue.keyserver.Pull, covername=settings['pull'])
