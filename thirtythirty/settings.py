@@ -2,6 +2,8 @@
 import os
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
+from getpass import getuser
+
 # used to differentiate message formats - don't change idly
 VERSION_FILE = os.path.join(BASE_DIR, 'VERSION')
 try:
@@ -47,8 +49,7 @@ UPSTREAM = {
         },
     }
 
-# i tried using getuser() here, but supervisord kept feeding my script 'root' before it dropped privs...
-USERNAME = 'pi'
+USERNAME = getuser()
 
 # it's hideous to run code in here, but it seemed cleaner than doing this in a shell script
 SECRET_FILE = os.path.join(BASE_DIR, 'secret.txt')
@@ -285,11 +286,11 @@ LUKS = {
                 ],
             'post-up':[
                 ['/etc/init.d/tor', 'start'],
-                ['/usr/bin/supervisorctl', 'start', 'qwebirc'],
+                ['/bin/systemctl', 'start', 'qwebirc'],
                 ],
             'pre-down':[
                 ['/usr/local/bin/LookingGlass/emergency_tor_crash.sh'],
-                ['/usr/bin/supervisorctl', 'stop', 'qwebirc'],
+                ['/bin/systemctl', 'stop', 'qwebirc'],
                 ],
             },
         {

@@ -4,7 +4,9 @@ from django.core.management.base import BaseCommand
 from optparse import make_option
 import random
 
+import thirtythirty.hdd
 import thirtythirty.models
+
 from thirtythirty.settings import PASSPHRASE_CACHE, LUKS, SESSION_FILE_PATH
 LUKS_CACHE = LUKS['key_file']
 
@@ -31,6 +33,9 @@ class Command(BaseCommand):
         Cache_Time = '30 * * * *'
         if P:
             Cache_Time = P.passphrase_cache_time
+        Key_Flush = '#' # don't run the key flush code
+        if thirtythirty.hdd.drives_are_unlocked():
+            Key_Flush = '' # drives have been mounted, flush the key
         Raw = """
 SHELL=/bin/bash
 MAILTO=root
@@ -62,7 +67,7 @@ MAILTO=root
 
 {cachetime:20}{USERNAME:8}shred -zu {session_cache}/* &>/dev/null
 
-{cachetime:20}{USERNAME:8}if [[ -e {cache_luks} ]]; then shred -zu {cache_luks}; fi &>/dev/null
+{luks_complete:1}{cachetime:20}{USERNAME:8}if [[ -e {cache_luks} ]]; then shred -zu {cache_luks}; fi &>/dev/null
 
 """.format(**{
             'POWERUSER':'root',
@@ -71,12 +76,13 @@ MAILTO=root
             'cache_luks':LUKS_CACHE,
             'cachetime':Cache_Time,
             'daily':'@daily',
+            'frequently':'*/10 * * * *',
             'hourly':'@hourly',
             'random_minute':str(random.randrange(0, 60)),
             'reboot':'@reboot',
             'recron':'*/30 * * * *',
             'session_cache':SESSION_FILE_PATH,
-            'frequently':'*/10 * * * *',
+            'luks_complete':Key_Flush,
         })
         if settings['print']:
             print Raw

@@ -604,7 +604,7 @@ def kick(request, process=None):
         return HttpResponse('tor')
     elif process == 'django-restart':
         subprocess.call(['/usr/bin/sudo', '-u', 'root',
-                         '/usr/bin/supervisorctl', 'restart', 'gunicorn'])
+                         '/bin/systemctl', 'restart', 'gunicorn'])
         return HttpResponse('django')
     elif process == 'qmanage-run':
         QR = addressbook.queue.QRunner()
@@ -612,7 +612,7 @@ def kick(request, process=None):
         return HttpResponse('qmanage')
     elif process == 'ntp-sync':
         subprocess.call(['/usr/bin/sudo', '-u', 'root',
-                         '/etc/init.d/ntp-bootstrap', 'start'])
+                         '/lib/systemd/ntp-bootstrap'])
         return HttpResponse('ntp-bootstrap')
     else:
         return HttpResponse('no')
