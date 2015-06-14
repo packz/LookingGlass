@@ -1,16 +1,17 @@
-# [LookingGlass](http://lookingglass.email): forward secure, distributed, pseudonymous email
+# [LookingGlass](http://lookingglass.email/): forward secure, distributed, pseudonymous email
 
-http://lookingglass.email
+* [Disk images](http://lookingglass.email/)
+* [Reddit](http://reddit.com/r/lookingglass/)
 
 ---
 
 # Background / Overview
 
-  Email encryption usability is awful.  PGP, king of the roost for almost 25 years now, requires a ridiculous amount of domain-specific knowledge to install and use (ever tried to walk multiple users on differing platforms through communicating?) - let alone authentication (the web-of-trust model requires a significant amount of buy-in from users).  User interface for crypto in general is user-hostile and artless (why do I have to pick my key length for *everything*?).
+  Email encryption is not usable, especially if you are drunk.  PGP, king of the roost for almost 25 years now, requires a ridiculous amount of domain-specific knowledge to install and use (ever tried to walk multiple users on differing platforms through communicating?) - let alone authentication (the web-of-trust model requires a significant amount of buy-in from users).  User interface / user experience for crypto in general is user-hostile and artless.  Why do I have to pick my key length for *everything*?  Juice it up to the max and be done with it, ffs.  I have had four shots of tequila, explain the web of trust to me.
   
-  Anonymity software is hit or miss.  Tor has excellent usability with the browser bundle - and then promptly undercuts it by allowing javascript by default.  Sad emoticon.  I2P doesn't have the social capital (or the free RAM) to match up just yet.  Freenet is stillborn.
+  Privacy software is a patchwork.  Tor has the vanilla web browsing corner with the [browser bundle](https://www.torproject.org/projects/torbrowser.html), and [TAILS](https://tails.boum.org/) has a cramped but usable desktop environment aimed at - [supposedly journalists](https://en.wikipedia.org/wiki/Glenn_Greenwald#Contact_with_Edward_Snowden).  [I2P](https://geti2p.net/) wants to build an overlay network that barely kisses the rest of the web.  [Freenet](https://freenetproject.org/) is slow and static.  Not enough people have heard of [Pond](https://pond.imperialviolet.org/).  [Bitmessage](https://bitmessage.org/wiki/Main_Page) scales about as well as your mom.  So we have a lot of great software, with not enough social capital.
 
-  LookingGlass takes these existing technologies and a few others ([none my own](https://www.schneier.com/blog/archives/2011/04/schneiers_law.html)) and puts them together with a UI meant to not suck, to be usable by 80% of the intended audience, out of the box.
+  LookingGlass takes some of these existing technologies ([no NIH](https://www.schneier.com/blog/archives/2011/04/schneiers_law.html)) and glues them unceremoniously together so they can be usable by the majority of the intended audience out of the box.  User experience gets kicked way up the line.  Security shouldn't have to be for security kungfu masters only.
 
   LookingGlass email is burn-on-view.  It is local to the user.  It is pseudonymous.  LookingGlass doesn't care about power users, and sets **all** the defaults so all you need to do is pick some passphrases.
 
@@ -22,7 +23,7 @@ http://lookingglass.email
 
 ## User interface
 
-  LookingGlass is meant to be run on a local, headless (without monitor), always-on computer.  Installation consists of copying a disk image to an SD card, inserting that into a Raspberry Pi, and plugging it into your local network (preferably behind a router).
+  LookingGlass is meant to be run on a local, headless (without monitor), always-on computer (or virtual machine).  Installation consists of copying a disk image to an SD card, inserting that into a Raspberry Pi, and plugging it into your local network behind your router or firewall.
   
   The user is presented with a webmail interface that guides them through setup, as well as the steps in securing the conversations with their contacts.  Think of it as a security appliance, like a network printer.
 
