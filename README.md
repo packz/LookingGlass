@@ -9,15 +9,15 @@
 
   Email encryption is not usable, especially if you are drunk.  PGP, king of the roost for almost 25 years now, requires a ridiculous amount of domain-specific knowledge to install and use (ever tried to walk multiple users on differing platforms through communicating?) - let alone authentication (the web-of-trust model requires a significant amount of buy-in from users).  User interface / user experience for crypto in general is user-hostile and artless.  Why do I have to pick my key length for *everything*?  Juice it up to the max and be done with it, ffs.  I have had four shots of tequila, explain the web of trust to me.
   
-  Privacy software is a patchwork.  Tor has the vanilla web browsing corner with the [browser bundle](https://www.torproject.org/projects/torbrowser.html), and [TAILS](https://tails.boum.org/) has a cramped but usable desktop environment aimed at - [supposedly journalists](https://en.wikipedia.org/wiki/Glenn_Greenwald#Contact_with_Edward_Snowden).  [I2P](https://geti2p.net/) wants to build an overlay network that barely kisses the rest of the web.  [Freenet](https://freenetproject.org/) is slow and static.  Not enough people have heard of [Pond](https://pond.imperialviolet.org/).  [Bitmessage](https://bitmessage.org/wiki/Main_Page) scales about as well as your mom.  So we have a lot of great software, with not enough social capital.
+  Privacy software is a patchwork.  [Tor](https://www.torproject.org/) has the vanilla web browsing corner with the [browser bundle](https://www.torproject.org/projects/torbrowser.html), and [TAILS](https://tails.boum.org/) has a cramped but usable desktop environment aimed at - [supposedly journalists](https://en.wikipedia.org/wiki/Glenn_Greenwald#Contact_with_Edward_Snowden).  [I2P](https://geti2p.net/) wants to build an overlay network that barely kisses the rest of the web.  [Freenet](https://freenetproject.org/) is slow and static.  Not enough people have heard of [Pond](https://pond.imperialviolet.org/).  [Bitmessage](https://bitmessage.org/wiki/Main_Page) scales about as well as your mom.  So we have a lot of great software, with not enough social capital.
 
   LookingGlass takes some of these existing technologies ([no NIH](https://www.schneier.com/blog/archives/2011/04/schneiers_law.html)) and glues them unceremoniously together so they can be usable by the majority of the intended audience out of the box.  User experience gets kicked way up the line.  Security shouldn't have to be for security kungfu masters only.
 
-  LookingGlass email is burn-on-view.  It is local to the user.  It is pseudonymous.  LookingGlass doesn't care about power users, and sets **all** the defaults so all you need to do is pick some passphrases.
+  LookingGlass email is burn-on-view.  It is local to the user.  It is pseudonymous.  LookingGlass gives a kungfu junk kick to whiny power users, and sets **all** the defaults so all you need to do is pick some passphrases.  Go cower behind the advanced tab!  Hiya!  The rest of us want to get work done!
 
   LookingGlass does *not* interact with clearnet email addresses.  The possibility exists for there to be relay nodes between Tor's _.onion_ domain and clearnet email - but presently that is a wishlist item.
 
-  There are a *lot* of wishlist items, but I have run out of steam to do this gratis.  I am releasing it to see what sort of reception it gets, and I'll go from there.
+  But that's not all - LookingGlass is becoming a [platform](http://globalguerrillas.typepad.com/globalguerrillas/2008/08/the-resilient-1.html).  Filesharing is coming, via [TAHOE](https://www.tahoe-lafs.org/).  Digital radio is [on the list](http://www.w1hkj.com/download.html) as well.  Let's get wicked sick on ideas!
 
 ---
 
