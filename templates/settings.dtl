@@ -396,13 +396,14 @@ $('#upgradefile').change(function(e) {
 });
 
 $('#restorefile').change(function(e) {
-  var restore_files = e.target.files;
+  restore_files = e.target.files;
   $('#sysrestore').removeAttr('disabled');
   $('#sysrestore').removeClass('disabled');
   $('#sysrestore').addClass('btn-success');
 });
 
 $('#sysrestore').click(function() {
+  console.log(restore_files);
   if (confirm('This will OVERWRITE your current settings.  Continue?')) {
     var postData = new FormData();
     postData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
@@ -570,6 +571,7 @@ if ($(this).is(':checked')) {
 });
 
 $(document).ready(function(){
+  var restore_files = null;
   if (window.location.hash != '') {
     $(window.location.hash).collapse('show');
   };
