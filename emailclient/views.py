@@ -17,7 +17,7 @@ import emailclient
 import ratchet
 import thirtythirty
 
-from thirtythirty.gpgauth import session_pwd_wrapper, set_up_single_user
+from thirtythirty.gpgauth import session_pwd_wrapper
 
 import logging
 logger = logging.getLogger(__name__)
@@ -55,7 +55,7 @@ def folder(request, name=''):
 
 @session_pwd_wrapper
 def view(request, Key=None, advanced=False):
-    Preferences = set_up_single_user()
+    Preferences = thirtythirty.gpgauth.set_up_single_user()
     if Preferences.show_advanced: advanced = True
     
     FolderHash = emailclient.filedb.folder_from_msg_key(Key)
@@ -242,7 +242,7 @@ def send(request):
         
     if Addr.user_state == addressbook.address.Address.KNOWN:
         # GPG
-        Preferences = set_up_single_user()
+        Preferences = thirtythirty.gpgauth.set_up_single_user()
         if Preferences.tx_symmetric_copy:
             emailclient.filedb.save_local(
                 to=Addr.email,
@@ -269,7 +269,7 @@ def send(request):
 
     elif Addr.user_state > addressbook.address.Address.KNOWN:
         # Axolotl
-        Preferences = set_up_single_user()
+        Preferences = thirtythirty.gpgauth.set_up_single_user()
         if Preferences.tx_symmetric_copy:
             emailclient.filedb.save_local(
                 to=Addr.email,
@@ -361,7 +361,7 @@ def receive(request, Key=None):
 
         Payload = None
         Ok = False
-        Preferences = set_up_single_user()
+        Preferences = thirtythirty.gpgauth.set_up_single_user()
         
         if ((request.POST.get('axo-failsafe', False) == 'true') and
             (addressbook.gpg.verify_symmetric(Passphrase))):
