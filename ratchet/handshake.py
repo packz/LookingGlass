@@ -153,7 +153,7 @@ Version: %s
         Payload = self.deserialize(jPayload.data)
         for K, V in self.from_b64(Payload).items():
             if K == 'FPrint':
-                logger.warning('Someone tried to slip me a fingerprint...')
+                logger.critical('Someone tried to slip me a fingerprint...')
                 continue
             setattr(self, K, V)
 
