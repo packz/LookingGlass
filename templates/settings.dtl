@@ -1,6 +1,11 @@
 {% extends "base.dtl" %}
 {% load cycle from future %}
 
+{% block css_include %}
+<link href='/css/dropzone.css' rel='stylesheet'>
+<script src='/js/dropzone.js'></script>
+{% endblock css_include %}
+
 {% block local_style %}
 .i-like-big-butts {
   padding-bottom: 10px;
@@ -179,7 +184,17 @@ a[disabled] {
 		    </div>
 		  {% elif control.type == 'file' %}
 		    <div class='container-fluid desmash'>
-		      <input type='file' id='{{ control.id }}' name='{{ control.id }}' title='{{ control.desc }}'></input>
+		      <form action='{{ control.action }}' class='dropzone' id='{{ control.id }}'>
+			<div class='dz-message'>
+			  {{ control.desc }}
+			</div>
+			<input type='hidden'
+			       name='csrfmiddlewaretoken'
+			       value='{{ csrf_token }}' />
+			<input type='hidden'
+			       name='{{ control.filetype }}'
+			       value='1' />
+		      </form>
 		    </div>
 		  {% elif control.type == 'link' %}
 		    <div class='container desmash'>
@@ -235,7 +250,7 @@ a[disabled] {
 
 {% block js %}
 {% include 'passphrase_modal.js' %}
-
+  
 $('.collapse').collapse();
 $('.collapse').collapse('hide');
 
@@ -368,42 +383,7 @@ $('#force-update').click(function(){
   }});
 });
 
-$('#upgradefile').change(function(e) {
-  $('#upgradefile').attr('disabled', true);
-  $('#upgradefile').addClass('disabled');
-  var postData = new FormData();
-  postData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-  postData.append('updatefile', e.target.files[0]);
-  $.ajax({
-    url:'{% url 'settings.update_upload' %}',
-    type:'POST',
-    data:postData,
-    cache:false,
-    dataType:'json',
-    processData:false,
-    contentType:false,
-   }).done(function(data) {
-    if (data.ok) {
-      $('#row-force-update').removeClass('mycollapse');
-      $('#row-upgradefile').addClass('mycollapse');
-      Upgrade_Filename = data.filename;
-      alert(data.changelog);
-    } else {
-      $('#upgradefile').attr('disabled', false);
-      $('#upgradefile').removeClass('disabled');
-    }
-   });
-});
-
-$('#restorefile').change(function(e) {
-  restore_files = e.target.files;
-  $('#sysrestore').removeAttr('disabled');
-  $('#sysrestore').removeClass('disabled');
-  $('#sysrestore').addClass('btn-success');
-});
-
 $('#sysrestore').click(function() {
-  console.log(restore_files);
   if (confirm('This will OVERWRITE your current settings.  Continue?')) {
     var postData = new FormData();
     postData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
@@ -570,8 +550,36 @@ if ($(this).is(':checked')) {
 };
 });
 
+Dropzone.options.restoreFile = {
+maxFiles:1,
+    init: function() {
+         this.on('success', function(file) {
+           $('#restore-file').fadeOut();
+           $('#sysrestore').attr('disabled', false);
+           $('#sysrestore').removeClass('disabled');
+           $('#sysrestore').addClass('btn-success');
+         });
+    },
+};
+
+Dropzone.options.upgradeFile = {
+maxFiles:1,
+    init: function() {
+         this.on('success', function(file) {
+           this.disable();
+           alert('code to check for update progress here');
+         /*
+           $('#update').attr('disabled', false);
+           $('#update').removeClass('disabled');
+           $('#update').addClass('btn-success');
+         */
+});
+    },
+};
+
+
+
 $(document).ready(function(){
-  var restore_files = null;
   if (window.location.hash != '') {
     $(window.location.hash).collapse('show');
   };

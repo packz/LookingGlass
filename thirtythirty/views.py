@@ -1,6 +1,6 @@
 
 from django.shortcuts import redirect
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.template import RequestContext, loader
 
 from django.contrib.auth import authenticate, login
@@ -367,10 +367,10 @@ def settings(request, advanced=False):
               'warn':'No mercy.  No resistance.  Open up.',
               'advanced':True,
               },
-             {'desc':'Upgrade file',
-              'type':'file', 'id':'upgradefile',
-              'help':'Manual upgrade upload',
-              'width':4,
+             {'desc':'Drag upgrade file here to upload',
+              'type':'file', 'id':'upgrade-file',
+              'filetype':'upgrade',
+              'action':reverse('settings.file_upload'),
               },
              ]},
 
@@ -385,9 +385,10 @@ def settings(request, advanced=False):
               'type':'button', 'id':'sysrestore',
               'disabled':True,
               },
-             {'desc':'Restore from file',
-              'type':'file', 'id':'restorefile',
-              'action':'sysrestore',
+             {'desc':'Drag restore file here to upload',
+              'type':'file', 'id':'restore-file',
+              'filetype':'backup',
+              'action':reverse('settings.file_upload'),
               },
              {'desc':'Recover database',
               'type':'button', 'id':'database-recover',
@@ -667,6 +668,20 @@ def backup(request):
                                     armor=True)
     return HttpResponse(Zip,
                         content_type='plain/text')
+
+
+@session_pwd_wrapper
+def file_upload(request):
+    if not request.FILES:
+        return HttpResponseBadRequest(json.dumps({'error':'No file uploaded'}),
+                                    content_type='application/json')
+    if request.POST.get('backup'):
+        logger.debug('got a backup file')
+    elif request.POST.get('upgrade'):
+        logger.debug('got an upgrade file')
+    return HttpResponse(json.dumps({'success':'oh boy'}),
+                content_type='application/json')
+
 
 @session_pwd_wrapper
 def restore(request):

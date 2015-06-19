@@ -30,6 +30,7 @@ urlpatterns = patterns('',
     url(r'^smp/', include('smp.urls')),
 
     url(r'^settings/ajax/backup$', views.backup, name='settings.backup'),
+    url(r'^settings/ajax/uploader$', views.file_upload, name='settings.file_upload'),
     url(r'^settings/ajax/restore$', views.restore, name='settings.restore'),
                        
     url(r'^settings/ajax/db_disaster$', views.db_disaster, name='settings.db_disaster'),
