@@ -1,8 +1,7 @@
 
-from django.conf.urls import patterns, url
+from django.conf.urls import patterns, url, include
 
 from rest_framework import routers, serializers, viewsets
-from rest_framework.decorators import list_route
 from rest_framework.response import Response
 
 import addressbook
@@ -28,6 +27,10 @@ class AddressViewSet(viewsets.ModelViewSet):
             fingerprint=self.kwargs['fp']
         )
 
+
+router = routers.DefaultRouter(trailing_slash=False)
+router.register(r'address', AddressViewSet)
+
     
 urlpatterns = patterns('',
     url(r'^$', addressbook.views.home, name='addressbook'),
@@ -37,6 +40,8 @@ urlpatterns = patterns('',
     url(r'^dossier$', addressbook.views.dossier, name='addressbook.dossier'), # gah
     url(r'^dossier/(?P<Fingerprint>[-A-Fa-f0-9]{36})(?P<advanced>/advanced)?$', addressbook.views.dossier, name='addressbook.dossier'),
     url(r'^dossier/(?P<Fingerprint>[-A-Fa-f0-9]{40})(?P<advanced>/advanced)?$', addressbook.views.dossier, name='addressbook.dossier'),
+
+    url(r'^rest/', include(router.urls)),
 
     url(r'^ajax/add$', addressbook.views.add_contact, name='addressbook.add'),
     url(r'^ajax/delete$', addressbook.views.delete, name='addressbook.delete'),
