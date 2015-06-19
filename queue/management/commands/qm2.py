@@ -4,9 +4,12 @@ from django.core.management.base import BaseCommand
 from optparse import make_option
 
 import django_rq
+from django_rq import job
 
 import addressbook
 import queue
+from queue.utils import Passphrase_or_requeue
+
 import thirtythirty.settings as TTS
 import thirtythirty.utils as TTU
 
@@ -14,13 +17,21 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-@django_rq.job
-def test_task():
+def test_task(wtf=None):
     import time
-    logger.debug('start')
+    logger.warning('start: %s' % wtf)
     time.sleep(10)
-    logger.debug('end')
+    logger.warning('stop: %s' % wtf)
 
+    
+@Passphrase_or_requeue
+def test_secret_task(wtf=None, Passphrase=None):
+    import time
+    logger.warning('start: %s / %s' % (wtf, Passphrase))
+    time.sleep(10)
+    logger.warning('stop: %s / %s' % (wtf, Passphrase))
+
+    
 
 class Command(BaseCommand):
     args = '<NONE>'
@@ -66,15 +77,15 @@ class Command(BaseCommand):
         )
 
     def showStats(self):
-        import redis
-        import rq
         import pprint
-        q = rq.Queue(connection=redis.Redis())
+        q = django_rq.get_queue()
+        qp = django_rq.get_queue('needs_passphrase')
         s = django_rq.get_scheduler()
         pp = pprint.PrettyPrinter()
         print
         print 'Job Queue:'
         pp.pprint( q.jobs )
+        pp.pprint( qp.jobs )
         print
         print 'Scheduled tasks:'
         pp.pprint( s.get_jobs(with_times=True) )
@@ -83,7 +94,10 @@ class Command(BaseCommand):
     def handle(self, *args, **settings):
         if settings['test']:
             print 'here we go!'
-            test_testerson.delay()
+            NP = django_rq.get_queue('needs_passphrase')
+            DF = django_rq.get_queue()
+            NP.enqueue(test_task)
+            DF.enqueue(test_secret_task)
             print 'did it!'
         elif settings['register']:
             queue.keyserver.Push.delay()

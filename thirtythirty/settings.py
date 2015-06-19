@@ -319,6 +319,12 @@ LUKS = {
             'permissions':[
                 ('/home/%s/.gnupg' % USERNAME, '700'),
                 ],
+            'post-up':[
+                ['/usr/sbin/sudo', '-u', 'root', '/bin/systemctl', 'start', 'parcimonie-sh'],
+                ],
+            'pre-down':[
+                ['/usr/sbin/sudo', '-u', 'root', '/bin/systemctl', 'stop', 'parcimonie-sh'],
+                ],
             },
         {
             'name':'pi_mail',
@@ -440,7 +446,7 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.SessionAuthentication',
         ),
     'DEFAULT_PERMISSION_CLASSES':[
-        'rest_framework.permissions.AllowAny',
+        'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_RENDERER_CLASSES':(
         'rest_framework.renderers.JSONRenderer',
@@ -456,9 +462,9 @@ RQ_QUEUES = {
         'PASSWORD': None,
         'DEFAULT_TIMEOUT': 360,
         },
-    'low':{
+    'needs_passphrase':{
         'HOST': 'localhost',
         'PORT': 6379,
-        'DB': 0,
+        'DB': 1,
         },
     }

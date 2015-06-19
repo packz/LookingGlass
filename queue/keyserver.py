@@ -4,6 +4,7 @@ from django_rq import job
 
 import datetime
 from os.path import exists
+import re
 
 import addressbook
 import emailclient
@@ -42,7 +43,7 @@ We'll try registration again in a bit and see if it magically starts working.
 
         
 @job
-def Pull(covername=None):
+def Pull(covername=None, fingerprint=None, email=None):
     logger.debug('Keyserver pull')
 
     if not exists(TTS.PASSPHRASE_CACHE):
@@ -57,14 +58,22 @@ def Pull(covername=None):
     except thirtythirty.exception.Target_Exists: pass
     
     Me = addressbook.utils.my_address()
-    
+
+    if email and not covername:
+        Email_Strip = re.sub('@.*', '', email.upper())
+        DeJunk = re.sub('[^ .A-Z]+', '', Email_Strip)
+        covername = re.sub('[\. ]+', ' ', DeJunk)
+
     try:
-        Resp = addressbook.gpg.pull_from_keyserver(covername=covername)
-        
+        Resp = addressbook.gpg.pull_from_keyserver(covername=covername,
+                                                   fingerprint=fingerprint)
+        if Resp:
+            return Resp.fingerprint
+        else:
+            return None
+                
     except addressbook.exception.MultipleMatches as Matches:
         logger.debug(Matches)
-#        address.user_state = addressbook.address.Address.FAIL
-#        address.save()
         emailclient.utils.submit_to_smtpd(Payload="""The upstream server returned many keys for "%s".
 This is exciting new territory in errors!  Please fill out a bug report!  Thank you!
 """ % covername,
@@ -74,8 +83,6 @@ This is exciting new territory in errors!  Please fill out a bug report!  Thank 
             
     except addressbook.exception.NoKeyMatch:
         logger.debug('No matches')
-#        address.user_state = addressbook.address.Address.FAIL
-#        address.save()
         emailclient.utils.submit_to_smtpd(Payload="""No upstream server knows "%s".
 This may be a typo in the covername - please bother a developer to write the synonym code in a bug report!  Thank you!
 """ % covername,
@@ -92,4 +99,5 @@ We'll try again in a bit and see if it magically starts working.
       Subject='Temporary problem - key lookup for "%s"' % covername,
       From='Sysop <root>')
         Sched = django_rq.get_scheduler('default')
-        Sched.enqueue_in(datetime.timedelta(minutes=30), Pull, covername=covername)
+        TEMPFAIL = Sched.enqueue_in(datetime.timedelta(minutes=30), Pull, covername=covername)
+        return TEMPFAIL.result

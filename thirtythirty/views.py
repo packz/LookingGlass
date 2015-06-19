@@ -13,9 +13,12 @@ import json
 import subprocess
 import os
 
+import django_rq
+
 import addressbook
 import emailclient
 import thirtythirty
+import queue
 import ratchet
 import smp
 
@@ -84,15 +87,19 @@ def password_prompt(request, warno=None, Next=None):
 
 def are_drives_unlocked(request):
     """
-    scans for the unlockerd lock file to return 'RUNNING' state
-    """
-    Unlock_Lock = '/var/lock/unlockerd.lock'
+    examines the queued unlocker job
+    """            
+    Unlock_Job_ID = request.session['unlock_job']    
+    Queue = django_rq.get_queue()
+    Unlock_Job = Queue.fetch_job(Unlock_Job_ID)
+    logger.debug('Got unlocker job: %s' % Unlock_Job)
+    
     Percent = 0
     Why_yes_they_are = 'NO'
-    if thirtythirty.hdd.drives_are_unlocked():
+    if Unlock_Job.result:
         Why_yes_they_are = 'YES'
         Percent = 100
-    elif os.path.exists(Unlock_Lock):
+    elif Unlock_Job.result is None:
         Why_yes_they_are = 'RUNNING'
         for V in thirtythirty.hdd.Volumes():
             if V.is_mounted():
@@ -113,6 +120,8 @@ def drive_unlock(request):
         return redirect('accounts.login')
     
     HCM = request.POST.get('HCM', None)
+    if not HCM:
+        return redirect('accounts.login')
     Challenge = HCM.split(':')[3]
     try:
         LRM = thirtythirty.models.LoginRateLimiter.objects.get(
@@ -125,13 +134,12 @@ def drive_unlock(request):
                                warno='Wrong response - please try again')
 
     logger.debug("Hashcash checks out - let's try to fire the drives up")
-    failed_to_unlock = False
-    K = request.POST.get('password')
     
-    fh = file(TTS.LUKS['key_file'], 'w')
-    fh.write(K)
-    fh.close()
-
+    # we'll be inspecting the job state dynamically
+    Pwd = request.POST.get('password', None)
+    Unlocker = queue.hdd.Unlock.delay(Pwd)
+    request.session['unlock_job'] = Unlocker.id
+    
     return HttpResponse(json.dumps({'ok':True}),
                         content_type='application/json')
     
@@ -379,6 +387,7 @@ def settings(request, advanced=False):
               },
              {'desc':'Restore from file',
               'type':'file', 'id':'restorefile',
+              'action':'sysrestore',
               },
              {'desc':'Recover database',
               'type':'button', 'id':'database-recover',
@@ -821,24 +830,16 @@ def do_lockdown(request):
 
     if we have access to the passphrase, use it to encrypt the DB states
     """
-    if exists(TTS.PASSPHRASE_CACHE):
-        PP = file(TTS.PASSPHRASE_CACHE, 'r').read()
-        os.unlink(TTS.PASSPHRASE_CACHE)
-        try: ratchet.conversation.Conversation.objects.encrypt_database(PP)
-        except: pass
-        try: smp.models.SMP.objects.encrypt_database(PP)
-        except: pass
     request.session.flush()
     request.session.clear_expired()
-    for V in thirtythirty.hdd.Volumes():
-        V.lock()
-    logging.debug('lockdown complete')
+    queue.system.LOCKDOWN.delay()
+    logging.debug('do_lockdown complete')
 
 
 @session_pwd_wrapper
 def reboot(request):
-    subprocess.check_output(['/usr/bin/sudo', '-u', 'root', '/sbin/shutdown', '-r', 'now'])
-    return HttpResponse('dun dun dun')
+    queue.system.REBOOT.delay()
+    return HttpResponse('Reboot in progress - wait one')
 
 
 @session_pwd_wrapper
