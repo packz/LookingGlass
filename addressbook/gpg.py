@@ -8,8 +8,7 @@ import subprocess
 import os.path
 
 import addressbook
-
-from thirtythirty.gpgauth import set_up_single_user
+import thirtythirty
 
 import thirtythirty.settings as TTS
 
@@ -173,7 +172,7 @@ def verify_symmetric(passphrase=None, location=None):
     FH = file(location, 'rb').read()
     DC = decrypt(FH, passphrase)
     if ((DC.ok) and (str(DC.data) == TTS.GPG['magic_cookie'])):
-        prefs = set_up_single_user()
+        prefs = thirtythirty.gpgauth.set_up_single_user()
         if ((prefs.passphrase_cache) and
             (not os.path.exists(TTS.PASSPHRASE_CACHE))):
             fh = file(TTS.PASSPHRASE_CACHE, 'w')

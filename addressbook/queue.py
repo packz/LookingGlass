@@ -251,8 +251,8 @@ We'll try again in a bit and see if it magically starts working.
                 try:
                     Who = ratchet.conversation.Conversation.\
                           objects.initiate_handshake_for(
-                        unique_key=HS.FPrint,
-                        passphrase=passphrase)
+                            unique_key=HS.FPrint,
+                            passphrase=passphrase)
                 except ratchet.conversation.exception.No_Address:
                     logger.error('We have not finished looking up the key for %s - bailing out of handshake for now.' % HS.FPrint)
                     return
