@@ -92,7 +92,7 @@ def are_drives_unlocked(request):
     Unlock_Job_ID = request.session['unlock_job']    
     Queue = django_rq.get_queue()
     Unlock_Job = Queue.fetch_job(Unlock_Job_ID)
-    logger.debug('Got unlocker job: %s' % Unlock_Job)
+    logger.debug('Got unlocker job: %s' % Unlock_Job.id)
     
     Percent = 0
     Why_yes_they_are = 'NO'
@@ -846,9 +846,11 @@ def do_lockdown(request):
     if we have access to the passphrase, use it to encrypt the DB states
     """
     request.session.flush()
-    request.session.clear_expired()
-    queue.system.LOCKDOWN.delay()
-    logging.debug('do_lockdown complete')
+    subprocess.call("/usr/bin/shred -fu /dev/shm/sessions/session*",
+                    shell=True)
+    LD = queue.system.LOCKDOWN.delay()
+    django_rq.enqueue(queue.hdd.Lock, depends_on=LD)
+    logger.debug('do_lockdown complete')
 
 
 @session_pwd_wrapper

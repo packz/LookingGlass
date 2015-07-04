@@ -14,7 +14,8 @@ logger = logging.getLogger(__name__)
 
 @job
 def Shred_Keyfile():
-    subprocess.call(['shred', '-fuv', TTS.LUKS['key_file']])
+    subprocess.call(['/usr/bin/shred', '-fu',
+                     TTS.LUKS['key_file']])
     logger.debug('Keyfile %s izzzzzzzzzzzz gone' % TTS.LUKS['key_file'])
 
     

@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 @job
 def Passphrase_disappeared():
-    logging.critical('passphrase cache is gone - stopping worker')
+    logger.critical('passphrase cache is gone - stopping worker')
     subprocess.call(['/usr/bin/sudo', '-u', 'root',
                      'systemctl', 'stop', 'rqworker-secure'])
 
