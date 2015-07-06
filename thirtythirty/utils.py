@@ -18,7 +18,6 @@ def Vitals(request=None):
     ret = {
         'covername':'REX DART',
         'email':'rex.dart',
-        'ircname':'rex_dart',
         'onion':'tns7i5gucaaussz4.onion',
         'server_addr':'127.0.0.1',
         'gpg_fp':addressbook.utils.my_address().fingerprint,
@@ -30,7 +29,6 @@ def Vitals(request=None):
 
     Me = addressbook.utils.my_address()
     ret['covername'] = Me.covername
-    ret['ircname'] = re.sub(' ', '_', Me.covername)
     ret['email'] = Me.email
     ret['onion'] = re.sub('^[^@]+', '', Me.email)
 

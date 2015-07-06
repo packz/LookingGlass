@@ -136,12 +136,10 @@ def dossier(request, Fingerprint=None, advanced=False):
     
     for K, V in addressbook.address.Address.Verbose.iteritems():
         BR = re.sub('BUG_REPORT_URL', reverse('bug_report'), V)
-        CU = re.sub('CHAT_URL', 'https://%s:16667?nick=%s' % ( Vitalis['server_addr'], 
-                                                               Vitalis['ircname']), BR)
         ADV = re.sub('RELOAD_ADVANCED', '%s#%s' % (
                 reverse('addressbook.advanced'),
                 Fingerprint,
-                ), CU)
+                ), BR)
         SMP = re.sub('SMP_STEP', str(SMP_Step), ADV)
         req['Verbose'][K] = SMP
         

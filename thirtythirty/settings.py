@@ -255,9 +255,9 @@ DAEMONS = [
      'description':'DDOS protection',
      'check':['ps', '-C', 'hashcash-milter'],
      },
-    {'name':'qwebirc',
-     'description':'Chat gateway',
-     'check':['pgrep', '-u', 'qwebirc', 'python'],
+    {'name':'weechat',
+     'description':'Chat relay',
+     'check':['pgrep', '-u', 'pi', 'weechat'],
      },
     {'name':'shellinabox',
      'description':'Local wizard login',
@@ -286,11 +286,11 @@ LUKS = {
                 ],
             'post-up':[
                 ['/etc/init.d/tor', 'start'],
-                ['/bin/systemctl', 'start', 'qwebirc'],
+                ['/bin/systemctl', 'start', 'weechat'],
                 ],
             'pre-down':[
                 ['/usr/local/bin/LookingGlass/emergency_tor_crash.sh'],
-                ['/bin/systemctl', 'stop', 'qwebirc'],
+                ['/bin/systemctl', 'stop', 'weechat'],
                 ],
             },
         {

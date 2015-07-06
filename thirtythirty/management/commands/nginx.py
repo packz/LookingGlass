@@ -114,6 +114,11 @@ server {{
 		disable_symlinks off;
 	}}
 
+        location /gb {{
+		alias /srv/glowing-bear;
+		disable_symlinks off;
+        }}
+
 }}
 """.format(**{
               'IP':self.first_ip(),

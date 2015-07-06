@@ -748,7 +748,7 @@ def restore(request):
 def about(request):
     template = loader.get_template('about.dtl')
     Vitals = thirtythirty.utils.Vitals(request)
-    CHAT_URL = 'https://%s:16667?nick=%s' % (Vitals['server_addr'], Vitals['ircname'])
+    CHAT_URL = '/gb'
     CTD = {
         'title':"What it's about.",
         'nav':'About',
