@@ -191,6 +191,11 @@ def create_user(request):
         TTU.popen_wrapper(['/usr/local/bin/LookingGlass/passwd_update.sh'])
         logger.debug('Updated pi user passwd')
 
+	# default weechat nick to your covername
+	TTU.popen_wrapper(['/bin/sed',
+			   '--expression', 's|COVERNAME|%s|g' % Me.covername,
+			   '/home/pi/.weechat/irc.conf'])
+
         Me.comment = 'accepted LUKS passphrase'
         Me.save()
         shutil.copyfile('%s/drive.key' % PDB.file_loc, TTS.LUKS['key_file'])
