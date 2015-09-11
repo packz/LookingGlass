@@ -2,8 +2,8 @@
 {% load cycle from future %}
 
 {% block css_include %}
-<link href='/css/dropzone.css' rel='stylesheet'>
-<script src='/js/dropzone.js'></script>
+<link href="{% static 'css/dropzone.css' %} rel='stylesheet'>
+<script src="{% static 'js/dropzone.js' %}></script>
 {% endblock css_include %}
 
 {% block local_style %}

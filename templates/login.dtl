@@ -3,12 +3,12 @@
 <head>
 <title>{{ title }}</title>
 <meta name='viewport' content='width=device-width, initial-scale=1'>
-<link href="/css/bootstrap.css" rel="stylesheet">
-<link href='/css/local.css' rel='stylesheet'>
+<link href="{% static 'css/bootstrap.css' %}" rel="stylesheet">
+<link href="{% static 'css/local.css' %}"" rel='stylesheet'>
 <style>
 @media (min-width: 970px) {
 body {
-  background-image: url('/img/{{ bg_image }}');
+  background-image: url("{% static bg_image %}");
   background-repeat: no-repeat;
   background-attachment: fixed;
   background-position: center;
@@ -82,9 +82,9 @@ body {
   </div>
 </div>
 
-<script src="/js/jquery.min.js"></script>
-<script src="/js/bootstrap.min.js"></script>
-<script src='/js/sha1.js'></script>
+<script src="{% static 'js/jquery.min.js' %}"></script>
+<script src="{% static 'js/bootstrap.min.js' %}"></script>
+<script src="{% static 'js/sha1.js' %}"></script>
 <script>
 
 function __salt(length) {

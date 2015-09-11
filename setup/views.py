@@ -40,7 +40,7 @@ def please_wait(request, caption):
         template = loader.get_template('please_wait.dtl')
         context = RequestContext(request, {
                 'title':'Crunching numbers',
-                'bg_image':'wait-one.jpg',
+                'bg_image': 'img/wait-one.jpg',
                 'caption':caption,
                 })
         return HttpResponse(template.render(context))
@@ -77,6 +77,7 @@ def covername(request):
         if PDB['covername'] is not None:
                 return redirect('setup.gpg')
         if not TTU.query_daemon_states('tor'):
+                # it's waiting TOR, dafaq!
                 return please_wait(request, caption='drive encryption')
         template = loader.get_template('setup.dtl')
         context = RequestContext(request, {

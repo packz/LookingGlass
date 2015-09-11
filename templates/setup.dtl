@@ -1,4 +1,5 @@
 {% extends "setup-base.dtl" %}
+{% load static %}
 
 {% block navbar %}{% endblock %}
 
@@ -66,7 +67,7 @@
 
 
 {% block js_includes %}
-<script type='text/javascript' src='/js/zxcvbn-async.js'></script>
+<script type='text/javascript' src='{% static "js/zxcvbn-async.js" %}'></script>
 {% endblock js_includes %}
 
   

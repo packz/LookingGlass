@@ -69,6 +69,10 @@ except IOError:
         # this gets hit from the milter.  ignore it.
         SECRET_KEY = 'BOGUS'
 
+# static file configuration
+STATIC_ROOT = '/srv/'
+STATIC_URL = '/static/'
+
 # nginx hands us this so we know HTTP from HTTPS
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTOCOL', 'https')
 
@@ -84,6 +88,7 @@ INSTALLED_APPS = (
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'django.contrib.staticfiles',
     'django_rq',
     'rest_framework',
     'gunicorn',
