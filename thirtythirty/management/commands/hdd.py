@@ -95,6 +95,12 @@ class Command(BaseCommand):
                     default=False,
                     help='print out default fstab',
                     ),
+        make_option('--nginx',
+                    action='store_true',
+                    dest='nginx',
+                    default=False,
+                    help='print out default nginx',
+                    ),
         )
 
 
@@ -206,3 +212,82 @@ pi_electrum	/dev/LookingGlass/pi_electrum	/run/shm/luks.key	noauto,luks
 /dev/mapper/pi_electrum		/home/%(username)s/.electrum  ext4    noauto,noatime	0	0
 /dev/mapper/testing		/mnt/testing	    ext4    noauto,noatime	0	0
 ''' % fmt
+
+        if settings['nginx']:
+            fmt['onion_address'] = 'pippo.onion'
+            fmt['ip_address']    = '192.168.1.9'
+
+            print '''
+upstream gunicorn {
+	server localhost:8000;
+}
+
+server {
+       # serves certs maybe to tor (future use)
+       listen 8080;
+       autoindex on;
+       root /srv/docs;
+       }
+
+server {
+        listen 80;
+	listen 443 ssl;
+        client_max_body_size 0;
+	ssl_certificate		/etc/ssl/certs/LookingGlass.crt.pem;
+	ssl_certificate_key	/etc/ssl/private/LookingGlass.pem;
+	keepalive_timeout	70;
+
+	root /home/%(username)s;
+
+	index index.html index.htm;
+
+	server_name %(onion_address)s %(ip_address)s;
+
+	try_files $uri @gunicorn;
+
+        error_page 502 /502.html;
+
+	location @gunicorn {
+		proxy_pass http://gunicorn;
+		proxy_redirect off;
+		proxy_read_timeout 5m;
+		proxy_set_header Host $host;
+		proxy_set_header X-Real-IP $remote_addr;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_set_header X-Forwarded-Protocol $scheme;
+	}
+
+        location /502.html {
+           alias /srv/error/502.html;
+        }
+
+        location /favicon.ico {
+                alias /srv/img/favicon.ico;
+        }
+
+	location /css {
+		alias /srv/css;
+		disable_symlinks off;
+	}
+
+        location /docs {
+                alias /srv/docs;
+                disable_symlinks off;
+        }
+
+	location /fonts {
+                alias /srv/fonts;
+                disable_symlinks off;
+	}
+
+	location /img {
+                alias /srv/img;
+                disable_symlinks off;
+        }
+
+	location /js {
+		alias /srv/js;
+		disable_symlinks off;
+	}
+
+}''' % fmt
