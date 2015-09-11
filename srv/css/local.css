@@ -1,0 +1,83 @@
+
+/*
+     This needs to get linked to /srv/css
+*/
+
+@font-face {
+   font-family: Montserrat;
+   src: url(/fonts/Montserrat-Regular.ttf);
+}
+
+@font-face {
+   font-family: Montserrat;
+   src: url(/fonts/Montserrat-Bold.ttf);
+   font-weight: bold;
+}
+
+button, input, li, a, span, label,p {
+   font-family: Montserrat;
+}
+
+h1,h2,h3,h4,h5,h6 {
+   font-family: Montserrat;
+}
+
+body {
+   padding-top: 70px;
+}
+
+pre { 
+   padding-top: 30px;
+}
+
+/*
+  This is silly, but some users could use the protection
+*/
+.noselect { 
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+.passphrase_entry {
+   padding-bottom: 20px;
+}
+
+.brand-icon { 
+   color: #006400;
+ }
+
+.left-hand-icons { 
+   color: #00BFFF;
+ }
+
+.right-hand-icons { 
+   color: #BDB76B;
+ }
+
+.maybe-long {
+    word-wrap: break-word;
+}
+
+.seems-ok { 
+   color: Green;
+ }
+
+.on-fire { 
+   color: Red;
+ }
+
+.text-pop { 
+   background-color: white;
+ }
+
+.mycollapse {
+  display: none;
+}
+
+.navbar-brand {
+  padding: 7px 19px;
+}
