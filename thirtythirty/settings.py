@@ -257,7 +257,7 @@ DAEMONS = [
      },
     {'name':'weechat',
      'description':'Chat relay',
-     'check':['pgrep', '-u', 'pi', 'weechat'],
+     'check':['pgrep', '-u', '%s' % USERNAME, 'weechat'],
      },
     {'name':'shellinabox',
      'description':'Local wizard login',
@@ -298,7 +298,7 @@ LUKS = {
             'description':'Wallet',
             'size':'10M',
             'mountpoint':'/home/%s/.electrum' % USERNAME,
-            'owner':'pi:',
+            'owner':'%s:' % USERNAME,
             'permissions':[
                 ('/home/%s/.electrum' % USERNAME, '700'),
                 ],
@@ -315,7 +315,7 @@ LUKS = {
             'description':'Address Book',
             'size':'10M',
             'mountpoint':'/home/%s/.gnupg' % USERNAME,
-            'owner':'pi:',
+            'owner':'%s:' % USERNAME,
             'permissions':[
                 ('/home/%s/.gnupg' % USERNAME, '700'),
                 ],
@@ -331,7 +331,7 @@ LUKS = {
             'description':'Saved Email',
             'size':'01G',
             'mountpoint':'/home/%s/Maildir' % USERNAME,
-            'owner':'pi:',
+            'owner':'%s:' % USERNAME,
             'permissions':[
                 ('/home/%s/Maildir' % USERNAME, '700'),
                 ],
