@@ -1,0 +1,57 @@
+#! /bin/bash
+
+Python='/home/pi/.virtualenvs/thirtythirty/bin/python'
+Manage='/home/pi/thirtythirty/manage.py'
+Sudo='/usr/bin/sudo -u root'
+
+Example_LUKS='/dev/LookingGlass/pi_electrum'
+LUKS_Key='/run/shm/luks.key'
+
+SQLite='/usr/bin/sqlite3'
+Addressbook='/home/pi/.gnupg/addressbook.sqlite3'
+Query='select count(*) from addressbook_address where is_me = 1 and comment is not NULL;'
+
+Lock_File='/tmp/luks.lock'
+
+# Abort: see if Key Slot 1 is set
+if [[ -e ${Example_LUKS} ]] &&\
+   [[ `${Sudo} /sbin/cryptsetup luksDump ${Example_LUKS} | grep -qE '^Key Slot 1: ENABLED$'; echo $?` == "0" ]]; then
+    exit
+fi
+
+if [[ -e ${Lock_File} ]]; then
+    exit
+else
+    touch ${Lock_File}
+fi
+
+function Background() {
+
+while [[ ! -e ${Addressbook} ]]; do  
+    sleep 10
+done
+
+while [[ `${SQLite} ${Addressbook} "${Query}" 2>/dev/null` -eq 0 ]]; do
+    sleep 10
+done
+
+# Cram new passphrase into Key Slot 1
+${Python} ${Manage} hdd --change-pw --old 1234
+rm -f ${LUKS_Key}
+
+# SIDE EFFECT: perform queue maintenance now that user has accepted passphrase.
+${Python} ${Manage} qmanage --run
+
+# SIDE EFFECT: copy the databases out of RAM, now that we have a password to do it with
+${Python} ${Manage} \
+   lockdb --lock --headless
+
+${Python} ${Manage} \
+   lockdb --unlock --headless
+
+# fire up opportunistic HDD unlocking, now that drives are properly situated
+${Sudo} /usr/bin/supervisorctl start unlockerd
+
+}
+
+Background &

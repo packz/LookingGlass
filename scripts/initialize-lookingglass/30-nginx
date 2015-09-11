@@ -1,0 +1,37 @@
+#! /bin/bash
+
+Python='/home/pi/.virtualenvs/thirtythirty/bin/python'
+Manage='/home/pi/thirtythirty/manage.py'
+Sudo='/usr/bin/sudo -u root'
+
+Server_Cert="/etc/ssl/certs/LookingGlass.crt.pem"
+Nginx_Conf='/etc/nginx/sites-available/default'
+
+Lock_File='/tmp/nginx.lock'
+
+# Abort: see if nginx has been configured already
+if [[ -s ${Nginx_Conf} ]]; then
+    exit
+fi
+
+if [[ -e ${Lock_File} ]]; then
+    exit
+else
+    touch ${Lock_File}
+fi
+
+
+
+function Background() {
+
+    while [[ ! -e ${Server_Cert} ]]; do
+	sleep 10
+    done
+
+    ${Sudo} /bin/chown pi: ${Nginx_Conf}
+    ${Python} ${Manage} nginx
+    ${Sudo} /etc/init.d/nginx restart
+
+}
+
+Background &

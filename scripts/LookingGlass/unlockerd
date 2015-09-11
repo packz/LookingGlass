@@ -1,0 +1,54 @@
+#! /bin/bash
+
+# the drive unlock process was taking too long, causing web UI sadness
+# opportunistic drive unlocker uses inotify to wait for passphrase without busywaiting
+# FIXME: the inotify code will need to be made portable, @ some point
+
+Python='/home/pi/.virtualenvs/thirtythirty/bin/python'
+Manage='/home/pi/thirtythirty/manage.py'
+
+# don't change this.  like, at all.
+KeyFile='/run/shm/luks.key'
+
+# don't change this w/o changing are_drives_unlocked() as well
+Unlock_Lock='/var/lock/unlockerd.lock'
+
+function Unlock() {
+    touch ${Unlock_Lock}
+    ${Python} ${Manage} hdd --unlock
+    shred -uf ${KeyFile}
+    rm -f ${Unlock_Lock}
+}
+
+
+Running=`ps -C unlockerd | grep unlockerd | wc -l`
+if [[ ${Running} -ne 2 ]]; then
+    echo "I appear to already be running."
+    exit -1
+fi
+
+if [[ -e ${Unlock_Lock} ]]; then
+    rm -f ${Unlock_Lock}
+    Unlock
+fi
+
+# loop forever
+
+for ((;;)); do
+
+    Luks_Wait=1
+    while [[ ${Luks_Wait} -eq 1 ]]; do
+	File=`/usr/bin/inotifywait --quiet --event CREATE,MODIFY --format '%f' /run/shm`
+	if [[ ${File} == 'luks.key' ]]; then
+	    Luks_Wait=0
+	fi
+    done
+
+    if [[ -e ${Unlock_Lock} ]]; then
+	# this is fishy...  bail out
+	exit -1
+    else
+	Unlock
+    fi
+
+done

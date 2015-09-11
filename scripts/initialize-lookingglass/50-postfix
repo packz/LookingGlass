@@ -1,0 +1,46 @@
+#! /bin/bash
+
+Sudo='/usr/bin/sudo -u root'
+Make='/usr/bin/make --directory /etc/postfix'
+
+SQLite='/usr/bin/sqlite3'
+Addressbook='/home/pi/.gnupg/addressbook.sqlite3'
+Query='select count(*) from addressbook_address where is_me = 1 and comment is not NULL;'
+
+Lock_File='/tmp/postfix.lock'
+
+# Pre-abort hold: postfix mounted?
+if [[ ! -e '/etc/postfix/master.cf' ]]; then
+    sleep 10
+fi
+
+# Abort: postfix has already been made!
+if [[ -e '/etc/postfix/aliases' ]]; then
+    exit
+fi
+
+if [[ -e ${Lock_File} ]]; then
+    exit
+else
+    touch ${Lock_File}
+fi
+
+function Background() {
+
+# wait for covername, bro do you even Make?
+while [[ ! -e '/etc/postfix/Makefile' ]] &&\
+      [[ ! -e ${Addressbook} ]]; do
+    sleep 10
+done
+
+# block until `finished` button is clicked
+while [[ `${SQLite} ${Addressbook} "${Query}" 2>/dev/null` -eq 0 ]]; do
+    sleep 10
+done
+
+# build essentials, boot postfix
+${Sudo} ${Make} all &>/dev/null
+
+}
+
+Background &

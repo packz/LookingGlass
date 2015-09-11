@@ -1,0 +1,50 @@
+#! /bin/bash
+
+Python='/home/pi/.virtualenvs/thirtythirty/bin/python'
+Manage='/home/pi/thirtythirty/manage.py'
+Sudo='/usr/bin/sudo -u root'
+
+Lock_File='/tmp/lvm.lock'
+
+# Abort: see if lvms exist
+LV_List=`tempfile`
+# get list of all existing
+${Sudo} lvdisplay | grep 'LV Name' > ${LV_List}
+
+Even_Once=0
+# compare against the settings.py LUKS list
+for X in `${Python} ${Manage} hdd --csv | sed -e 's/,.*//g'`; do
+    if (! grep -q ${X} ${LV_List}); then
+	# fail = fall through to the init code
+	Even_Once=1
+    fi
+done
+
+rm -f ${LV_List}
+if [[ "${Even_Once}" -eq 0 ]]; then
+    # looks like they are all there
+    exit
+fi
+
+if [[ -e ${Lock_File} ]]; then
+    exit
+else
+    touch ${Lock_File}
+fi
+
+# turn off opportunistic mounting of locked HDDs (which don't exist yet...)
+${Sudo} /usr/bin/supervisorctl stop unlockerd
+
+function Background() {
+
+# create LVMs with a default passphrase
+${Python} ${Manage} hdd --create-all --passphrase 1234
+
+# create django databases
+for DB in ratchet smp; do # skip addressbook - it's created by the gpg script
+    ${Python} ${Manage} migrate --database ${DB} &>/dev/null
+done
+
+}
+
+Background &

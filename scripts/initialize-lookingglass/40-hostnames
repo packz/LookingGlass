@@ -1,0 +1,53 @@
+#! /bin/bash
+
+Sudo='/usr/bin/sudo -u root'
+
+Lock_File='/tmp/mailname.lock'
+
+Mailname='/etc/mailname'
+Hostname='/etc/hostname'
+Hosts='/etc/hosts'
+
+Host_File_Builder='/usr/local/bin/LookingGlass/host_file_builder.sh'
+
+HSName='/var/lib/tor/hidden_service/hostname'
+Addressbook_DB='/home/pi/.gnupg/addressbook.sqlite3'
+
+# Abort: not default!
+if [[ -e "${Hostname}" ]] && \
+    [[ `cat ${Hostname}` != 'raspberrypi' ]] && \
+    [[ `cat ${Hostname}` != 'LookingGlass' ]]; then
+    exit
+fi
+
+
+if [[ -e ${Lock_File} ]]; then
+    exit
+else
+    touch ${Lock_File}
+fi
+
+function Background() {
+
+# Verify that tor is running and .onion hostname generated
+/bin/false
+while [[ $? -ne 0 ]]; do
+    sleep 10
+    ${Sudo} /bin/cat ${HSName} &>/dev/null
+done
+
+# make sure everything is mounted and databases created, before we eff up sudo
+while [[ ! -e ${Addressbook_DB} ]]; do
+    sleep 10
+done
+
+# promote the shit out of that shit
+${Sudo} /bin/cp ${HSName} ${Mailname}
+${Sudo} /bin/sed --in-place --expression 's/\.onion//' ${Mailname}
+${Sudo} /bin/cp ${HSName} ${Hostname}
+${Sudo} /bin/sed --in-place --expression 's/\.onion//' ${Hostname}
+${Sudo} ${Host_File_Builder}
+
+}
+
+Background &

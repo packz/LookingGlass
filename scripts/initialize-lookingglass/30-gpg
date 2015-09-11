@@ -1,0 +1,66 @@
+#! /bin/bash
+
+Python='/home/pi/.virtualenvs/thirtythirty/bin/python'
+Manage='/home/pi/thirtythirty/manage.py'
+Sudo='/usr/bin/sudo -u root'
+
+GPG_Home='/home/pi/.gnupg'
+GPG_SEC="${GPG_Home}/secring.gpg"
+GPG="/usr/bin/gpg --homedir ${GPG_Home}"
+
+Lock_File='/tmp/gpg.lock'
+
+# because we're waiting on luks for the gpg volume, we have to background the pre-abort test
+
+function Background() {
+# Pre-abort hold: is the addressbook even mounted?
+mount | grep -q gnupg
+while [[ $? -eq 1 ]]; do
+    sleep 10
+    mount | grep -q gnupg
+done
+
+# Abort: see if we have a gpg secret key - bail if so
+if [[ -e ${GPG_Home}/secring.gpg ]]; then
+    ${GPG} --list-secret-keys | grep gpg -q
+    if [[ $? == 0 ]]; then
+	exit
+    fi
+fi
+
+if [[ -e ${Lock_File} ]]; then
+    exit
+else
+    touch ${Lock_File}
+fi
+
+# BEGIN
+
+# Verify that tor is running and .onion hostname generated
+/bin/false
+while [[ $? -ne 0 ]]; do
+    sleep 10
+    ${Sudo} /bin/cat /var/lib/tor/hidden_service/hostname &>/dev/null
+done
+
+# Can we deposit the key DB in the directory yet?
+mount | grep -q gnupg
+while [[ $? -eq 1 ]]; do
+    sleep 10
+    mount | grep -q gnupg
+done
+
+# Create the addressbook DB
+${Python} ${Manage} migrate --database addressbook &>/dev/null
+
+# Create the GPG key
+Hostname=`${Sudo} /bin/cat /var/lib/tor/hidden_service/hostname`
+${Python} ${Manage} \
+    gpginit --genkey \
+    --passphrase 1234 \
+    --covername EMPTYUID \
+    --hostname "${Hostname}"
+
+}
+
+Background &

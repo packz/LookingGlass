@@ -1,0 +1,85 @@
+
+Quick rundown of the motives for these files.
+Glossary @ end.
+None of these are meant to block (hence the Background() function) - they also need to be able to tell when they've run and not rerun themselves, in case we get some overzealous user rebooting the shit out of their pi during setup.
+
+
+
+ntp
+----
+Tor is set as our DNS server.
+Raspberry pi doesn't have a hardware clock, so we need to set it via ntp.
+Tor won't run without an accurate clock.
+NTP servers should not be polled via IP (see http://en.wikipedia.org/wiki/NTP_server_misuse_and_abuse#NETGEAR_and_the_University_of_Wisconsin.E2.80.93Madison).
+
+
+hdd
+----
+Initializes LVM and LUKS with default password (1234).
+Minimizes block time during setup.
+
+SIDE-EFFECT:
+- Set up Django databases: Axolotl, and Socialist millionaire
+- Stop the unlockerd daemon, so it's not fuddling up the init process
+
+
+ssl
+----
+Create the SSL cert for the box (as well as a cert chain), so we can go HTTPS for all tasks, and the user can simply import http://HOSTNAME/docs/ca.cert.pem
+
+
+gpg
+----
+This is an oddball - we can't know to abort until the GPG volume is created/mounted.  The startup on this script is therefore less scrutible than it otherwise might be.
+Generate default GPG key that we'll come in and rename / change password on later.
+Minimizes block time during setup.
+Generate the Django addressbook database.
+
+
+hostnames
+----
+Wait for Tor to generate HS name and put it into /etc/(host|mail)name
+
+
+nginx
+----
+write the nginx config file w/ the correct IP / Tor hostname
+needed for HTTP -> HTTPS redirect
+
+
+exportpk
+----
+Exports the public GPG key so that others can download it directly from our HS.
+
+
+luks
+----
+Makes sure the LUKS volumes have the updated passphrase after the user has accepted it.
+
+SIDE-EFFECTS:
+- Force a run of the task queue after setup is complete, so that the covername registration process runs ASAP.
+- Copy Django databases into permanent storage - they're hanging out in RAM right now.
+- Start up the unlockerd daemon, so that future logins will execute smoothly.
+
+
+postfix
+----
+Postfix needs to know the usernames to accept mail for, as well as the system hostname.
+Fires up postfix once the user has accepted those.
+
+
+
+
+
+
+
+
+Glossary:
+
+ASAP - As Soon As Possible
+CLI - Commandline interface
+DNS - Domain name service
+HS - Tor hidden service (.onion)
+LUKS - Linux Unified Key Setup (drive encryption)
+LVM - Linux Volume Manager (virtual disks)
+NTP - Network time protocol

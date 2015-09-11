@@ -1,0 +1,93 @@
+#! /bin/bash
+
+Sudo='/usr/bin/sudo -u root'
+SSL='/usr/bin/sudo -u root /usr/bin/openssl'
+Subject="/commonName=LookingGlass"
+
+Root_Cert="/srv/docs/ca.cert.pem"
+Server_Prv="/etc/ssl/private/LookingGlass.pem"
+Server_Cert="/etc/ssl/certs/LookingGlass.crt.pem"
+
+Lock_File='/tmp/ssl.lock'
+
+# Abort - check for server cert and bail if it exists
+if [[ -e ${Server_Cert} ]]; then
+    exit
+fi
+
+
+if [[ -e ${Lock_File} ]]; then
+    exit
+else
+    touch ${Lock_File}
+fi
+
+Root_Prv=`tempfile -s .ca.key.pem`
+Server_Req=`tempfile -s .csr.pem`
+
+Bits=4096
+Dir='/tmp'
+CA_Dir="${Dir}/demoCA"
+
+function Background() {
+
+# Some requirements of being a CA - database and serial number
+cd ${Dir}
+rm -rf ${CA_Dir}
+mkdir -p ${CA_Dir}/newcerts
+touch ${CA_Dir}/index.txt
+
+# super serial
+Try=0
+Chars=1
+while (( $Chars % 2 )); do
+    Try=$RANDOM
+    Chars=`echo -n ${Try} | wc -c`
+done
+echo -n $Try > ${CA_Dir}/serial
+
+# CA private key
+${SSL} genpkey \
+    -algorithm RSA \
+    -out ${Root_Prv} \
+    -pkeyopt rsa_keygen_bits:${Bits} &>/dev/null
+
+# CA root cert
+${SSL} req -new -x509 \
+    -days 3650 \
+    -key ${Root_Prv} \
+    -sha256 -extensions v3_ca \
+    -out ${Root_Cert} \
+    -subj ${Subject} &>/dev/null
+
+# Server private key
+${SSL} genpkey -algorithm RSA \
+    -out ${Server_Prv} \
+    -pkeyopt rsa_keygen_bits:${Bits} &>/dev/null
+
+# Server signing request
+${SSL} req -new -sha256 \
+    -key ${Server_Prv} \
+    -out ${Server_Req} \
+    -subj ${Subject} &>/dev/null
+
+# Sign the request with the CA key
+${SSL} ca -keyfile ${Root_Prv} \
+    -cert ${Root_Cert} \
+    -extensions usr_cert \
+    -batch \
+    -notext \
+    -md sha256 \
+    -policy policy_anything \
+    -in ${Server_Req} \
+    -out ${Server_Cert} \
+    -subj ${Subject} &>/dev/null
+
+rm -rf ${Root_Prv} ${Server_Req} ${CA_Dir}
+
+${Sudo} /bin/chmod 640 ${Server_Prv}
+${Sudo} /bin/chown root:ssl-cert ${Server_Prv}
+
+}
+
+Background &

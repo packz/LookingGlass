@@ -1,0 +1,51 @@
+#! /bin/bash
+
+Python='/home/pi/.virtualenvs/thirtythirty/bin/python'
+Manage='/home/pi/thirtythirty/manage.py'
+Sudo='/usr/bin/sudo -u root'
+
+SQLite='/usr/bin/sqlite3'
+Addressbook='/home/pi/.gnupg/addressbook.sqlite3'
+Query='select count(*) from addressbook_address where is_me = 1 and comment is not NULL;'
+
+GPG_Home='/home/pi/.gnupg'
+GPG="/usr/bin/gpg --homedir ${GPG_Home}"
+Import='/usr/share/LookingGlass'
+Export='/srv/docs/public_key.asc'
+Temp='/tmp/public_key.asc'  # Don't change - this is in sudoers
+
+Lock_File='/tmp/exportpk.lock'
+
+# Abort: have we exported yet?
+if [[ -e ${Export} ]]; then
+    exit
+fi
+
+if [[ -e ${Lock_File} ]]; then
+    exit
+else
+    touch ${Lock_File}
+fi
+
+function Background() {
+
+while [[ ! -e ${Addressbook} ]]; do  
+    sleep 10
+done
+
+# block until `finished` button is clicked
+while [[ `${SQLite} ${Addressbook} "${Query}" 2>/dev/null` -eq 0 ]]; do
+    sleep 10
+done
+
+# Export GPG to the web server so others can see it
+${GPG} --armor --export > ${Temp}
+${Sudo} mv ${Temp} ${Export}
+
+# Import system use keys
+${GPG} --import ${Import}/*.gpg &>/dev/null
+${Python} ${Manage} gpgimport &>/dev/null
+
+}
+
+Background &
