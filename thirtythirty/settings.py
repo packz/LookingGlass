@@ -148,7 +148,7 @@ DATABASE_ROUTERS = ['thirtythirty.cryptorouter.AddressRouter',
 
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_ENGINE = 'django.contrib.sessions.backends.file'
-SESSION_FILE_PATH = '/dev/shm/sessions' # created by lookingglass-fixup.service
+SESSION_FILE_PATH = '/dev/shm/sessions' if not DEBUG else os.path.join(BASE_DIR, 'tmp', 'sessions')# created by lookingglass-fixup.service
 
 # using gpg for our session password
 AUTHENTICATION_BACKENDS = ( 'thirtythirty.gpgauth.gpgAuth', )
