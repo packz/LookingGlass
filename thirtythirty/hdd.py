@@ -18,6 +18,8 @@ def Volumes(unlisted=False, VG=None):
         if ((C.has_key('unlisted') and C['unlisted']) and (not unlisted)):
             continue
         ret.append(Volume(LV=C['name'], VG=VG))
+
+    logger.debug('Volumes()=%s' % ret)
     return ret
 
 
@@ -54,6 +56,8 @@ class HDD(object):
             self.VG = TTS.LUKS['vg_name']
         self.partitions = self.__partition_table()
 
+        logger.debug('partitions=%s' % self.partitions)
+
 
     def __repr__(self):
         pp = pprint.PrettyPrinter()
@@ -69,6 +73,7 @@ class HDD(object):
              '--machine',
              'unit', 'cyl', 'print'])
         Raw = Out.split(';\n')
+        logger.debug('parted=%s' % Raw)
         Raw.pop()
         self.size = int(Raw[2].split(':')[0])
         ret = {}
@@ -118,6 +123,7 @@ class HDD(object):
         no partition:
         scan this device for partitions flagged as LVM
         """
+        logger.debug('-> vg_setup()')
         if not partition:
             for P in self.partitions.keys():
                 if self.partitions[P].has_key('flags') and self.partitions[P]['flags'] == 'lvm':
