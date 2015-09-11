@@ -83,6 +83,18 @@ class Command(BaseCommand):
                     default=False,
                     help='Remove all logical volumes',
                     ),
+        make_option('--crypttab',
+                    action='store_true',
+                    dest='crypttab',
+                    default=False,
+                    help='print out default crypttab',
+                    ),
+        make_option('--fstab',
+                    action='store_true',
+                    dest='fstab',
+                    default=False,
+                    help='print out default fstab',
+                    ),
         )
 
 
@@ -153,3 +165,44 @@ class Command(BaseCommand):
         if settings['changepw']:
             for V in TTH.Volumes(unlisted=False):
                 V.change_passphrase(new=settings['passphrase'], old=settings['old'])
+
+
+        fmt = {}
+        fmt['username'] = getpass.getuser()
+
+        if settings['crypttab']:
+            print '''
+# <target name>	<source device>		<key file>	<options>
+
+# This group gets set up with a dynamic passphrase on boot
+
+# <target name>	<source device>		<key file>	<options>
+swp		/dev/LookingGlass/swp		/dev/urandom	swap
+tmp		/dev/LookingGlass/tmp		/dev/urandom	tmp=ext2,precheck=/bin/true,,size=256,hash=sha256,cipher=aes-cbc-essiv:sha256
+log		/dev/LookingGlass/log		/dev/urandom	tmp=ext2,precheck=/bin/true,,size=256,hash=sha256,cipher=aes-cbc-essiv:sha256
+
+# This group gets set up via the web interface
+
+# <target name>	<source device>			<key file>		<options>
+tor_var		/dev/LookingGlass/tor_var	/run/shm/luks.key	noauto,luks
+testing		/dev/LookingGlass/testing	/run/shm/luks.key	noauto,luks
+postfix_etc	/dev/LookingGlass/postfix_etc	/run/shm/luks.key	noauto,luks
+pi_mail		/dev/LookingGlass/pi_mail	/run/shm/luks.key	noauto,luks
+pi_gpg		/dev/LookingGlass/pi_gpg	/run/shm/luks.key	noauto,luks
+pi_electrum	/dev/LookingGlass/pi_electrum	/run/shm/luks.key	noauto,luks
+'''
+
+        if settings['fstab']:
+            print '''# random passphrase on reboot
+/dev/mapper/swp	    	none		swap	sw			0	0
+/dev/mapper/tmp		/tmp		ext2	defaults,noatime	0	0
+/dev/mapper/log		/var/log	ext2	defaults,noatime	0	0
+
+# managed by LG
+/dev/mapper/tor_var		/var/lib/tor	    ext4    noauto,noatime	0	0
+/dev/mapper/postfix_etc		/etc/postfix        ext4    noauto,noatime	0	0
+/dev/mapper/pi_mail		/home/%(username)s/Maildir    ext4    noauto,noatime	0	0
+/dev/mapper/pi_gpg		/home/%(username)s/.gnupg	    ext4    noauto,noatime	0	0
+/dev/mapper/pi_electrum		/home/%(username)s/.electrum  ext4    noauto,noatime	0	0
+/dev/mapper/testing		/mnt/testing	    ext4    noauto,noatime	0	0
+''' % fmt
