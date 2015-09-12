@@ -77,7 +77,7 @@ def covername(request):
         if PDB['covername'] is not None:
                 return redirect('setup.gpg')
         if not TTU.query_daemon_states('tor'):
-                return please_wait(request, caption='drive encryption')
+                return please_wait(request, caption='We are waiting for tor to be alive')
         template = loader.get_template('setup.dtl')
         context = RequestContext(request, {
                 'title':'Covername selection',
